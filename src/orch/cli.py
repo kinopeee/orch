@@ -164,7 +164,7 @@ def resume(
                     failed_only=failed_only,
                 )
             )
-    except (StateError, FileNotFoundError) as exc:
+    except (StateError, FileNotFoundError, OSError) as exc:
         console.print(f"[red]Run not found or broken:[/red] {exc}")
         raise typer.Exit(2) from exc
     except PlanError as exc:
@@ -193,13 +193,13 @@ def status(
     try:
         with run_lock(current_run_dir, retries=5, retry_interval=0.1):
             state = load_state(current_run_dir)
-    except (StateError, FileNotFoundError) as exc:
+    except (StateError, FileNotFoundError, OSError) as exc:
         console.print(f"[red]Failed to load state:[/red] {exc}")
         raise typer.Exit(2) from exc
     except RunConflictError:
         try:
             state = load_state(current_run_dir)
-        except (StateError, FileNotFoundError) as exc:
+        except (StateError, FileNotFoundError, OSError) as exc:
             console.print(f"[red]Failed to load state:[/red] {exc}")
             raise typer.Exit(2) from exc
 
@@ -237,13 +237,13 @@ def logs(
     try:
         with run_lock(current_run_dir, retries=5, retry_interval=0.1):
             state = load_state(current_run_dir)
-    except (StateError, FileNotFoundError) as exc:
+    except (StateError, FileNotFoundError, OSError) as exc:
         console.print(f"[red]Failed to load state:[/red] {exc}")
         raise typer.Exit(2) from exc
     except RunConflictError:
         try:
             state = load_state(current_run_dir)
-        except (StateError, FileNotFoundError) as exc:
+        except (StateError, FileNotFoundError, OSError) as exc:
             console.print(f"[red]Failed to load state:[/red] {exc}")
             raise typer.Exit(2) from exc
     task_ids = [task] if task else list(state.tasks.keys())

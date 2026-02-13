@@ -732,6 +732,34 @@ def test_cli_status_missing_run_returns_two(tmp_path: Path) -> None:
     assert "Failed to load state" in proc.stdout
 
 
+def test_cli_status_handles_non_directory_runs_path(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    home.mkdir(parents=True)
+    (home / "runs").write_text("not a directory\n", encoding="utf-8")
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "status", "20260101_000000_abcdef", "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "Failed to load state" in proc.stdout
+
+
+def test_cli_logs_handles_non_directory_runs_path(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    home.mkdir(parents=True)
+    (home / "runs").write_text("not a directory\n", encoding="utf-8")
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "logs", "20260101_000000_abcdef", "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "Failed to load state" in proc.stdout
+
+
 def test_cli_status_rejects_incomplete_state_object(tmp_path: Path) -> None:
     home = tmp_path / ".orch_cli"
     run_id = "20260101_000000_abcdef"
@@ -2754,6 +2782,21 @@ def test_cli_resume_missing_run_returns_two(tmp_path: Path) -> None:
     home = tmp_path / ".orch_cli"
     proc = subprocess.run(
         [sys.executable, "-m", "orch.cli", "resume", "missing_run", "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Run not found or broken" in output
+
+
+def test_cli_resume_handles_non_directory_runs_path(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    home.mkdir(parents=True)
+    (home / "runs").write_text("not a directory\n", encoding="utf-8")
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "resume", "20260101_000000_abcdef", "--home", str(home)],
         capture_output=True,
         text=True,
         check=False,
