@@ -60,6 +60,29 @@ def test_run_lock_releases_lock_even_if_context_raises(tmp_path: Path) -> None:
     assert not lock_path.exists()
 
 
+def test_run_lock_uses_nofollow_open_flag_when_available(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    lock_path = run_dir / ".lock"
+    captured_flags: dict[str, int] = {}
+    original_open = os.open
+
+    def capture_open(path: str | os.PathLike[str], flags: int, mode: int = 0o777) -> int:
+        if str(path) == str(lock_path):
+            captured_flags["flags"] = flags
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", capture_open)
+    with run_lock(run_dir):
+        pass
+
+    assert "flags" in captured_flags
+    if hasattr(os, "O_NOFOLLOW"):
+        assert captured_flags["flags"] & os.O_NOFOLLOW
+
+
 def test_run_lock_can_acquire_after_retry_when_lock_disappears(tmp_path: Path) -> None:
     run_dir = tmp_path / "run"
     run_dir.mkdir()

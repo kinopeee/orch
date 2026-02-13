@@ -223,3 +223,33 @@ tasks:
 
     with pytest.raises(PlanError, match="plan file must not be symlink"):
         load_plan(plan_path)
+
+
+def test_load_plan_uses_nonblock_and_nofollow_open_flags(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    plan_path.write_text(
+        """
+tasks:
+  - id: a
+    cmd: ["echo", "x"]
+""".strip(),
+        encoding="utf-8",
+    )
+    captured_flags: dict[str, int] = {}
+    original_open = os.open
+
+    def capture_open(path: str, flags: int) -> int:
+        if path == str(plan_path):
+            captured_flags["flags"] = flags
+        return original_open(path, flags)
+
+    monkeypatch.setattr(os, "open", capture_open)
+    load_plan(plan_path)
+
+    assert "flags" in captured_flags
+    if hasattr(os, "O_NONBLOCK"):
+        assert captured_flags["flags"] & os.O_NONBLOCK
+    if hasattr(os, "O_NOFOLLOW"):
+        assert captured_flags["flags"] & os.O_NOFOLLOW
