@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 from datetime import datetime
@@ -35,6 +36,31 @@ def _is_iso_datetime(value: object) -> bool:
     except ValueError:
         return False
     return True
+
+
+def _is_non_negative_int(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+
+
+def _is_positive_finite_number(value: object) -> bool:
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+        and value > 0
+    )
+
+
+def _is_non_negative_finite_number_list(value: object) -> bool:
+    if not isinstance(value, list):
+        return False
+    return all(
+        isinstance(item, (int, float))
+        and not isinstance(item, bool)
+        and math.isfinite(item)
+        and item >= 0
+        for item in value
+    )
 
 
 def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
@@ -89,6 +115,18 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
             raise StateError("invalid state field: tasks")
         task_status = task_data.get("status")
         if not isinstance(task_status, str) or task_status not in TASK_STATUS_VALUES:
+            raise StateError("invalid state field: tasks")
+        attempts = task_data.get("attempts")
+        if attempts is not None and not _is_non_negative_int(attempts):
+            raise StateError("invalid state field: tasks")
+        retries = task_data.get("retries")
+        if retries is not None and not _is_non_negative_int(retries):
+            raise StateError("invalid state field: tasks")
+        timeout_sec = task_data.get("timeout_sec")
+        if timeout_sec is not None and not _is_positive_finite_number(timeout_sec):
+            raise StateError("invalid state field: tasks")
+        backoff = task_data.get("retry_backoff_sec")
+        if backoff is not None and not _is_non_negative_finite_number_list(backoff):
             raise StateError("invalid state field: tasks")
         for key in ("stdout_path", "stderr_path"):
             rel = task_data.get(key)

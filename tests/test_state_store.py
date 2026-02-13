@@ -246,3 +246,33 @@ def test_load_state_rejects_run_id_mismatch_with_directory(tmp_path: Path) -> No
 
     with pytest.raises(StateError, match="run_id does not match"):
         load_state(run_dir)
+
+
+def test_load_state_rejects_negative_attempts_in_task(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_attempts"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["attempts"] = -1
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
+def test_load_state_rejects_non_finite_backoff_in_task(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_backoff"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["retry_backoff_sec"] = [0.1, float("inf")]
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
