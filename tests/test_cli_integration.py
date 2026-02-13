@@ -220,6 +220,74 @@ def test_cli_resume_failed_only_does_not_rerun_success(tmp_path: Path) -> None:
     assert state["tasks"]["flaky"]["attempts"] == 2
 
 
+def test_cli_resume_uses_copied_plan_not_modified_source(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_resume_copy.yaml"
+    home = tmp_path / ".orch_cli"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: flaky
+            cmd:
+              [
+                "python3",
+                "-c",
+                "import os,sys;sys.exit(0 if os.path.exists('gate.ok') else 1)",
+              ]
+        """,
+    )
+
+    first = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--workdir",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert first.returncode == 3
+    run_id = _extract_run_id(first.stdout)
+
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: flaky
+            cmd: ["python3", "-c", "print('changed plan should not be used')"]
+        """,
+    )
+
+    resumed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "resume",
+            run_id,
+            "--home",
+            str(home),
+            "--workdir",
+            str(tmp_path),
+            "--failed-only",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert resumed.returncode == 3
+    state = json.loads((home / "runs" / run_id / "state.json").read_text(encoding="utf-8"))
+    assert state["status"] == "FAILED"
+    assert state["tasks"]["flaky"]["attempts"] == 2
+
+
 def test_cli_logs_missing_run_returns_two(tmp_path: Path) -> None:
     home = tmp_path / ".orch_cli"
     proc = subprocess.run(
