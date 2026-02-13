@@ -615,12 +615,52 @@ def test_run_lock_rejects_missing_run_directory(tmp_path: Path) -> None:
     assert not (run_dir / ".lock").exists()
 
 
+def test_run_lock_rejects_missing_run_directory_without_open_side_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "missing_run"
+    open_called = False
+    original_open = os.open
+
+    def capture_open(path: str | os.PathLike[str], flags: int, mode: int = 0o777) -> int:
+        nonlocal open_called
+        open_called = True
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", capture_open)
+
+    with pytest.raises(OSError, match="run directory not found"), run_lock(run_dir):
+        pass
+    assert open_called is False
+    assert not (run_dir / ".lock").exists()
+
+
 def test_run_lock_rejects_non_directory_run_path(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_file"
     run_dir.write_text("not a directory", encoding="utf-8")
 
     with pytest.raises(OSError, match="run directory must be directory"), run_lock(run_dir):
         pass
+
+
+def test_run_lock_rejects_non_directory_run_path_without_open_side_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_file"
+    run_dir.write_text("not a directory", encoding="utf-8")
+    open_called = False
+    original_open = os.open
+
+    def capture_open(path: str | os.PathLike[str], flags: int, mode: int = 0o777) -> int:
+        nonlocal open_called
+        open_called = True
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", capture_open)
+
+    with pytest.raises(OSError, match="run directory must be directory"), run_lock(run_dir):
+        pass
+    assert open_called is False
 
 
 def test_run_lock_normalizes_run_dir_lstat_oserror(
