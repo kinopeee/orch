@@ -1047,3 +1047,28 @@ def test_load_state_rejects_failed_run_status_with_canceled_task(tmp_path: Path)
 
     with pytest.raises(StateError, match="invalid state field: status"):
         load_state(run_dir)
+
+
+def test_load_state_rejects_failed_run_status_without_failed_tasks(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_failed_without_failed_tasks"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["status"] = "FAILED"
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    t1 = tasks["t1"]
+    assert isinstance(t1, dict)
+    t1["status"] = "SKIPPED"
+    t1["attempts"] = 0
+    t1["started_at"] = None
+    t1["ended_at"] = "2026-01-01T00:00:01+00:00"
+    t1["duration_sec"] = None
+    t1["exit_code"] = None
+    t1["timed_out"] = False
+    t1["canceled"] = False
+    t1["skip_reason"] = "upstream_failed"
+    t1["artifact_paths"] = []
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: status"):
+        load_state(run_dir)
