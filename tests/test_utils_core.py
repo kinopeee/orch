@@ -1085,3 +1085,54 @@ def test_source_cancel_helpers_check_run_dir_lstat_before_target_ops() -> None:
     assert not violations, "cancel helper run_dir-lstat order violations found:\n" + "\n".join(
         violations
     )
+
+
+def test_source_run_lock_checks_run_dir_lstat_before_lock_ops() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    lock_module = ast.parse((src_root / "state/lock.py").read_text(encoding="utf-8"))
+    function_node = next(
+        (
+            node
+            for node in ast.walk(lock_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "run_lock"
+        ),
+        None,
+    )
+    assert function_node is not None
+
+    run_dir_lstat_lines = [
+        node.lineno
+        for node in ast.walk(function_node)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "run_dir"
+        and node.func.attr == "lstat"
+    ]
+    assert run_dir_lstat_lines
+    first_run_dir_lstat = min(run_dir_lstat_lines)
+
+    lock_path_symlink_lines = [
+        node.lineno
+        for node in ast.walk(function_node)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "is_symlink_path"
+        and node.args
+        and isinstance(node.args[0], ast.Name)
+        and node.args[0].id == "lock_path"
+    ]
+    assert lock_path_symlink_lines
+    assert first_run_dir_lstat < min(lock_path_symlink_lines)
+
+    os_open_lines = [
+        node.lineno
+        for node in ast.walk(function_node)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "os"
+        and node.func.attr == "open"
+    ]
+    assert os_open_lines
+    assert first_run_dir_lstat < min(os_open_lines)
