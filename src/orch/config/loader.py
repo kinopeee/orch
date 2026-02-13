@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import re
 import shlex
 from pathlib import Path
@@ -18,6 +19,12 @@ _TASK_ID_MAX_LEN = 128
 
 def _is_real_number(value: object) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _is_finite_real_number(value: object) -> bool:
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return False
+    return math.isfinite(value)
 
 
 def _is_non_blank_str(value: object) -> bool:
@@ -82,13 +89,13 @@ def _parse_task(raw: Any) -> TaskSpec:
 
     timeout_sec = raw.get("timeout_sec")
     if timeout_sec is not None:
-        if not _is_real_number(timeout_sec) or timeout_sec <= 0:
+        if not _is_finite_real_number(timeout_sec) or timeout_sec <= 0:
             raise PlanError(f"task '{raw['id']}' timeout_sec must be > 0")
         timeout_sec = float(timeout_sec)
 
     raw_backoff = raw.get("retry_backoff_sec", [])
     if not isinstance(raw_backoff, list) or not all(
-        _is_real_number(v) and v >= 0 for v in raw_backoff
+        _is_finite_real_number(v) and v >= 0 for v in raw_backoff
     ):
         raise PlanError(f"task '{raw['id']}' retry_backoff_sec must be list[number>=0]")
     retry_backoff = [float(v) for v in raw_backoff]

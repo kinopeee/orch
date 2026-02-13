@@ -44,9 +44,9 @@ tasks:
     depends_on: ["other_task_id"]
     cwd: "."
     env: {"KEY": "VALUE"}  # KEY は非空かつ '=' を含まない文字列
-    timeout_sec: 60
+    timeout_sec: 60  # 0より大きい有限数
     retries: 2
-    retry_backoff_sec: [1, 3, 10]
+    retry_backoff_sec: [1, 3, 10]  # 0以上の有限数
     outputs: ["dist/**", "report.json"]
 ```
 

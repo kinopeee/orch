@@ -149,6 +149,34 @@ def test_load_plan_rejects_non_positive_timeout(tmp_path: Path) -> None:
         load_plan(plan)
 
 
+def test_load_plan_rejects_non_finite_timeout(tmp_path: Path) -> None:
+    plan_inf = tmp_path / "plan_timeout_inf.yaml"
+    _write(
+        plan_inf,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('x')"]
+            timeout_sec: .inf
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan_inf)
+
+    plan_nan = tmp_path / "plan_timeout_nan.yaml"
+    _write(
+        plan_nan,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('x')"]
+            timeout_sec: .nan
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan_nan)
+
+
 def test_load_plan_rejects_negative_retries(tmp_path: Path) -> None:
     plan = tmp_path / "plan.yaml"
     _write(
@@ -177,6 +205,19 @@ def test_load_plan_rejects_invalid_retry_backoff_values(tmp_path: Path) -> None:
     )
     with pytest.raises(PlanError):
         load_plan(plan)
+
+    plan_inf = tmp_path / "plan_backoff_inf.yaml"
+    _write(
+        plan_inf,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('x')"]
+            retry_backoff_sec: [1, .inf]
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan_inf)
 
 
 def test_load_plan_rejects_bool_for_retries(tmp_path: Path) -> None:
