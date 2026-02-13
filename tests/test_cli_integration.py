@@ -4952,6 +4952,53 @@ def test_cli_dry_run_invalid_plan_returns_two(tmp_path: Path) -> None:
     assert "Plan validation error" in output
 
 
+def test_cli_dry_run_rejects_plan_with_unknown_root_field(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_unknown_root_dry.yaml"
+    _write_plan(
+        plan_path,
+        """
+        goal: demo
+        tasks:
+          - id: a
+            cmd: ["python3", "-c", "print('a')"]
+        unexpected_root: true
+        """,
+    )
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "run", str(plan_path), "--dry-run"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Plan validation error" in output
+
+
+def test_cli_dry_run_rejects_plan_with_unknown_task_field(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_unknown_task_dry.yaml"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: a
+            cmd: ["python3", "-c", "print('a')"]
+            unexpected_task_field: 1
+        """,
+    )
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "run", str(plan_path), "--dry-run"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Plan validation error" in output
+
+
 def test_cli_timeout_with_retry_records_attempts_and_fails(tmp_path: Path) -> None:
     plan_path = tmp_path / "plan_timeout_retry.yaml"
     home = tmp_path / ".orch_cli"

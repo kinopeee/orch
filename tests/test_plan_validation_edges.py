@@ -307,6 +307,37 @@ def test_load_plan_rejects_non_string_artifacts_dir(tmp_path: Path) -> None:
         load_plan(blank)
 
 
+def test_load_plan_rejects_unknown_root_field(tmp_path: Path) -> None:
+    plan = tmp_path / "plan_unknown_root.yaml"
+    _write(
+        plan,
+        """
+goal: demo
+tasks:
+  - id: t1
+    cmd: ["python3", "-c", "print('x')"]
+unexpected_root: true
+        """,
+    )
+    with pytest.raises(PlanError, match="plan contains unknown fields"):
+        load_plan(plan)
+
+
+def test_load_plan_rejects_unknown_task_field(tmp_path: Path) -> None:
+    plan = tmp_path / "plan_unknown_task.yaml"
+    _write(
+        plan,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('x')"]
+            unexpected_task_field: 1
+        """,
+    )
+    with pytest.raises(PlanError, match="has unknown fields"):
+        load_plan(plan)
+
+
 def test_load_plan_rejects_empty_string_cmd(tmp_path: Path) -> None:
     plan = tmp_path / "plan.yaml"
     _write(

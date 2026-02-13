@@ -15,6 +15,18 @@ from orch.util.errors import PlanError
 
 _SAFE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _TASK_ID_MAX_LEN = 128
+_ALLOWED_PLAN_KEYS = {"goal", "artifacts_dir", "tasks"}
+_ALLOWED_TASK_KEYS = {
+    "id",
+    "cmd",
+    "depends_on",
+    "cwd",
+    "env",
+    "timeout_sec",
+    "retries",
+    "retry_backoff_sec",
+    "outputs",
+}
 
 
 def _is_real_number(value: object) -> bool:
@@ -74,12 +86,17 @@ def _ensure_list_str(name: str, value: Any, *, non_empty_items: bool = False) ->
 def _parse_task(raw: Any) -> TaskSpec:
     if not isinstance(raw, dict):
         raise PlanError("task must be mapping")
+    if any(not isinstance(key, str) for key in raw):
+        raise PlanError("task fields must use string keys")
     if "id" not in raw or not _is_non_blank_str(raw["id"]):
         raise PlanError("task.id is required and must be non-empty string")
     if len(raw["id"]) > _TASK_ID_MAX_LEN:
         raise PlanError(f"task.id must be <= {_TASK_ID_MAX_LEN} characters")
     if not _is_safe_id(raw["id"]):
         raise PlanError("task.id must match ^[A-Za-z0-9][A-Za-z0-9._-]*$")
+    unknown = set(raw.keys()) - _ALLOWED_TASK_KEYS
+    if unknown:
+        raise PlanError(f"task '{raw['id']}' has unknown fields: {sorted(unknown)}")
     if "cmd" not in raw:
         raise PlanError(f"task '{raw['id']}' missing cmd")
 
@@ -171,6 +188,11 @@ def load_plan(path: Path) -> PlanSpec:
 
     if not isinstance(raw, dict):
         raise PlanError("plan root must be a mapping")
+    if any(not isinstance(key, str) for key in raw):
+        raise PlanError("plan root keys must be strings")
+    unknown_root = set(raw.keys()) - _ALLOWED_PLAN_KEYS
+    if unknown_root:
+        raise PlanError(f"plan contains unknown fields: {sorted(unknown_root)}")
 
     raw_tasks = raw.get("tasks")
     if not isinstance(raw_tasks, list):
