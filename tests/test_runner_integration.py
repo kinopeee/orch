@@ -932,6 +932,67 @@ async def test_runner_ignores_copy_failures_and_keeps_success(
 
 
 @pytest.mark.asyncio
+async def test_runner_skips_copy_when_source_revalidation_runtime_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_artifacts_source_revalidate_runtime"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    create_outputs_cmd = [
+        sys.executable,
+        "-c",
+        "from pathlib import Path; Path('out').mkdir(exist_ok=True); "
+        "Path('out/ok.txt').write_text('OK', encoding='utf-8')",
+    ]
+    plan = PlanSpec(
+        goal="artifact source revalidation runtime handling",
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="publish", cmd=create_outputs_cmd, outputs=["out/*.txt"])],
+    )
+
+    source_path = (workdir / "out" / "ok.txt").resolve()
+    original_is_file = Path.is_file
+    source_is_file_calls = 0
+
+    def flaky_is_file(path_obj: Path) -> bool:
+        nonlocal source_is_file_calls
+        if path_obj == source_path:
+            source_is_file_calls += 1
+            if source_is_file_calls >= 2:
+                raise RuntimeError("simulated source revalidation runtime failure")
+        return original_is_file(path_obj)
+
+    original_copy2 = runner_module.shutil.copy2
+    copy_calls = 0
+
+    def tracking_copy2(src: object, dst: object, *args: object, **kwargs: object) -> object:
+        nonlocal copy_calls
+        copy_calls += 1
+        return original_copy2(src, dst, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "is_file", flaky_is_file)
+    monkeypatch.setattr(runner_module.shutil, "copy2", tracking_copy2)
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "SUCCESS"
+    assert state.tasks["publish"].status == "SUCCESS"
+    assert state.tasks["publish"].artifact_paths == []
+    assert source_is_file_calls >= 2
+    assert copy_calls == 0
+
+
+@pytest.mark.asyncio
 async def test_runner_marks_task_failed_when_run_task_raises(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

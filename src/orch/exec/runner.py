@@ -171,6 +171,15 @@ def _disambiguate_case_collision(rel: Path, seen_rel_keys: set[str]) -> Path:
         index += 1
 
 
+def _is_copyable_artifact_source(path: Path) -> bool:
+    try:
+        if not (path.exists() and path.is_file() and not path.is_dir()):
+            return False
+    except (OSError, RuntimeError):
+        return False
+    return not is_symlink_path(path) and not has_symlink_ancestor(path)
+
+
 def _iter_unique_artifact_sources(task: TaskSpec, cwd: Path) -> list[tuple[Path, Path]]:
     selected: list[tuple[Path, Path]] = []
     seen_source_rels: set[str] = set()
@@ -181,11 +190,7 @@ def _iter_unique_artifact_sources(task: TaskSpec, cwd: Path) -> list[tuple[Path,
             key=lambda path: (str(path).casefold(), str(path)),
         )
         for match in matches:
-            try:
-                is_regular_file = match.exists() and match.is_file() and not match.is_dir()
-            except (OSError, RuntimeError):
-                continue
-            if not is_regular_file or is_symlink_path(match) or has_symlink_ancestor(match):
+            if not _is_copyable_artifact_source(match):
                 continue
             rel = _artifact_relative_path(match, cwd)
             source_rel = str(rel)
@@ -218,6 +223,8 @@ def _copy_artifacts(task: TaskSpec, run_dir: Path, cwd: Path) -> list[str]:
     except (OSError, RuntimeError):
         return copied
     for match, rel in _iter_unique_artifact_sources(task, cwd):
+        if not _is_copyable_artifact_source(match):
+            continue
         dest = task_root / rel
         if has_symlink_ancestor(dest):
             continue
@@ -254,6 +261,8 @@ def _copy_to_aggregate_dir(
     except (OSError, RuntimeError):
         return
     for match, rel in _iter_unique_artifact_sources(task, cwd):
+        if not _is_copyable_artifact_source(match):
+            continue
         dest = task_root / rel
         if has_symlink_ancestor(dest):
             continue
