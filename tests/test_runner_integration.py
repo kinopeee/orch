@@ -243,6 +243,39 @@ async def test_runner_sanitizes_parent_segments_in_outputs_patterns(tmp_path: Pa
 
 
 @pytest.mark.asyncio
+async def test_runner_ignores_invalid_output_glob_patterns(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_invalid_output_glob"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    create_outputs_cmd = [
+        sys.executable,
+        "-c",
+        "from pathlib import Path; Path('out').mkdir(exist_ok=True); "
+        "Path('out/ok.txt').write_text('OK', encoding='utf-8')",
+    ]
+    plan = PlanSpec(
+        goal="invalid outputs pattern",
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="publish", cmd=create_outputs_cmd, outputs=["**a"])],
+    )
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "SUCCESS"
+    assert state.tasks["publish"].status == "SUCCESS"
+    assert state.tasks["publish"].artifact_paths == []
+
+
+@pytest.mark.asyncio
 async def test_runner_copies_artifacts_to_plan_artifacts_dir(tmp_path: Path) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run_artifacts_dir"
     workdir = tmp_path / "wd"

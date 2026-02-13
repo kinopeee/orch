@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import glob as globlib
 import os
+import re
 import shutil
 from dataclasses import dataclass
 from datetime import datetime
@@ -102,6 +103,15 @@ def _resolve_artifacts_dir(artifacts_dir: str | None, workdir: Path) -> Path | N
     return workdir / root
 
 
+def _iter_output_matches(pattern: str, cwd: Path) -> list[Path]:
+    try:
+        if Path(pattern).is_absolute():
+            return [Path(p) for p in globlib.glob(pattern, recursive=True)]
+        return list(cwd.glob(pattern))
+    except (OSError, ValueError, re.error):
+        return []
+
+
 def _copy_artifacts(task: TaskSpec, run_dir: Path, cwd: Path) -> list[str]:
     copied: list[str] = []
     if not task.outputs:
@@ -112,10 +122,7 @@ def _copy_artifacts(task: TaskSpec, run_dir: Path, cwd: Path) -> list[str]:
     except OSError:
         return copied
     for pattern in task.outputs:
-        if Path(pattern).is_absolute():
-            matches = [Path(p) for p in globlib.glob(pattern, recursive=True)]
-        else:
-            matches = list(cwd.glob(pattern))
+        matches = _iter_output_matches(pattern, cwd)
         for match in matches:
             if not match.exists() or match.is_dir():
                 continue
@@ -142,10 +149,7 @@ def _copy_to_aggregate_dir(
     except OSError:
         return
     for pattern in task.outputs:
-        if Path(pattern).is_absolute():
-            matches = [Path(p) for p in globlib.glob(pattern, recursive=True)]
-        else:
-            matches = list(cwd.glob(pattern))
+        matches = _iter_output_matches(pattern, cwd)
         for match in matches:
             if not match.exists() or match.is_dir():
                 continue
