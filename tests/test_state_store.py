@@ -687,6 +687,30 @@ def test_load_state_rejects_skipped_task_with_runtime_fields(tmp_path: Path) -> 
         load_state(run_dir)
 
 
+def test_load_state_rejects_skipped_task_with_nonzero_attempts(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_skipped_attempts"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["status"] = "FAILED"
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["status"] = "SKIPPED"
+    task["skip_reason"] = "dependency_not_success"
+    task["started_at"] = None
+    task["ended_at"] = "2026-01-01T00:00:01+00:00"
+    task["duration_sec"] = None
+    task["exit_code"] = None
+    task["timed_out"] = False
+    task["canceled"] = False
+    task["attempts"] = 1
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_attempts_exceeding_retry_budget(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad_attempt_budget"
     run_dir.mkdir()
