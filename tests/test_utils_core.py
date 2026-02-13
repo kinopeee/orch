@@ -1174,6 +1174,43 @@ def test_source_run_lock_checks_ancestor_guard_before_run_dir_lstat() -> None:
     assert first_ancestor_guard < min(run_dir_lstat_lines)
 
 
+def test_source_run_lock_checks_ancestor_guard_before_run_dir_symlink_guard() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    lock_module = ast.parse((src_root / "state/lock.py").read_text(encoding="utf-8"))
+    function_node = next(
+        (
+            node
+            for node in ast.walk(lock_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "run_lock"
+        ),
+        None,
+    )
+    assert function_node is not None
+
+    ancestor_guard_lines = [
+        node.lineno
+        for node in ast.walk(function_node)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "has_symlink_ancestor"
+    ]
+    assert ancestor_guard_lines
+    first_ancestor_guard = min(ancestor_guard_lines)
+
+    run_dir_symlink_guard_lines = [
+        node.lineno
+        for node in ast.walk(function_node)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "is_symlink_path"
+        and node.args
+        and isinstance(node.args[0], ast.Name)
+        and node.args[0].id == "run_dir"
+    ]
+    assert run_dir_symlink_guard_lines
+    assert first_ancestor_guard < min(run_dir_symlink_guard_lines)
+
+
 def test_source_write_cancel_request_checks_run_dir_lstat_before_path_symlink_guard() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     cancel_module = ast.parse((src_root / "exec/cancel.py").read_text(encoding="utf-8"))
@@ -1212,6 +1249,44 @@ def test_source_write_cancel_request_checks_run_dir_lstat_before_path_symlink_gu
     ]
     assert path_symlink_guard_lines
     assert first_run_dir_lstat < min(path_symlink_guard_lines)
+
+
+def test_source_write_cancel_request_checks_ancestor_guard_before_path_symlink_guard() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cancel_module = ast.parse((src_root / "exec/cancel.py").read_text(encoding="utf-8"))
+    function_node = next(
+        (
+            node
+            for node in ast.walk(cancel_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "write_cancel_request"
+        ),
+        None,
+    )
+    assert function_node is not None
+
+    ancestor_guard_lines = [
+        node.lineno
+        for node in ast.walk(function_node)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "has_symlink_ancestor"
+    ]
+    assert ancestor_guard_lines
+    first_ancestor_guard = min(ancestor_guard_lines)
+
+    path_symlink_guard_lines = [
+        node.lineno
+        for node in ast.walk(function_node)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "is_symlink_path"
+        and node.args
+        and isinstance(node.args[0], ast.Name)
+        and node.args[0].id == "path"
+    ]
+    assert path_symlink_guard_lines
+    assert first_ancestor_guard < min(path_symlink_guard_lines)
 
 
 def test_source_cancel_helpers_check_ancestor_guard_before_run_dir_lstat() -> None:
