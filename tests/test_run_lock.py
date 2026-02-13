@@ -217,6 +217,20 @@ def test_run_lock_rejects_symlink_run_directory(tmp_path: Path) -> None:
         pass
 
 
+def test_run_lock_rejects_path_with_symlink_ancestor(tmp_path: Path) -> None:
+    real_parent = tmp_path / "real_parent"
+    real_parent.mkdir()
+    real_run_dir = real_parent / "run"
+    real_run_dir.mkdir()
+    link_parent = tmp_path / "link_parent"
+    link_parent.symlink_to(real_parent, target_is_directory=True)
+
+    run_dir = link_parent / "run"
+    with pytest.raises(OSError, match="path contains symlink component"), run_lock(run_dir):
+        pass
+    assert not (real_run_dir / ".lock").exists()
+
+
 def test_run_lock_rejects_symlink_lock_path(tmp_path: Path) -> None:
     run_dir = tmp_path / "run"
     run_dir.mkdir()

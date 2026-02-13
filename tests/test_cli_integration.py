@@ -3767,6 +3767,68 @@ def test_cli_status_rejects_state_path_with_symlink_ancestor(tmp_path: Path) -> 
     assert "Failed to load state" in proc.stdout
 
 
+def test_cli_status_rejects_run_dir_with_symlink_ancestor_without_lock_side_effect(
+    tmp_path: Path,
+) -> None:
+    run_id = "20260101_000000_abcdef"
+    real_home = tmp_path / "real_home"
+    real_run_dir = real_home / "runs" / run_id
+    real_run_dir.mkdir(parents=True)
+    (real_run_dir / "state.json").write_text(
+        json.dumps(
+            {
+                "run_id": run_id,
+                "created_at": "2026-01-01T00:00:00+00:00",
+                "updated_at": "2026-01-01T00:00:00+00:00",
+                "status": "RUNNING",
+                "goal": None,
+                "plan_relpath": "plan.yaml",
+                "home": str(real_home),
+                "workdir": str(tmp_path),
+                "max_parallel": 1,
+                "fail_fast": False,
+                "tasks": {
+                    "t1": {
+                        "status": "PENDING",
+                        "depends_on": [],
+                        "cmd": ["python3", "-c", "print('ok')"],
+                        "cwd": None,
+                        "env": None,
+                        "timeout_sec": None,
+                        "retries": 0,
+                        "retry_backoff_sec": [],
+                        "outputs": [],
+                        "attempts": 0,
+                        "started_at": None,
+                        "ended_at": None,
+                        "duration_sec": None,
+                        "exit_code": None,
+                        "timed_out": False,
+                        "canceled": False,
+                        "skip_reason": None,
+                        "stdout_path": "logs/t1.out.log",
+                        "stderr_path": "logs/t1.err.log",
+                        "artifact_paths": [],
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    home = tmp_path / "home_link"
+    home.symlink_to(real_home, target_is_directory=True)
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "status", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "Failed to load state" in proc.stdout
+    assert not (real_run_dir / ".lock").exists()
+
+
 def test_cli_status_rejects_non_regular_state_file(tmp_path: Path) -> None:
     if not hasattr(os, "mkfifo"):
         return
