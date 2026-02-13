@@ -162,11 +162,11 @@ def test_source_uses_path_guard_for_is_symlink_checks() -> None:
     )
 
 
-def test_source_wraps_lstat_calls_with_oserror_and_runtimeerror_handlers() -> None:
+def _collect_unguarded_calls(method_name: str) -> list[str]:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     violations: list[str] = []
 
-    class LstatGuardVisitor(ast.NodeVisitor):
+    class GuardVisitor(ast.NodeVisitor):
         def __init__(self, relative_path: Path) -> None:
             self.relative_path = relative_path
             self.guard_stack: list[bool] = []
@@ -180,7 +180,7 @@ def test_source_wraps_lstat_calls_with_oserror_and_runtimeerror_handlers() -> No
             if isinstance(handler_type, ast.Attribute):
                 return handler_type.attr in {name, "Exception", "BaseException"}
             if isinstance(handler_type, ast.Tuple):
-                return any(LstatGuardVisitor._covers(name, elem) for elem in handler_type.elts)
+                return any(GuardVisitor._covers(name, elem) for elem in handler_type.elts)
             return False
 
         def visit_Try(self, node: ast.Try) -> None:
@@ -204,7 +204,7 @@ def test_source_wraps_lstat_calls_with_oserror_and_runtimeerror_handlers() -> No
         def visit_Call(self, node: ast.Call) -> None:
             if (
                 isinstance(node.func, ast.Attribute)
-                and node.func.attr == "lstat"
+                and node.func.attr == method_name
                 and not any(self.guard_stack)
             ):
                 violations.append(f"{self.relative_path}:{node.lineno}")
@@ -213,6 +213,18 @@ def test_source_wraps_lstat_calls_with_oserror_and_runtimeerror_handlers() -> No
     for file_path in src_root.rglob("*.py"):
         relative_path = file_path.relative_to(src_root)
         module = ast.parse(file_path.read_text(encoding="utf-8"))
-        LstatGuardVisitor(relative_path).visit(module)
+        GuardVisitor(relative_path).visit(module)
+
+    return violations
+
+
+def test_source_wraps_lstat_calls_with_oserror_and_runtimeerror_handlers() -> None:
+    violations = _collect_unguarded_calls("lstat")
 
     assert not violations, "unguarded lstat calls found:\n" + "\n".join(violations)
+
+
+def test_source_wraps_resolve_calls_with_oserror_and_runtimeerror_handlers() -> None:
+    violations = _collect_unguarded_calls("resolve")
+
+    assert not violations, "unguarded resolve calls found:\n" + "\n".join(violations)
