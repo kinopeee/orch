@@ -159,6 +159,60 @@ def test_cli_run_rejects_home_with_file_ancestor(tmp_path: Path) -> None:
     assert "Invalid home" in output
 
 
+def test_cli_run_with_relative_home_writes_absolute_state_home(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    relative_home = ".orch_rel"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    run_proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            relative_home,
+            "--workdir",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=tmp_path,
+    )
+    assert run_proc.returncode == 0
+    run_id = _extract_run_id(run_proc.stdout)
+
+    status_proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "status",
+            run_id,
+            "--home",
+            relative_home,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=tmp_path,
+    )
+    assert status_proc.returncode == 0
+
+    state_path = tmp_path / relative_home / "runs" / run_id / "state.json"
+    payload = json.loads(state_path.read_text(encoding="utf-8"))
+    assert payload["home"] == str((tmp_path / relative_home).resolve())
+
+
 def test_cli_run_rejects_missing_workdir_without_creating_run_dir(tmp_path: Path) -> None:
     plan_path = tmp_path / "plan.yaml"
     home = tmp_path / ".orch_cli"

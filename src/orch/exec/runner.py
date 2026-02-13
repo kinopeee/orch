@@ -218,6 +218,7 @@ def _initial_state(
 ) -> RunState:
     ts = now_iso()
     run_id = run_dir.name
+    resolved_home = run_dir.parent.parent.resolve()
     tasks = {
         task.id: TaskState(
             status="PENDING",
@@ -241,7 +242,7 @@ def _initial_state(
         status="RUNNING",
         goal=plan.goal,
         plan_relpath="plan.yaml",
-        home=str(run_dir.parent.parent),
+        home=str(resolved_home),
         workdir=str(workdir),
         max_parallel=max_parallel,
         fail_fast=fail_fast,
@@ -405,10 +406,11 @@ async def run_plan(
 ) -> RunState:
     if max_parallel < 1:
         raise ValueError("max_parallel must be >= 1")
+    resolved_workdir = workdir.resolve()
 
     dependents, _ = build_adjacency(plan)
     spec_by_id = {task.id: task for task in plan.tasks}
-    aggregate_root = _resolve_artifacts_dir(plan.artifacts_dir, workdir)
+    aggregate_root = _resolve_artifacts_dir(plan.artifacts_dir, resolved_workdir)
 
     if resume:
         (run_dir / "cancel.request").unlink(missing_ok=True)
@@ -418,7 +420,7 @@ async def run_plan(
         state.status = "RUNNING"
         state.max_parallel = max_parallel
         state.fail_fast = fail_fast
-        state.workdir = str(workdir)
+        state.workdir = str(resolved_workdir)
         rerun = _rerun_set(plan, state, failed_only=failed_only, dependents=dependents)
         for task_id in rerun:
             _reset_for_rerun(state.tasks[task_id])
@@ -428,7 +430,7 @@ async def run_plan(
             run_dir,
             max_parallel=max_parallel,
             fail_fast=fail_fast,
-            workdir=workdir,
+            workdir=resolved_workdir,
         )
 
     _persist(run_dir, state)
@@ -497,7 +499,12 @@ async def run_plan(
 
             async def _run_with_sem(spec: TaskSpec, attempt: int) -> TaskResult:
                 async with sem:
-                    return await run_task(spec, run_dir, attempt=attempt, default_cwd=workdir)
+                    return await run_task(
+                        spec,
+                        run_dir,
+                        attempt=attempt,
+                        default_cwd=resolved_workdir,
+                    )
 
             task_state.status = "RUNNING"
             task_state.started_at = now_iso()
@@ -557,7 +564,7 @@ async def run_plan(
             task_state.exit_code = result.exit_code
             task_state.timed_out = result.timed_out
             task_state.canceled = result.canceled
-            task_cwd = _resolve_task_cwd(task.cwd, workdir)
+            task_cwd = _resolve_task_cwd(task.cwd, resolved_workdir)
 
             if _should_retry(task, result, task_state.attempts):
                 delay = backoff_for_attempt(task_state.attempts - 1, task.retry_backoff_sec)

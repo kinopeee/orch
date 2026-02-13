@@ -8,7 +8,41 @@ import pytest
 from orch.config.schema import PlanSpec, TaskSpec
 from orch.exec import runner as runner_module
 from orch.exec.runner import run_plan
+from orch.state.store import load_state
 from orch.util.paths import ensure_run_layout
+
+
+@pytest.mark.asyncio
+async def test_runner_persists_absolute_home_and_workdir_for_relative_inputs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    run_dir = Path(".orch_rel") / "runs" / "run_abs_paths"
+    ensure_run_layout(run_dir)
+    plan = PlanSpec(
+        goal="absolute path persistence",
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="t1", cmd=[sys.executable, "-c", "print('ok')"])],
+    )
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=Path("."),
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "SUCCESS"
+    assert Path(state.home).is_absolute()
+    assert Path(state.workdir).is_absolute()
+    assert state.home == str((tmp_path / ".orch_rel").resolve())
+    assert state.workdir == str(tmp_path.resolve())
+
+    loaded = load_state(run_dir)
+    assert loaded.home == state.home
+    assert loaded.workdir == state.workdir
 
 
 @pytest.mark.asyncio
