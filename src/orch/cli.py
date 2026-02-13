@@ -4,16 +4,18 @@ import asyncio
 import json
 import os
 import re
-import shutil
+from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Any
 
 import typer
+import yaml
 from rich.console import Console
 from rich.table import Table
 
 from orch.config.loader import load_plan
+from orch.config.schema import PlanSpec, TaskSpec
 from orch.dag.build import build_adjacency
 from orch.dag.validate import assert_acyclic
 from orch.exec.cancel import write_cancel_request
@@ -44,6 +46,48 @@ def _exit_code_for_state(state: RunState) -> int:
 
 def _state_to_jsonable(state: RunState) -> dict[str, Any]:
     return state.to_dict()
+
+
+def _task_to_plan_dict(task: TaskSpec) -> dict[str, object]:
+    task_data: dict[str, object] = {
+        "id": task.id,
+        "cmd": task.cmd,
+        "depends_on": task.depends_on,
+        "retries": task.retries,
+        "retry_backoff_sec": task.retry_backoff_sec,
+        "outputs": task.outputs,
+    }
+    if task.cwd is not None:
+        task_data["cwd"] = task.cwd
+    if task.env is not None:
+        task_data["env"] = task.env
+    if task.timeout_sec is not None:
+        task_data["timeout_sec"] = task.timeout_sec
+    return task_data
+
+
+def _write_plan_snapshot(plan: PlanSpec, destination: Path) -> None:
+    plan_data: dict[str, object] = {"tasks": [_task_to_plan_dict(task) for task in plan.tasks]}
+    if plan.goal is not None:
+        plan_data["goal"] = plan.goal
+    if plan.artifacts_dir is not None:
+        plan_data["artifacts_dir"] = plan.artifacts_dir
+    payload = yaml.safe_dump(plan_data, sort_keys=False, allow_unicode=True)
+    if destination.parent.is_symlink() or destination.is_symlink():
+        raise OSError(f"plan snapshot path must not be symlink: {destination}")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    fd: int | None = None
+    try:
+        fd = os.open(str(destination), flags, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            fd = None
+            f.write(payload)
+    finally:
+        if fd is not None:
+            with suppress(OSError):
+                os.close(fd)
 
 
 def _write_report(state: RunState, current_run_dir: Path) -> Path:
@@ -124,7 +168,7 @@ def run(
     current_run_dir = run_dir(home, run_id)
     try:
         ensure_run_layout(current_run_dir)
-        shutil.copy2(plan_path, current_run_dir / "plan.yaml")
+        _write_plan_snapshot(plan, current_run_dir / "plan.yaml")
     except OSError as exc:
         console.print(f"[red]Failed to initialize run:[/red] {exc}")
         raise typer.Exit(2) from exc
