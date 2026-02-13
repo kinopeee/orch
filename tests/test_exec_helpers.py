@@ -527,6 +527,72 @@ def test_write_cancel_request_rejects_non_directory_run_path_without_open_side_e
     assert open_called is False
 
 
+def test_write_cancel_request_normalizes_run_dir_lstat_oserror_without_open_side_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_cancel_lstat_oserror"
+    run_dir.mkdir()
+    open_called = False
+    original_open = os.open
+    original_lstat = Path.lstat
+    run_dir_lstat_calls = 0
+
+    def capture_open(path: os.PathLike[str] | str, flags: int, mode: int = 0o777) -> int:
+        nonlocal open_called
+        open_called = True
+        return original_open(path, flags, mode)
+
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal run_dir_lstat_calls
+        if path_obj == run_dir:
+            run_dir_lstat_calls += 1
+            if run_dir_lstat_calls >= 2:
+                raise PermissionError("simulated run_dir lstat failure")
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", capture_open)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
+
+    with pytest.raises(OSError, match="failed to access cancel request run directory"):
+        write_cancel_request(run_dir)
+    assert open_called is False
+    assert run_dir_lstat_calls >= 2
+    assert not (run_dir / "cancel.request").exists()
+
+
+def test_write_cancel_request_normalizes_run_dir_lstat_runtime_without_open_side_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_cancel_lstat_runtime"
+    run_dir.mkdir()
+    open_called = False
+    original_open = os.open
+    original_lstat = Path.lstat
+    run_dir_lstat_calls = 0
+
+    def capture_open(path: os.PathLike[str] | str, flags: int, mode: int = 0o777) -> int:
+        nonlocal open_called
+        open_called = True
+        return original_open(path, flags, mode)
+
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal run_dir_lstat_calls
+        if path_obj == run_dir:
+            run_dir_lstat_calls += 1
+            if run_dir_lstat_calls >= 2:
+                raise RuntimeError("simulated run_dir lstat runtime failure")
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", capture_open)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
+
+    with pytest.raises(OSError, match="failed to access cancel request run directory"):
+        write_cancel_request(run_dir)
+    assert open_called is False
+    assert run_dir_lstat_calls >= 2
+    assert not (run_dir / "cancel.request").exists()
+
+
 def test_write_cancel_request_rejects_symlink_without_open_side_effect(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
