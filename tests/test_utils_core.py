@@ -556,3 +556,74 @@ def test_source_os_open_functions_define_nonblock_and_nofollow_flags() -> None:
                     )
 
     assert not violations, "os.open flag policy violations found:\n" + "\n".join(violations)
+
+
+def test_source_os_open_uses_flag_variable_with_nonblock_and_nofollow() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    violations: list[str] = []
+
+    def _is_os_attr(expr: ast.AST, attr: str) -> bool:
+        return (
+            isinstance(expr, ast.Attribute)
+            and isinstance(expr.value, ast.Name)
+            and expr.value.id == "os"
+            and expr.attr == attr
+        )
+
+    def _expr_contains_os_attr(expr: ast.AST, attr: str) -> bool:
+        return any(_is_os_attr(node, attr) for node in ast.walk(expr))
+
+    for file_path in src_root.rglob("*.py"):
+        relative_path = file_path.relative_to(src_root)
+        module = ast.parse(file_path.read_text(encoding="utf-8"))
+
+        for function_node in ast.walk(module):
+            if not isinstance(function_node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+
+            flag_assignments: dict[str, set[str]] = {}
+            for node in ast.walk(function_node):
+                if isinstance(node, ast.Assign):
+                    targets = [t.id for t in node.targets if isinstance(t, ast.Name)]
+                    for target_name in targets:
+                        recorded = flag_assignments.setdefault(target_name, set())
+                        if _expr_contains_os_attr(node.value, "O_NONBLOCK"):
+                            recorded.add("O_NONBLOCK")
+                        if _expr_contains_os_attr(node.value, "O_NOFOLLOW"):
+                            recorded.add("O_NOFOLLOW")
+                elif isinstance(node, ast.AugAssign) and isinstance(node.target, ast.Name):
+                    recorded = flag_assignments.setdefault(node.target.id, set())
+                    if _expr_contains_os_attr(node.value, "O_NONBLOCK"):
+                        recorded.add("O_NONBLOCK")
+                    if _expr_contains_os_attr(node.value, "O_NOFOLLOW"):
+                        recorded.add("O_NOFOLLOW")
+
+            for node in ast.walk(function_node):
+                if not (
+                    isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == "os"
+                    and node.func.attr == "open"
+                    and len(node.args) >= 2
+                ):
+                    continue
+
+                open_arg = node.args[1]
+                if not isinstance(open_arg, ast.Name):
+                    violations.append(
+                        f"{relative_path}:{node.lineno}: os.open flags must use named variable"
+                    )
+                    continue
+
+                seen_flags = flag_assignments.get(open_arg.id, set())
+                missing = {"O_NONBLOCK", "O_NOFOLLOW"} - seen_flags
+                if missing:
+                    missing_text = ",".join(sorted(missing))
+                    violations.append(
+                        f"{relative_path}:{node.lineno}: {open_arg.id} missing {missing_text}"
+                    )
+
+    assert not violations, "os.open flag-variable policy violations found:\n" + "\n".join(
+        violations
+    )
