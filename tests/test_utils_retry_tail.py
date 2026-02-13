@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from orch.exec.retry import backoff_for_attempt
@@ -57,3 +58,12 @@ def test_tail_lines_returns_empty_for_symlink_ancestor_path(tmp_path: Path) -> N
     link_parent.symlink_to(real_parent, target_is_directory=True)
 
     assert tail_lines(link_parent / "app.log", 10) == []
+
+
+def test_tail_lines_returns_empty_for_non_regular_file(tmp_path: Path) -> None:
+    if not hasattr(os, "mkfifo"):
+        return
+
+    fifo = tmp_path / "log.pipe"
+    os.mkfifo(fifo)
+    assert tail_lines(fifo, 10) == []
