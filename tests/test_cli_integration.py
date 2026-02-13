@@ -319,6 +319,41 @@ def test_cli_run_rejects_missing_workdir_without_creating_run_dir(tmp_path: Path
     assert not (home / "runs").exists()
 
 
+def test_cli_run_handles_non_directory_runs_path(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    home = tmp_path / ".orch_cli"
+    home.mkdir(parents=True)
+    (home / "runs").write_text("not a directory\n", encoding="utf-8")
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--workdir",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Failed to initialize run" in output
+
+
 def test_cli_resume_rejects_non_positive_max_parallel(tmp_path: Path) -> None:
     proc = subprocess.run(
         [

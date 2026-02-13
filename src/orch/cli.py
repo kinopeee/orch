@@ -114,21 +114,33 @@ def run(
     resolved_workdir = _resolve_workdir_or_exit(workdir)
     run_id = new_run_id(datetime.now().astimezone())
     current_run_dir = run_dir(home, run_id)
-    ensure_run_layout(current_run_dir)
-    shutil.copy2(plan_path, current_run_dir / "plan.yaml")
+    try:
+        ensure_run_layout(current_run_dir)
+        shutil.copy2(plan_path, current_run_dir / "plan.yaml")
+    except OSError as exc:
+        console.print(f"[red]Failed to initialize run:[/red] {exc}")
+        raise typer.Exit(2) from exc
 
-    state = asyncio.run(
-        run_plan(
-            plan,
-            current_run_dir,
-            max_parallel=max_parallel,
-            fail_fast=fail_fast,
-            workdir=resolved_workdir,
-            resume=False,
-            failed_only=False,
+    try:
+        state = asyncio.run(
+            run_plan(
+                plan,
+                current_run_dir,
+                max_parallel=max_parallel,
+                fail_fast=fail_fast,
+                workdir=resolved_workdir,
+                resume=False,
+                failed_only=False,
+            )
         )
-    )
-    report_path = _write_report(state, current_run_dir)
+    except OSError as exc:
+        console.print(f"[red]Run execution failed:[/red] {exc}")
+        raise typer.Exit(2) from exc
+    try:
+        report_path = _write_report(state, current_run_dir)
+    except OSError as exc:
+        console.print(f"[yellow]Warning:[/yellow] failed to write report: {exc}")
+        report_path = current_run_dir / "report" / "final_report.md"
     console.print(f"run_id: [bold]{run_id}[/bold]")
     console.print(f"state: [bold]{state.status}[/bold]")
     console.print(f"report: {report_path}")
