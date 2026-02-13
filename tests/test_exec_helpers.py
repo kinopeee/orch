@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import errno
+import os
 import sys
 from pathlib import Path
 
@@ -93,3 +95,18 @@ def test_write_cancel_request_rejects_symlink_without_overwriting_target(tmp_pat
     with pytest.raises(OSError, match="must not be symlink"):
         write_cancel_request(run_dir)
     assert target.read_text(encoding="utf-8") == "keep me\n"
+
+
+def test_write_cancel_request_normalizes_eloop_as_symlink_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_cancel_eloop"
+    run_dir.mkdir()
+
+    def _raise_eloop(_path: os.PathLike[str] | str, _flags: int, _mode: int) -> int:
+        raise OSError(errno.ELOOP, "Too many symbolic links")
+
+    monkeypatch.setattr(os, "open", _raise_eloop)
+
+    with pytest.raises(OSError, match="must not be symlink"):
+        write_cancel_request(run_dir)
