@@ -18,6 +18,10 @@ def _extract_run_id(output: str) -> str:
     return match.group(1)
 
 
+def _strip_ansi(text: str) -> str:
+    return re.sub(r"\x1b\[[0-9;]*m", "", text)
+
+
 def test_cli_run_dry_run_returns_zero(tmp_path: Path) -> None:
     plan_path = tmp_path / "plan.yaml"
     home = tmp_path / ".orch_cli"
@@ -80,9 +84,10 @@ def test_cli_run_rejects_non_positive_max_parallel(tmp_path: Path) -> None:
         text=True,
         check=False,
     )
-    output = (proc.stdout + proc.stderr).lower()
+    output = _strip_ansi(proc.stdout + proc.stderr).lower()
     assert proc.returncode == 2
-    assert "max-parallel" in output
+    assert "invalid value" in output
+    assert "x>=1" in output
 
 
 def test_cli_resume_rejects_non_positive_max_parallel(tmp_path: Path) -> None:
@@ -100,9 +105,10 @@ def test_cli_resume_rejects_non_positive_max_parallel(tmp_path: Path) -> None:
         text=True,
         check=False,
     )
-    output = (proc.stdout + proc.stderr).lower()
+    output = _strip_ansi(proc.stdout + proc.stderr).lower()
     assert proc.returncode == 2
-    assert "max-parallel" in output
+    assert "invalid value" in output
+    assert "x>=1" in output
 
 
 def test_cli_run_failure_returns_three_and_writes_state(tmp_path: Path) -> None:
