@@ -132,6 +132,23 @@ def test_save_state_atomic_cleans_tmp_when_write_fsync_fails(
     assert not (run_dir / "state.json.tmp").exists()
 
 
+def test_save_state_atomic_rejects_symlink_tmp_without_overwriting_target(
+    tmp_path: Path,
+) -> None:
+    run_dir = tmp_path / "run_symlink_tmp"
+    run_dir.mkdir()
+    state = RunState.from_dict(_minimal_state_payload(run_id=run_dir.name))
+    target = tmp_path / "outside.txt"
+    target.write_text("do-not-touch\n", encoding="utf-8")
+    tmp_symlink = run_dir / "state.json.tmp"
+    tmp_symlink.symlink_to(target)
+
+    with pytest.raises(OSError, match="temporary state path must not be symlink"):
+        save_state_atomic(run_dir, state)
+    assert tmp_symlink.is_symlink()
+    assert target.read_text(encoding="utf-8") == "do-not-touch\n"
+
+
 def test_save_state_atomic_ignores_directory_close_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

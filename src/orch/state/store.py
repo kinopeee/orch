@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import errno
 import json
 import math
 import os
@@ -591,8 +592,17 @@ def save_state_atomic(run_dir: Path, state: RunState) -> None:
     state_path = run_dir / "state.json"
     tmp_path = run_dir / "state.json.tmp"
     payload = json.dumps(state.to_dict(), ensure_ascii=False, indent=2, sort_keys=True)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
     try:
-        with tmp_path.open("w", encoding="utf-8") as f:
+        fd = os.open(str(tmp_path), flags, 0o600)
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise OSError(f"temporary state path must not be symlink: {tmp_path}") from exc
+        raise
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(payload + "\n")
             f.flush()
             os.fsync(f.fileno())
