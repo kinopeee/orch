@@ -16,6 +16,7 @@ from orch.config.schema import PlanSpec, TaskSpec
 from orch.dag.build import build_adjacency
 from orch.dag.validate import assert_acyclic
 from orch.util.errors import PlanError
+from orch.util.path_guard import has_symlink_ancestor
 
 _SAFE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _TASK_ID_MAX_LEN = 128
@@ -31,23 +32,6 @@ _ALLOWED_TASK_KEYS = {
     "retry_backoff_sec",
     "outputs",
 }
-
-
-def _has_symlink_ancestor(path: Path) -> bool:
-    current = path.parent
-    while True:
-        try:
-            meta = current.lstat()
-        except FileNotFoundError:
-            pass
-        except OSError:
-            return True
-        else:
-            if stat.S_ISLNK(meta.st_mode):
-                return True
-        if current == current.parent:
-            return False
-        current = current.parent
 
 
 def _is_real_number(value: object) -> bool:
@@ -195,7 +179,7 @@ def validate_plan(plan: PlanSpec) -> None:
 
 
 def load_plan(path: Path) -> PlanSpec:
-    if _has_symlink_ancestor(path):
+    if has_symlink_ancestor(path):
         raise PlanError(f"plan file path contains symlink component: {path}")
     try:
         meta = path.lstat()

@@ -12,6 +12,7 @@ from pathlib import Path
 
 from orch.state.model import RUN_STATUS_VALUES, TASK_STATUS_VALUES, RunState
 from orch.util.errors import StateError
+from orch.util.path_guard import has_symlink_ancestor
 
 _SAFE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _TASK_ID_MAX_LEN = 128
@@ -51,23 +52,6 @@ _ALLOWED_TASK_KEYS = {
     "stderr_path",
     "artifact_paths",
 }
-
-
-def _has_symlink_ancestor(path: Path) -> bool:
-    current = path.parent
-    while True:
-        try:
-            meta = current.lstat()
-        except FileNotFoundError:
-            pass
-        except OSError:
-            return True
-        else:
-            if stat.S_ISLNK(meta.st_mode):
-                return True
-        if current == current.parent:
-            return False
-        current = current.parent
 
 
 def _fsync_directory(path: Path) -> None:
@@ -587,7 +571,7 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
 
 def load_state(run_dir: Path) -> RunState:
     state_path = run_dir / "state.json"
-    if _has_symlink_ancestor(state_path):
+    if has_symlink_ancestor(state_path):
         raise StateError(f"state file path contains symlink component: {state_path}")
     try:
         meta = state_path.lstat()
@@ -638,7 +622,7 @@ def load_state(run_dir: Path) -> RunState:
 def save_state_atomic(run_dir: Path, state: RunState) -> None:
     state_path = run_dir / "state.json"
     tmp_path = run_dir / "state.json.tmp"
-    if _has_symlink_ancestor(state_path) or _has_symlink_ancestor(tmp_path):
+    if has_symlink_ancestor(state_path) or has_symlink_ancestor(tmp_path):
         raise OSError(f"state file path contains symlink component: {state_path}")
     if state_path.is_symlink():
         raise OSError(f"state file path must not be symlink: {state_path}")

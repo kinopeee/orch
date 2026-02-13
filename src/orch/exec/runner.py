@@ -19,20 +19,8 @@ from orch.exec.retry import backoff_for_attempt
 from orch.state.model import RunState, TaskState
 from orch.state.store import load_state, save_state_atomic
 from orch.util.errors import StateError
+from orch.util.path_guard import has_symlink_ancestor
 from orch.util.time import duration_sec, now_iso
-
-
-def _has_symlink_ancestor(path: Path) -> bool:
-    current = path.parent
-    while True:
-        try:
-            if current.is_symlink():
-                return True
-        except OSError:
-            return True
-        if current == current.parent:
-            return False
-        current = current.parent
 
 
 @dataclass(slots=True)
@@ -69,7 +57,7 @@ def _append_attempt_header(log_path: Path, attempt: int, max_attempts: int) -> N
 
 
 def _append_text_best_effort(log_path: Path, text: str) -> None:
-    if _has_symlink_ancestor(log_path):
+    if has_symlink_ancestor(log_path):
         return
     if log_path.parent.is_symlink() or log_path.is_symlink():
         return
@@ -195,7 +183,7 @@ def _iter_unique_artifact_sources(task: TaskSpec, cwd: Path) -> list[tuple[Path,
                 or not match.is_file()
                 or match.is_dir()
                 or match.is_symlink()
-                or _has_symlink_ancestor(match)
+                or has_symlink_ancestor(match)
             ):
                 continue
             rel = _artifact_relative_path(match, cwd)
@@ -215,12 +203,12 @@ def _copy_artifacts(task: TaskSpec, run_dir: Path, cwd: Path) -> list[str]:
     if not task.outputs:
         return copied
     artifacts_root = run_dir / "artifacts"
-    if _has_symlink_ancestor(artifacts_root):
+    if has_symlink_ancestor(artifacts_root):
         return copied
     if artifacts_root.is_symlink():
         return copied
     task_root = artifacts_root / task.id
-    if _has_symlink_ancestor(task_root):
+    if has_symlink_ancestor(task_root):
         return copied
     if task_root.is_symlink():
         return copied
@@ -230,7 +218,7 @@ def _copy_artifacts(task: TaskSpec, run_dir: Path, cwd: Path) -> list[str]:
         return copied
     for match, rel in _iter_unique_artifact_sources(task, cwd):
         dest = task_root / rel
-        if _has_symlink_ancestor(dest):
+        if has_symlink_ancestor(dest):
             continue
         if dest.parent.is_symlink() or dest.is_symlink():
             continue
@@ -251,12 +239,12 @@ def _copy_to_aggregate_dir(
     *,
     aggregate_root: Path,
 ) -> None:
-    if _has_symlink_ancestor(aggregate_root):
+    if has_symlink_ancestor(aggregate_root):
         return
     if aggregate_root.is_symlink():
         return
     task_root = aggregate_root / task.id
-    if _has_symlink_ancestor(task_root):
+    if has_symlink_ancestor(task_root):
         return
     if task_root.is_symlink():
         return
@@ -266,7 +254,7 @@ def _copy_to_aggregate_dir(
         return
     for match, rel in _iter_unique_artifact_sources(task, cwd):
         dest = task_root / rel
-        if _has_symlink_ancestor(dest):
+        if has_symlink_ancestor(dest):
             continue
         if dest.parent.is_symlink() or dest.is_symlink():
             continue

@@ -6,27 +6,12 @@ import stat
 from contextlib import suppress
 from pathlib import Path
 
-
-def _has_symlink_ancestor(path: Path) -> bool:
-    current = path.parent
-    while True:
-        try:
-            meta = current.lstat()
-        except FileNotFoundError:
-            pass
-        except OSError:
-            return True
-        else:
-            if stat.S_ISLNK(meta.st_mode):
-                return True
-        if current == current.parent:
-            return False
-        current = current.parent
+from orch.util.path_guard import has_symlink_ancestor
 
 
 def cancel_requested(run_dir: Path) -> bool:
     path = run_dir / "cancel.request"
-    if _has_symlink_ancestor(path):
+    if has_symlink_ancestor(path):
         return False
     try:
         return path.is_file() and not path.is_symlink()
@@ -36,7 +21,7 @@ def cancel_requested(run_dir: Path) -> bool:
 
 def write_cancel_request(run_dir: Path) -> None:
     path = run_dir / "cancel.request"
-    if _has_symlink_ancestor(path):
+    if has_symlink_ancestor(path):
         raise OSError("cancel request path contains symlink component")
     if path.is_symlink():
         raise OSError("cancel request path must not be symlink")
@@ -74,7 +59,7 @@ def write_cancel_request(run_dir: Path) -> None:
 
 def clear_cancel_request(run_dir: Path) -> None:
     path = run_dir / "cancel.request"
-    if _has_symlink_ancestor(path):
+    if has_symlink_ancestor(path):
         return
     try:
         meta = path.lstat()

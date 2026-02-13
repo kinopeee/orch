@@ -6,24 +6,13 @@ import stat
 from contextlib import suppress
 from pathlib import Path
 
-
-def _has_symlink_ancestor(path: Path) -> bool:
-    current = path.parent
-    while True:
-        try:
-            if current.is_symlink():
-                return True
-        except OSError:
-            return True
-        if current == current.parent:
-            return False
-        current = current.parent
+from orch.util.path_guard import has_symlink_ancestor
 
 
 async def stream_to_file(stream: asyncio.StreamReader | None, file_path: Path) -> None:
     if stream is None:
         return
-    if _has_symlink_ancestor(file_path):
+    if has_symlink_ancestor(file_path):
         return
     try:
         file_path.parent.mkdir(parents=True, exist_ok=True)

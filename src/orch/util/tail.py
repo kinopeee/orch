@@ -6,23 +6,12 @@ from collections import deque
 from contextlib import suppress
 from pathlib import Path
 
-
-def _has_symlink_ancestor(path: Path) -> bool:
-    current = path.parent
-    while True:
-        try:
-            if current.is_symlink():
-                return True
-        except OSError:
-            return True
-        if current == current.parent:
-            return False
-        current = current.parent
+from orch.util.path_guard import has_symlink_ancestor
 
 
 def tail_lines(path: Path, n: int) -> list[str]:
     """Read last N lines without loading the full file in memory."""
-    if n <= 0 or path.is_symlink() or _has_symlink_ancestor(path):
+    if n <= 0 or path.is_symlink() or has_symlink_ancestor(path):
         return []
     flags = os.O_RDONLY
     if hasattr(os, "O_NONBLOCK"):
