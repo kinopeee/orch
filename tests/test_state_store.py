@@ -419,6 +419,36 @@ def test_load_state_rejects_non_absolute_home_and_workdir(tmp_path: Path) -> Non
         load_state(run_dir)
 
 
+def test_load_state_rejects_non_canonical_home_path(tmp_path: Path) -> None:
+    run_id = "run_bad_home_non_canonical"
+    home_dir = tmp_path / ".orch"
+    run_dir = home_dir / "runs" / run_id
+    run_dir.mkdir(parents=True)
+    home_link = tmp_path / "orch_link"
+    home_link.symlink_to(home_dir, target_is_directory=True)
+    payload = _minimal_state_payload(run_id=run_id)
+    payload["home"] = str(home_link)
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: home"):
+        load_state(run_dir)
+
+
+def test_load_state_rejects_non_canonical_workdir_path(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_workdir_non_canonical"
+    run_dir.mkdir()
+    real_workdir = tmp_path / "real_wd"
+    real_workdir.mkdir()
+    link_workdir = tmp_path / "wd_link"
+    link_workdir.symlink_to(real_workdir, target_is_directory=True)
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["workdir"] = str(link_workdir)
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: workdir"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_home_mismatch_with_run_directory(tmp_path: Path) -> None:
     run_id = "run_bad_home_mismatch"
     run_dir = tmp_path / ".orch" / "runs" / run_id
