@@ -146,6 +146,58 @@ def test_cli_resume_rejects_non_positive_max_parallel(tmp_path: Path) -> None:
     assert "x>=1" in output
 
 
+def test_cli_logs_rejects_non_positive_tail(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_logs_tail_invalid.yaml"
+    home = tmp_path / ".orch_cli"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+    run_proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--workdir",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert run_proc.returncode == 0
+    run_id = _extract_run_id(run_proc.stdout)
+
+    logs_proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "logs",
+            run_id,
+            "--home",
+            str(home),
+            "--tail",
+            "0",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = _strip_ansi(logs_proc.stdout + logs_proc.stderr).lower()
+    assert logs_proc.returncode == 2
+    assert "invalid value" in output
+    assert "x>=1" in output
+
+
 def test_cli_resume_rejects_missing_workdir(tmp_path: Path) -> None:
     plan_path = tmp_path / "plan_resume_wd.yaml"
     home = tmp_path / ".orch_cli"

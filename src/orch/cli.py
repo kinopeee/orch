@@ -204,7 +204,7 @@ def logs(
     run_id: Annotated[str, typer.Argument()],
     home: Annotated[Path, typer.Option("--home")] = Path(".orch"),
     task: Annotated[str | None, typer.Option("--task")] = None,
-    tail: Annotated[int, typer.Option("--tail")] = 100,
+    tail: Annotated[int, typer.Option("--tail", min=1)] = 100,
 ) -> None:
     current_run_dir = run_dir(home, run_id)
     try:
