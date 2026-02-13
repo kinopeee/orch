@@ -193,15 +193,24 @@ def _copy_artifacts(task: TaskSpec, run_dir: Path, cwd: Path) -> list[str]:
     copied: list[str] = []
     if not task.outputs:
         return copied
-    task_root = run_dir / "artifacts" / task.id
+    artifacts_root = run_dir / "artifacts"
+    if artifacts_root.is_symlink():
+        return copied
+    task_root = artifacts_root / task.id
+    if task_root.is_symlink():
+        return copied
     try:
         task_root.mkdir(parents=True, exist_ok=True)
     except OSError:
         return copied
     for match, rel in _iter_unique_artifact_sources(task, cwd):
         dest = task_root / rel
+        if dest.parent.is_symlink() or dest.is_symlink():
+            continue
         try:
             dest.parent.mkdir(parents=True, exist_ok=True)
+            if dest.parent.is_symlink() or dest.is_symlink():
+                continue
             shutil.copy2(match, dest)
         except OSError:
             continue
@@ -215,15 +224,23 @@ def _copy_to_aggregate_dir(
     *,
     aggregate_root: Path,
 ) -> None:
+    if aggregate_root.is_symlink():
+        return
     task_root = aggregate_root / task.id
+    if task_root.is_symlink():
+        return
     try:
         task_root.mkdir(parents=True, exist_ok=True)
     except OSError:
         return
     for match, rel in _iter_unique_artifact_sources(task, cwd):
         dest = task_root / rel
+        if dest.parent.is_symlink() or dest.is_symlink():
+            continue
         try:
             dest.parent.mkdir(parents=True, exist_ok=True)
+            if dest.parent.is_symlink() or dest.is_symlink():
+                continue
             shutil.copy2(match, dest)
         except OSError:
             continue

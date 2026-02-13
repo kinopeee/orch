@@ -406,6 +406,45 @@ async def test_runner_skips_symlink_output_artifacts(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_runner_skips_copy_when_run_artifacts_root_is_symlink(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_artifacts_root_symlink"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    outside = tmp_path / "outside_artifacts"
+    outside.mkdir()
+    artifacts_root = run_dir / "artifacts"
+    artifacts_root.rmdir()
+    artifacts_root.symlink_to(outside, target_is_directory=True)
+
+    create_outputs_cmd = [
+        sys.executable,
+        "-c",
+        "from pathlib import Path; Path('out').mkdir(exist_ok=True); "
+        "Path('out/ok.txt').write_text('OK', encoding='utf-8')",
+    ]
+    plan = PlanSpec(
+        goal="artifact root symlink skip",
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="publish", cmd=create_outputs_cmd, outputs=["out/*.txt"])],
+    )
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "SUCCESS"
+    assert state.tasks["publish"].artifact_paths == []
+    assert list(outside.iterdir()) == []
+
+
+@pytest.mark.asyncio
 async def test_runner_does_not_write_logs_when_logs_dir_is_symlink(tmp_path: Path) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run_logs_symlink"
     workdir = tmp_path / "wd"
@@ -784,6 +823,45 @@ async def test_runner_copies_artifacts_to_plan_artifacts_dir(tmp_path: Path) -> 
     aggregated_copy = workdir / "collected" / "publish" / "build" / "out.txt"
     assert run_copy.read_text(encoding="utf-8") == "OK"
     assert aggregated_copy.read_text(encoding="utf-8") == "OK"
+
+
+@pytest.mark.asyncio
+async def test_runner_skips_aggregate_copy_when_artifacts_dir_is_symlink(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_artifacts_dir_symlink"
+    workdir = tmp_path / "wd"
+    outside = tmp_path / "outside_collected"
+    workdir.mkdir(parents=True)
+    outside.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    aggregate_link = workdir / "collected"
+    aggregate_link.symlink_to(outside, target_is_directory=True)
+
+    create_outputs_cmd = [
+        sys.executable,
+        "-c",
+        "from pathlib import Path; Path('build').mkdir(exist_ok=True); "
+        "Path('build/out.txt').write_text('OK', encoding='utf-8')",
+    ]
+    plan = PlanSpec(
+        goal="artifacts dir symlink skip",
+        artifacts_dir="collected",
+        tasks=[TaskSpec(id="publish", cmd=create_outputs_cmd, outputs=["build/**/*.txt"])],
+    )
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "SUCCESS"
+    run_copy = run_dir / "artifacts" / "publish" / "build" / "out.txt"
+    assert run_copy.read_text(encoding="utf-8") == "OK"
+    assert list(outside.iterdir()) == []
 
 
 @pytest.mark.asyncio
