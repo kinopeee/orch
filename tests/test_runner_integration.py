@@ -102,6 +102,35 @@ async def test_runner_marks_task_failed_when_command_cannot_start(tmp_path: Path
 
 
 @pytest.mark.asyncio
+async def test_runner_does_not_retry_when_command_cannot_start(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_start_failure_no_retry"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    missing_cmd = ["__definitely_missing_command__", "--version"]
+    plan = PlanSpec(
+        goal="start failure no retry",
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="badcmd", cmd=missing_cmd, retries=3, retry_backoff_sec=[0.01])],
+    )
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "FAILED"
+    assert state.tasks["badcmd"].status == "FAILED"
+    assert state.tasks["badcmd"].attempts == 1
+    assert state.tasks["badcmd"].exit_code == 127
+
+
+@pytest.mark.asyncio
 async def test_runner_collects_declared_outputs_even_when_task_fails(tmp_path: Path) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run_fail_artifacts"
     workdir = tmp_path / "wd"

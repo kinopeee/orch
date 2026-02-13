@@ -24,6 +24,7 @@ class TaskResult:
     exit_code: int | None
     timed_out: bool
     canceled: bool
+    start_failed: bool
     started_at: str
     ended_at: str
     duration_sec: float
@@ -38,6 +39,8 @@ def _should_retry(task: TaskSpec, result: TaskResult, attempt: int) -> bool:
     if attempt >= max_attempts:
         return False
     if result.canceled:
+        return False
+    if result.start_failed:
         return False
     return result.timed_out or result.exit_code not in (0, None)
 
@@ -325,6 +328,7 @@ async def run_task(
             exit_code=127,
             timed_out=False,
             canceled=False,
+            start_failed=True,
             started_at=started_iso,
             ended_at=ended_dt.isoformat(timespec="seconds"),
             duration_sec=duration_sec(started_dt, ended_dt),
@@ -370,6 +374,7 @@ async def run_task(
         exit_code=exit_code,
         timed_out=timed_out,
         canceled=canceled,
+        start_failed=False,
         started_at=started_iso,
         ended_at=ended_dt.isoformat(timespec="seconds"),
         duration_sec=duration_sec(started_dt, ended_dt),
