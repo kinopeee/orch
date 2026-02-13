@@ -939,3 +939,73 @@ def test_source_critical_writers_check_symlink_guards_before_open() -> None:
             )
 
     assert not violations, "critical writer guard-order violations found:\n" + "\n".join(violations)
+
+
+def test_source_cancel_helpers_check_ancestor_guard_before_target_ops() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cancel_module = ast.parse((src_root / "exec/cancel.py").read_text(encoding="utf-8"))
+    targets: list[tuple[str, tuple[str, ...]]] = [
+        ("cancel_requested", ("lstat",)),
+        ("clear_cancel_request", ("lstat", "unlink")),
+        ("write_cancel_request", ("lstat", "open")),
+    ]
+    violations: list[str] = []
+
+    for function_name, operation_names in targets:
+        function_node = next(
+            (
+                node
+                for node in ast.walk(cancel_module)
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and node.name == function_name
+            ),
+            None,
+        )
+        if function_node is None:
+            violations.append(f"exec/cancel.py:{function_name}: function not found")
+            continue
+
+        guard_lines = [
+            node.lineno
+            for node in ast.walk(function_node)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "has_symlink_ancestor"
+        ]
+        if not guard_lines:
+            violations.append(f"exec/cancel.py:{function_name}: has_symlink_ancestor not found")
+            continue
+        first_guard = min(guard_lines)
+
+        for operation_name in operation_names:
+            operation_lines: list[int]
+            if operation_name == "open":
+                operation_lines = [
+                    node.lineno
+                    for node in ast.walk(function_node)
+                    if isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == "os"
+                    and node.func.attr == "open"
+                ]
+            else:
+                operation_lines = [
+                    node.lineno
+                    for node in ast.walk(function_node)
+                    if isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == operation_name
+                ]
+            if not operation_lines:
+                violations.append(
+                    f"exec/cancel.py:{function_name}: {operation_name} call not found"
+                )
+                continue
+            if first_guard >= min(operation_lines):
+                violations.append(
+                    f"exec/cancel.py:{function_name}: has_symlink_ancestor occurs "
+                    f"after {operation_name}"
+                )
+
+    assert not violations, "cancel helper guard-order violations found:\n" + "\n".join(violations)
