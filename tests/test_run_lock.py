@@ -105,6 +105,8 @@ def test_run_lock_uses_create_exclusive_write_open_flags(
     assert captured_flags["flags"] & os.O_CREAT
     assert captured_flags["flags"] & os.O_EXCL
     assert captured_flags["flags"] & os.O_WRONLY
+    if hasattr(os, "O_ACCMODE"):
+        assert captured_flags["flags"] & os.O_ACCMODE == os.O_WRONLY
     if hasattr(os, "O_TRUNC"):
         assert not (captured_flags["flags"] & os.O_TRUNC)
     if hasattr(os, "O_APPEND"):

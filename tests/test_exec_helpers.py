@@ -231,6 +231,8 @@ async def test_stream_to_file_uses_nonblock_open_flag(
     assert captured_flags["flags"] & os.O_CREAT
     assert captured_flags["flags"] & os.O_APPEND
     assert captured_mode.get("mode") == 0o600
+    if hasattr(os, "O_ACCMODE"):
+        assert captured_flags["flags"] & os.O_ACCMODE == os.O_WRONLY
     if hasattr(os, "O_TRUNC"):
         assert not (captured_flags["flags"] & os.O_TRUNC)
     if hasattr(os, "O_NONBLOCK"):
@@ -545,6 +547,8 @@ def test_write_cancel_request_uses_nonblock_open_flag(
     assert captured_flags["flags"] & os.O_CREAT
     assert captured_flags["flags"] & os.O_TRUNC
     assert captured_mode.get("mode") == 0o600
+    if hasattr(os, "O_ACCMODE"):
+        assert captured_flags["flags"] & os.O_ACCMODE == os.O_WRONLY
     if hasattr(os, "O_APPEND"):
         assert not (captured_flags["flags"] & os.O_APPEND)
     if hasattr(os, "O_NONBLOCK"):
