@@ -127,6 +127,26 @@ def _iter_output_matches(pattern: str, cwd: Path) -> list[Path]:
         return []
 
 
+def _iter_unique_artifact_sources(task: TaskSpec, cwd: Path) -> list[tuple[Path, Path]]:
+    selected: list[tuple[Path, Path]] = []
+    seen_rel_keys: set[str] = set()
+    for pattern in task.outputs:
+        matches = sorted(
+            _iter_output_matches(pattern, cwd),
+            key=lambda path: (str(path).casefold(), str(path)),
+        )
+        for match in matches:
+            if not match.exists() or match.is_dir():
+                continue
+            rel = _artifact_relative_path(match, cwd)
+            rel_key = str(rel).casefold()
+            if rel_key in seen_rel_keys:
+                continue
+            seen_rel_keys.add(rel_key)
+            selected.append((match, rel))
+    return selected
+
+
 def _copy_artifacts(task: TaskSpec, run_dir: Path, cwd: Path) -> list[str]:
     copied: list[str] = []
     if not task.outputs:
@@ -136,20 +156,15 @@ def _copy_artifacts(task: TaskSpec, run_dir: Path, cwd: Path) -> list[str]:
         task_root.mkdir(parents=True, exist_ok=True)
     except OSError:
         return copied
-    for pattern in task.outputs:
-        matches = _iter_output_matches(pattern, cwd)
-        for match in matches:
-            if not match.exists() or match.is_dir():
-                continue
-            rel = _artifact_relative_path(match, cwd)
-            dest = task_root / rel
-            try:
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(match, dest)
-            except OSError:
-                continue
-            copied.append(str(dest.relative_to(run_dir)))
-    return sorted(set(copied))
+    for match, rel in _iter_unique_artifact_sources(task, cwd):
+        dest = task_root / rel
+        try:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(match, dest)
+        except OSError:
+            continue
+        copied.append(str(dest.relative_to(run_dir)))
+    return sorted(copied, key=lambda rel: rel.casefold())
 
 
 def _copy_to_aggregate_dir(
@@ -163,18 +178,13 @@ def _copy_to_aggregate_dir(
         task_root.mkdir(parents=True, exist_ok=True)
     except OSError:
         return
-    for pattern in task.outputs:
-        matches = _iter_output_matches(pattern, cwd)
-        for match in matches:
-            if not match.exists() or match.is_dir():
-                continue
-            rel = _artifact_relative_path(match, cwd)
-            dest = task_root / rel
-            try:
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(match, dest)
-            except OSError:
-                continue
+    for match, rel in _iter_unique_artifact_sources(task, cwd):
+        dest = task_root / rel
+        try:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(match, dest)
+        except OSError:
+            continue
 
 
 def _copy_to_aggregate_dir_best_effort(
