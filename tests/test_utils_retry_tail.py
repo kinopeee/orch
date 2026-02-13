@@ -46,3 +46,14 @@ def test_tail_lines_returns_empty_for_symlink_path(tmp_path: Path) -> None:
     symlink.symlink_to(target)
 
     assert tail_lines(symlink, 10) == []
+
+
+def test_tail_lines_returns_empty_for_symlink_ancestor_path(tmp_path: Path) -> None:
+    real_parent = tmp_path / "real_logs"
+    real_parent.mkdir()
+    target = real_parent / "app.log"
+    target.write_text("line1\nline2\n", encoding="utf-8")
+    link_parent = tmp_path / "logs_link"
+    link_parent.symlink_to(real_parent, target_is_directory=True)
+
+    assert tail_lines(link_parent / "app.log", 10) == []
