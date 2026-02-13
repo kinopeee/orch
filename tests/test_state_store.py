@@ -458,6 +458,9 @@ def test_save_state_atomic_uses_nonblock_and_nofollow_for_tmp_state_file(
     save_state_atomic(run_dir, state)
 
     assert "flags" in captured_flags
+    assert captured_flags["flags"] & os.O_WRONLY
+    assert captured_flags["flags"] & os.O_CREAT
+    assert captured_flags["flags"] & os.O_TRUNC
     if hasattr(os, "O_NONBLOCK"):
         assert captured_flags["flags"] & os.O_NONBLOCK
     if hasattr(os, "O_NOFOLLOW"):
@@ -488,6 +491,8 @@ def test_load_state_uses_nonblock_and_nofollow_open_flags(
     loaded = load_state(run_dir)
     assert loaded.run_id == run_dir.name
     assert "flags" in captured_flags
+    if hasattr(os, "O_ACCMODE"):
+        assert captured_flags["flags"] & os.O_ACCMODE == os.O_RDONLY
     if hasattr(os, "O_NONBLOCK"):
         assert captured_flags["flags"] & os.O_NONBLOCK
     if hasattr(os, "O_NOFOLLOW"):

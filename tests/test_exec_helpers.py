@@ -224,6 +224,10 @@ async def test_stream_to_file_uses_nonblock_open_flag(
     stream.feed_eof()
     await stream_to_file(stream, file_path)
 
+    assert "flags" in captured_flags
+    assert captured_flags["flags"] & os.O_WRONLY
+    assert captured_flags["flags"] & os.O_CREAT
+    assert captured_flags["flags"] & os.O_APPEND
     if hasattr(os, "O_NONBLOCK"):
         assert captured_flags["flags"] & os.O_NONBLOCK
 
@@ -529,6 +533,10 @@ def test_write_cancel_request_uses_nonblock_open_flag(
     monkeypatch.setattr(os, "open", capture_open)
     write_cancel_request(run_dir)
 
+    assert "flags" in captured_flags
+    assert captured_flags["flags"] & os.O_WRONLY
+    assert captured_flags["flags"] & os.O_CREAT
+    assert captured_flags["flags"] & os.O_TRUNC
     if hasattr(os, "O_NONBLOCK"):
         assert captured_flags["flags"] & os.O_NONBLOCK
 

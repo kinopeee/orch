@@ -115,6 +115,8 @@ def test_tail_lines_uses_nonblock_and_nofollow_open_flags(
     assert tail_lines(file_path, 10) == ["a", "b"]
 
     assert "flags" in captured_flags
+    if hasattr(os, "O_ACCMODE"):
+        assert captured_flags["flags"] & os.O_ACCMODE == os.O_RDONLY
     if hasattr(os, "O_NONBLOCK"):
         assert captured_flags["flags"] & os.O_NONBLOCK
     if hasattr(os, "O_NOFOLLOW"):

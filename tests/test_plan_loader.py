@@ -249,6 +249,8 @@ tasks:
     load_plan(plan_path)
 
     assert "flags" in captured_flags
+    if hasattr(os, "O_ACCMODE"):
+        assert captured_flags["flags"] & os.O_ACCMODE == os.O_RDONLY
     if hasattr(os, "O_NONBLOCK"):
         assert captured_flags["flags"] & os.O_NONBLOCK
     if hasattr(os, "O_NOFOLLOW"):
