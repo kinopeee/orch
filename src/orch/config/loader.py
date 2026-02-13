@@ -116,6 +116,8 @@ def _parse_task(raw: Any) -> TaskSpec:
     ):
         raise PlanError(f"task '{raw['id']}' retry_backoff_sec must be list[number>=0]")
     retry_backoff = [float(v) for v in raw_backoff]
+    if len(retry_backoff) > retries:
+        raise PlanError(f"task '{raw['id']}' retry_backoff_sec length must be <= retries")
 
     depends_on = _ensure_list_str("depends_on", raw.get("depends_on", []), non_empty_items=True)
     outputs = _ensure_list_str("outputs", raw.get("outputs", []), non_empty_items=True)

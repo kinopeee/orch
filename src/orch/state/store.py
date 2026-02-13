@@ -283,6 +283,8 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
         backoff = task_data.get("retry_backoff_sec")
         if not _is_non_negative_finite_number_list(backoff):
             raise StateError("invalid state field: tasks")
+        if isinstance(backoff, list) and len(backoff) > retries:
+            raise StateError("invalid state field: tasks")
         if "started_at" not in task_data:
             raise StateError("invalid state field: tasks")
         started_at = task_data.get("started_at")

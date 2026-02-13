@@ -220,6 +220,22 @@ def test_load_plan_rejects_invalid_retry_backoff_values(tmp_path: Path) -> None:
         load_plan(plan_inf)
 
 
+def test_load_plan_rejects_retry_backoff_longer_than_retries(tmp_path: Path) -> None:
+    plan = tmp_path / "plan_backoff_too_long.yaml"
+    _write(
+        plan,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('x')"]
+            retries: 1
+            retry_backoff_sec: [0.1, 0.2]
+        """,
+    )
+    with pytest.raises(PlanError, match="length must be <= retries"):
+        load_plan(plan)
+
+
 def test_load_plan_rejects_bool_for_retries(tmp_path: Path) -> None:
     plan = tmp_path / "plan.yaml"
     _write(

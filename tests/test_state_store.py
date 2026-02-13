@@ -584,6 +584,22 @@ def test_load_state_rejects_non_finite_backoff_in_task(tmp_path: Path) -> None:
         load_state(run_dir)
 
 
+def test_load_state_rejects_backoff_longer_than_retries(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_backoff_length"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["retries"] = 1
+    task["retry_backoff_sec"] = [0.1, 0.2]
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_success_task_missing_timestamps(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad_success_timestamps"
     run_dir.mkdir()

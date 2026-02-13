@@ -2683,6 +2683,62 @@ def test_cli_status_rejects_task_with_missing_retry_backoff_field(tmp_path: Path
     assert "Failed to load state" in proc.stdout
 
 
+def test_cli_status_rejects_task_with_backoff_longer_than_retries(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    run_id = "20260101_000000_abcdef"
+    run_dir = home / "runs" / run_id
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").write_text(
+        json.dumps(
+            {
+                "run_id": run_id,
+                "created_at": "2026-01-01T00:00:00+00:00",
+                "updated_at": "2026-01-01T00:00:01+00:00",
+                "status": "RUNNING",
+                "goal": None,
+                "plan_relpath": "plan.yaml",
+                "home": str(home),
+                "workdir": str(tmp_path),
+                "max_parallel": 1,
+                "fail_fast": False,
+                "tasks": {
+                    "t1": {
+                        "status": "PENDING",
+                        "depends_on": [],
+                        "cmd": ["python3", "-c", "print('ok')"],
+                        "cwd": None,
+                        "env": None,
+                        "timeout_sec": 1.0,
+                        "retries": 1,
+                        "retry_backoff_sec": [0.1, 0.2],
+                        "outputs": [],
+                        "attempts": 0,
+                        "started_at": None,
+                        "ended_at": None,
+                        "duration_sec": None,
+                        "exit_code": None,
+                        "timed_out": False,
+                        "canceled": False,
+                        "skip_reason": None,
+                        "stdout_path": "logs/t1.out.log",
+                        "stderr_path": "logs/t1.err.log",
+                        "artifact_paths": [],
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "status", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "Failed to load state" in proc.stdout
+
+
 def test_cli_status_rejects_task_with_missing_cwd_field(tmp_path: Path) -> None:
     home = tmp_path / ".orch_cli"
     run_id = "20260101_000000_abcdef"
@@ -5151,6 +5207,30 @@ def test_cli_dry_run_rejects_plan_with_case_insensitive_duplicate_outputs(
           - id: a
             cmd: ["python3", "-c", "print('a')"]
             outputs: ["dist/report.txt", "dist/REPORT.txt"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "run", str(plan_path), "--dry-run"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Plan validation error" in output
+
+
+def test_cli_dry_run_rejects_plan_with_backoff_longer_than_retries(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_backoff_too_long_dry.yaml"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: a
+            cmd: ["python3", "-c", "print('a')"]
+            retries: 1
+            retry_backoff_sec: [0.1, 0.2]
         """,
     )
 
