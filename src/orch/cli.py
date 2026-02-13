@@ -186,11 +186,11 @@ def _run_exists(current_run_dir: Path) -> bool:
 def _resolve_workdir_or_exit(workdir: Path) -> Path:
     try:
         resolved = workdir.resolve()
-        is_dir = resolved.is_dir()
+        meta = resolved.lstat()
     except (OSError, RuntimeError) as exc:
         console.print(f"[red]Invalid workdir:[/red] {workdir}")
         raise typer.Exit(2) from exc
-    if not is_dir:
+    if not stat.S_ISDIR(meta.st_mode):
         console.print(f"[red]Invalid workdir:[/red] {workdir}")
         raise typer.Exit(2)
     return resolved

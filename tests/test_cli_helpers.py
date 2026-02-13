@@ -305,19 +305,19 @@ def test_resolve_workdir_or_exit_rejects_when_resolve_errors(
     assert exc_info.value.exit_code == 2
 
 
-def test_resolve_workdir_or_exit_rejects_when_is_dir_errors(
+def test_resolve_workdir_or_exit_rejects_when_lstat_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     workdir = tmp_path / "workdir"
     workdir.mkdir()
-    original_is_dir = Path.is_dir
+    original_lstat = Path.lstat
 
-    def flaky_is_dir(path_obj: Path) -> bool:
+    def flaky_lstat(path_obj: Path) -> os.stat_result:
         if path_obj == workdir:
-            raise PermissionError("simulated is_dir failure")
-        return original_is_dir(path_obj)
+            raise PermissionError("simulated lstat failure")
+        return original_lstat(path_obj)
 
-    monkeypatch.setattr(Path, "is_dir", flaky_is_dir)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
 
     with pytest.raises(typer.Exit) as exc_info:
         _resolve_workdir_or_exit(workdir)

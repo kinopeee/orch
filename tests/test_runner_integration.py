@@ -140,7 +140,7 @@ async def test_run_plan_rejects_non_directory_workdir(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_run_plan_normalizes_workdir_is_dir_errors(
+async def test_run_plan_normalizes_workdir_lstat_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run_workdir_is_dir_error"
@@ -152,14 +152,14 @@ async def test_run_plan_normalizes_workdir_is_dir_errors(
         artifacts_dir=None,
         tasks=[TaskSpec(id="t1", cmd=[sys.executable, "-c", "print('ok')"])],
     )
-    original_is_dir = Path.is_dir
+    original_lstat = Path.lstat
 
-    def flaky_is_dir(path_obj: Path) -> bool:
+    def flaky_lstat(path_obj: Path) -> os.stat_result:
         if path_obj == workdir.resolve():
-            raise PermissionError("simulated workdir is_dir failure")
-        return original_is_dir(path_obj)
+            raise PermissionError("simulated workdir lstat failure")
+        return original_lstat(path_obj)
 
-    monkeypatch.setattr(Path, "is_dir", flaky_is_dir)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
 
     with pytest.raises(OSError, match="failed to access workdir"):
         await run_plan(
@@ -174,7 +174,7 @@ async def test_run_plan_normalizes_workdir_is_dir_errors(
 
 
 @pytest.mark.asyncio
-async def test_run_plan_normalizes_workdir_is_dir_runtime_errors(
+async def test_run_plan_normalizes_workdir_lstat_runtime_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run_workdir_is_dir_runtime_error"
@@ -186,15 +186,15 @@ async def test_run_plan_normalizes_workdir_is_dir_runtime_errors(
         artifacts_dir=None,
         tasks=[TaskSpec(id="t1", cmd=[sys.executable, "-c", "print('ok')"])],
     )
-    original_is_dir = Path.is_dir
+    original_lstat = Path.lstat
     resolved_workdir = workdir.resolve()
 
-    def flaky_is_dir(path_obj: Path) -> bool:
+    def flaky_lstat(path_obj: Path) -> os.stat_result:
         if path_obj == resolved_workdir:
-            raise RuntimeError("simulated workdir is_dir runtime failure")
-        return original_is_dir(path_obj)
+            raise RuntimeError("simulated workdir lstat runtime failure")
+        return original_lstat(path_obj)
 
-    monkeypatch.setattr(Path, "is_dir", flaky_is_dir)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
 
     with pytest.raises(OSError, match="failed to access workdir"):
         await run_plan(

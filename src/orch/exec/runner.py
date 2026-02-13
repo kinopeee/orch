@@ -517,10 +517,10 @@ async def run_plan(
     except (OSError, RuntimeError) as exc:
         raise OSError(f"failed to resolve workdir: {workdir}") from exc
     try:
-        workdir_is_dir = resolved_workdir.is_dir()
+        workdir_meta = resolved_workdir.lstat()
     except (OSError, RuntimeError) as exc:
         raise OSError(f"failed to access workdir: {resolved_workdir}") from exc
-    if not workdir_is_dir:
+    if not stat.S_ISDIR(workdir_meta.st_mode):
         raise OSError(f"workdir must be directory: {resolved_workdir}")
 
     dependents, _ = build_adjacency(plan)
