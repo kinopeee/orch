@@ -607,6 +607,22 @@ def test_cli_status_missing_run_returns_two(tmp_path: Path) -> None:
     assert "Failed to load state" in proc.stdout
 
 
+def test_cli_status_rejects_incomplete_state_object(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    run_id = "20260101_000000_abcdef"
+    run_dir = home / "runs" / run_id
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").write_text("{}", encoding="utf-8")
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "status", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "Failed to load state" in proc.stdout
+
+
 def test_cli_status_rejects_file_home_path(tmp_path: Path) -> None:
     home_file = tmp_path / "home_file"
     home_file.write_text("not a dir\n", encoding="utf-8")

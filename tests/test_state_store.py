@@ -65,6 +65,15 @@ def test_load_state_rejects_non_object_json(tmp_path: Path) -> None:
         load_state(run_dir)
 
 
+def test_load_state_rejects_incomplete_object(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_incomplete"
+    run_dir.mkdir()
+    (run_dir / "state.json").write_text("{}", encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_non_utf8_file(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_non_utf8"
     run_dir.mkdir()

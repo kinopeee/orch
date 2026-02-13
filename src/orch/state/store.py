@@ -4,7 +4,7 @@ import json
 import os
 from pathlib import Path
 
-from orch.state.model import RunState
+from orch.state.model import RUN_STATUS_VALUES, RunState
 from orch.util.errors import StateError
 
 
@@ -21,6 +21,41 @@ def _fsync_directory(path: Path) -> None:
         os.close(fd)
 
 
+def _validate_state_shape(raw: dict[str, object]) -> None:
+    required_str = (
+        "run_id",
+        "created_at",
+        "updated_at",
+        "status",
+        "plan_relpath",
+        "home",
+        "workdir",
+    )
+    for key in required_str:
+        value = raw.get(key)
+        if not isinstance(value, str) or not value:
+            raise StateError(f"invalid state field: {key}")
+
+    status = raw["status"]
+    if status not in RUN_STATUS_VALUES:
+        raise StateError("invalid state field: status")
+
+    max_parallel = raw.get("max_parallel")
+    if not isinstance(max_parallel, int) or isinstance(max_parallel, bool) or max_parallel < 1:
+        raise StateError("invalid state field: max_parallel")
+
+    if not isinstance(raw.get("fail_fast"), bool):
+        raise StateError("invalid state field: fail_fast")
+
+    tasks = raw.get("tasks")
+    if not isinstance(tasks, dict) or not tasks:
+        raise StateError("invalid state field: tasks")
+
+    for task_id, task_data in tasks.items():
+        if not isinstance(task_id, str) or not isinstance(task_data, dict):
+            raise StateError("invalid state field: tasks")
+
+
 def load_state(run_dir: Path) -> RunState:
     state_path = run_dir / "state.json"
     try:
@@ -35,6 +70,7 @@ def load_state(run_dir: Path) -> RunState:
         raise StateError(f"invalid state json: {state_path}") from exc
     if not isinstance(raw, dict):
         raise StateError("state root must be object")
+    _validate_state_shape(raw)
     return RunState.from_dict(raw)
 
 
