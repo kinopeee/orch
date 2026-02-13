@@ -310,6 +310,12 @@ def test_source_wraps_os_fstat_calls_with_oserror_and_runtimeerror_handlers() ->
     assert not violations, "unguarded os.fstat calls found:\n" + "\n".join(violations)
 
 
+def test_source_wraps_os_fdopen_calls_with_oserror_and_runtimeerror_handlers() -> None:
+    violations = _collect_unguarded_calls("fdopen", receiver_name="os")
+
+    assert not violations, "unguarded os.fdopen calls found:\n" + "\n".join(violations)
+
+
 def test_source_wraps_os_write_calls_with_oserror_and_runtimeerror_handlers() -> None:
     violations = _collect_unguarded_calls("write", receiver_name="os")
 
