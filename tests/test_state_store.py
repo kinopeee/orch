@@ -468,6 +468,29 @@ def test_load_state_rejects_running_task_with_terminal_fields(tmp_path: Path) ->
         load_state(run_dir)
 
 
+def test_load_state_rejects_running_task_with_ended_at(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_running_ended_at"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["status"] = "RUNNING"
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["status"] = "RUNNING"
+    task["started_at"] = "2026-01-01T00:00:00+00:00"
+    task["ended_at"] = "2026-01-01T00:00:01+00:00"
+    task["duration_sec"] = None
+    task["exit_code"] = None
+    task["timed_out"] = False
+    task["canceled"] = False
+    task["skip_reason"] = None
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
 def test_load_state_accepts_ready_task_after_timeout_attempt(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_ready_after_timeout"
     run_dir.mkdir()

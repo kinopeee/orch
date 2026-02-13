@@ -269,6 +269,8 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
         if task_status == "RUNNING":
             if not isinstance(started_at, str):
                 raise StateError("invalid state field: tasks")
+            if ended_at is not None:
+                raise StateError("invalid state field: tasks")
             if _is_non_blank_str_without_nul(skip_reason):
                 raise StateError("invalid state field: tasks")
             if (
