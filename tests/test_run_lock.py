@@ -242,3 +242,23 @@ def test_run_lock_rejects_symlink_lock_path(tmp_path: Path) -> None:
     with pytest.raises(OSError, match="lock path must not be symlink"), run_lock(run_dir):
         pass
     assert outside.read_text(encoding="utf-8") == "outside\n"
+
+
+def test_run_lock_fails_closed_when_symlink_check_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    lock_path = run_dir / ".lock"
+    original_is_symlink = Path.is_symlink
+
+    def flaky_is_symlink(path_obj: Path) -> bool:
+        if path_obj == lock_path:
+            raise PermissionError("simulated lstat failure")
+        return original_is_symlink(path_obj)
+
+    monkeypatch.setattr(Path, "is_symlink", flaky_is_symlink)
+
+    with pytest.raises(OSError, match="lock path must not be symlink"), run_lock(run_dir):
+        pass
+    assert not lock_path.exists()

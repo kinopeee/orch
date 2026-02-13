@@ -38,8 +38,10 @@ def run_lock(
     while True:
         try:
             lock_path_is_symlink = lock_path.is_symlink()
-        except OSError:
+        except FileNotFoundError:
             lock_path_is_symlink = False
+        except OSError:
+            lock_path_is_symlink = True
         if lock_path_is_symlink:
             raise OSError(f"lock path must not be symlink: {lock_path}")
         try:
