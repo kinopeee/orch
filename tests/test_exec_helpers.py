@@ -533,6 +533,26 @@ def test_write_cancel_request_uses_nonblock_open_flag(
         assert captured_flags["flags"] & os.O_NONBLOCK
 
 
+def test_write_cancel_request_uses_nofollow_open_flag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_cancel_nofollow_flag"
+    run_dir.mkdir()
+    captured_flags: dict[str, int] = {}
+    original_open = os.open
+
+    def capture_open(path: os.PathLike[str] | str, flags: int, mode: int = 0o777) -> int:
+        captured_flags["flags"] = flags
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", capture_open)
+    write_cancel_request(run_dir)
+
+    assert "flags" in captured_flags
+    if hasattr(os, "O_NOFOLLOW"):
+        assert captured_flags["flags"] & os.O_NOFOLLOW
+
+
 def test_cancel_helpers_ignore_symlink_ancestor_paths(tmp_path: Path) -> None:
     real_home = tmp_path / "real_home"
     real_run_dir = real_home / "runs" / "run1"
