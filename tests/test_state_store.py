@@ -10,9 +10,9 @@ from orch.state.store import load_state, save_state_atomic
 from orch.util.errors import StateError
 
 
-def _minimal_state_payload() -> dict[str, object]:
+def _minimal_state_payload(*, run_id: str) -> dict[str, object]:
     state = RunState(
-        run_id="run_min",
+        run_id=run_id,
         created_at="2026-01-01T00:00:00+00:00",
         updated_at="2026-01-01T00:00:00+00:00",
         status="RUNNING",
@@ -128,7 +128,7 @@ def test_load_state_wraps_read_oserror(tmp_path: Path) -> None:
 def test_load_state_rejects_unsafe_task_log_path(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad_log_path"
     run_dir.mkdir()
-    payload = _minimal_state_payload()
+    payload = _minimal_state_payload(run_id=run_dir.name)
     tasks = payload["tasks"]
     assert isinstance(tasks, dict)
     task = tasks["t1"]
@@ -143,7 +143,7 @@ def test_load_state_rejects_unsafe_task_log_path(tmp_path: Path) -> None:
 def test_load_state_rejects_log_path_for_different_task_id(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad_log_task_binding"
     run_dir.mkdir()
-    payload = _minimal_state_payload()
+    payload = _minimal_state_payload(run_id=run_dir.name)
     tasks = payload["tasks"]
     assert isinstance(tasks, dict)
     task = tasks["t1"]
@@ -158,7 +158,7 @@ def test_load_state_rejects_log_path_for_different_task_id(tmp_path: Path) -> No
 def test_load_state_rejects_unsafe_artifact_paths(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad_artifact_path"
     run_dir.mkdir()
-    payload = _minimal_state_payload()
+    payload = _minimal_state_payload(run_id=run_dir.name)
     tasks = payload["tasks"]
     assert isinstance(tasks, dict)
     task = tasks["t1"]
@@ -173,7 +173,7 @@ def test_load_state_rejects_unsafe_artifact_paths(tmp_path: Path) -> None:
 def test_load_state_rejects_artifact_path_for_different_task_id(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad_artifact_task_binding"
     run_dir.mkdir()
-    payload = _minimal_state_payload()
+    payload = _minimal_state_payload(run_id=run_dir.name)
     tasks = payload["tasks"]
     assert isinstance(tasks, dict)
     task = tasks["t1"]
@@ -188,7 +188,7 @@ def test_load_state_rejects_artifact_path_for_different_task_id(tmp_path: Path) 
 def test_load_state_rejects_case_insensitive_duplicate_task_ids(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_case_dup_tasks"
     run_dir.mkdir()
-    payload = _minimal_state_payload()
+    payload = _minimal_state_payload(run_id=run_dir.name)
     payload["tasks"] = {
         "Build": {
             "status": "SUCCESS",
@@ -224,4 +224,14 @@ def test_load_state_rejects_case_insensitive_duplicate_task_ids(tmp_path: Path) 
     (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
 
     with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
+def test_load_state_rejects_run_id_mismatch_with_directory(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_mismatch"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id="different_run")
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="run_id does not match"):
         load_state(run_dir)

@@ -10,6 +10,7 @@ from orch.util.errors import StateError
 
 _SAFE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _TASK_ID_MAX_LEN = 128
+_RUN_ID_MAX_LEN = 128
 
 
 def _fsync_directory(path: Path) -> None:
@@ -25,7 +26,7 @@ def _fsync_directory(path: Path) -> None:
         os.close(fd)
 
 
-def _validate_state_shape(raw: dict[str, object]) -> None:
+def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
     required_str = (
         "run_id",
         "created_at",
@@ -39,6 +40,16 @@ def _validate_state_shape(raw: dict[str, object]) -> None:
         value = raw.get(key)
         if not isinstance(value, str) or not value:
             raise StateError(f"invalid state field: {key}")
+
+    run_id = raw["run_id"]
+    if (
+        not isinstance(run_id, str)
+        or len(run_id) > _RUN_ID_MAX_LEN
+        or _SAFE_ID_PATTERN.fullmatch(run_id) is None
+    ):
+        raise StateError("invalid state field: run_id")
+    if run_id != run_dir.name:
+        raise StateError("state run_id does not match directory")
 
     status = raw["status"]
     if status not in RUN_STATUS_VALUES:
@@ -126,7 +137,7 @@ def load_state(run_dir: Path) -> RunState:
         raise StateError(f"invalid state json: {state_path}") from exc
     if not isinstance(raw, dict):
         raise StateError("state root must be object")
-    _validate_state_shape(raw)
+    _validate_state_shape(raw, run_dir)
     return RunState.from_dict(raw)
 
 
