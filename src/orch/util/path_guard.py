@@ -9,7 +9,7 @@ def is_symlink_path(path: Path, *, fail_closed: bool = True) -> bool:
         return path.is_symlink()
     except FileNotFoundError:
         return False
-    except OSError:
+    except (OSError, RuntimeError):
         return fail_closed
 
 
@@ -20,7 +20,7 @@ def has_symlink_ancestor(path: Path) -> bool:
             meta = current.lstat()
         except FileNotFoundError:
             pass
-        except OSError:
+        except (OSError, RuntimeError):
             return True
         else:
             if stat.S_ISLNK(meta.st_mode):
