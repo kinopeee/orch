@@ -396,6 +396,8 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
                 raise StateError("invalid state field: tasks")
             if len(artifact_path.parts) < 3 or artifact_path.parts[1] != task_id:
                 raise StateError("invalid state field: tasks")
+        if task_status == "CANCELED" and artifact_paths:
+            raise StateError("invalid state field: tasks")
 
     if status == "SUCCESS" and any(task_status != "SUCCESS" for task_status in task_statuses):
         raise StateError("invalid state field: status")
