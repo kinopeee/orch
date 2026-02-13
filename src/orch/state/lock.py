@@ -31,7 +31,7 @@ def run_lock(
     def _is_stale() -> bool:
         try:
             lock_meta = lock_path.lstat()
-        except OSError:
+        except (OSError, RuntimeError):
             return False
         if stat.S_ISLNK(lock_meta.st_mode) or not stat.S_ISREG(lock_meta.st_mode):
             return False
@@ -53,7 +53,7 @@ def run_lock(
                     os.close(acquired_fd)
                 try:
                     current_lock = lock_path.lstat()
-                except OSError:
+                except (OSError, RuntimeError):
                     current_lock = None
                 if (
                     current_lock is not None
@@ -61,7 +61,7 @@ def run_lock(
                     and current_lock.st_ino == stat_result.st_ino
                     and current_lock.st_dev == stat_result.st_dev
                 ):
-                    with suppress(OSError):
+                    with suppress(OSError, RuntimeError):
                         lock_path.unlink(missing_ok=True)
                 raise
             fd = acquired_fd
@@ -72,7 +72,7 @@ def run_lock(
             if _is_stale():
                 try:
                     lock_path.unlink(missing_ok=True)
-                except OSError:
+                except (OSError, RuntimeError):
                     if attempt >= retries:
                         raise RunConflictError(
                             f"run is locked by another process: {lock_path}"
@@ -99,7 +99,7 @@ def run_lock(
             current: os.stat_result | None
             try:
                 current = lock_path.lstat()
-            except OSError:
+            except (OSError, RuntimeError):
                 current = None
             if (
                 current is not None
@@ -107,5 +107,5 @@ def run_lock(
                 and current.st_ino == lock_inode
                 and current.st_dev == lock_dev
             ):
-                with suppress(OSError):
+                with suppress(OSError, RuntimeError):
                     lock_path.unlink(missing_ok=True)

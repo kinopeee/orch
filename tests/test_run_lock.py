@@ -123,6 +123,36 @@ def test_run_lock_raises_conflict_when_stale_lock_cannot_be_removed(
         pass
 
 
+def test_run_lock_raises_conflict_when_stale_check_lstat_runtime_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    lock_path = run_dir / ".lock"
+    lock_path.write_text("holder", encoding="utf-8")
+    old = time.time() - 120
+    os.utime(lock_path, (old, old))
+    original_lstat = Path.lstat
+    original_is_symlink = Path.is_symlink
+
+    def fake_is_symlink(path_obj: Path) -> bool:
+        if path_obj in {lock_path, run_dir}:
+            return False
+        return original_is_symlink(path_obj)
+
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        if path_obj == lock_path:
+            raise RuntimeError("simulated stale lstat runtime failure")
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "is_symlink", fake_is_symlink)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
+
+    with pytest.raises(RunConflictError), run_lock(run_dir, stale_sec=1, retries=0):
+        pass
+    assert lock_path.exists()
+
+
 def test_run_lock_does_not_delete_replaced_foreign_lock(tmp_path: Path) -> None:
     run_dir = tmp_path / "run"
     run_dir.mkdir()
@@ -207,6 +237,43 @@ def test_run_lock_cleans_up_if_pid_write_fails(
         assert lock_path.exists()
 
 
+def test_run_lock_preserves_write_error_when_cleanup_lstat_runtime_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    lock_path = run_dir / ".lock"
+    original_write = os.write
+    original_lstat = Path.lstat
+    original_is_symlink = Path.is_symlink
+    failed_once = False
+
+    def flaky_write(fd: int, data: bytes) -> int:
+        nonlocal failed_once
+        if not failed_once:
+            failed_once = True
+            raise OSError("simulated write failure")
+        return original_write(fd, data)
+
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        if path_obj == lock_path:
+            raise RuntimeError("simulated cleanup lstat runtime failure")
+        return original_lstat(path_obj, *args, **kwargs)
+
+    def fake_is_symlink(path_obj: Path) -> bool:
+        if path_obj in {lock_path, run_dir}:
+            return False
+        return original_is_symlink(path_obj)
+
+    monkeypatch.setattr(os, "write", flaky_write)
+    monkeypatch.setattr(Path, "is_symlink", fake_is_symlink)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
+
+    with pytest.raises(OSError, match="simulated write failure"), run_lock(run_dir):
+        pass
+    assert lock_path.exists()
+
+
 def test_run_lock_rejects_symlink_run_directory(tmp_path: Path) -> None:
     real_run_dir = tmp_path / "real_run"
     real_run_dir.mkdir()
@@ -281,3 +348,30 @@ def test_run_lock_fails_closed_when_run_dir_symlink_check_errors(
     with pytest.raises(OSError, match="run directory must not be symlink"), run_lock(run_dir):
         pass
     assert not (run_dir / ".lock").exists()
+
+
+def test_run_lock_ignores_release_lstat_runtime_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    lock_path = run_dir / ".lock"
+    original_lstat = Path.lstat
+    original_is_symlink = Path.is_symlink
+
+    def fake_is_symlink(path_obj: Path) -> bool:
+        if path_obj in {lock_path, run_dir}:
+            return False
+        return original_is_symlink(path_obj)
+
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        if path_obj == lock_path:
+            raise RuntimeError("simulated release lstat runtime failure")
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "is_symlink", fake_is_symlink)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
+
+    with run_lock(run_dir):
+        assert lock_path.exists()
+    assert lock_path.exists()
