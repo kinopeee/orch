@@ -173,6 +173,11 @@ def validate_plan(plan: PlanSpec) -> None:
 
 def load_plan(path: Path) -> PlanSpec:
     try:
+        if path.is_symlink():
+            raise PlanError(f"plan file must not be symlink: {path}")
+    except OSError as exc:
+        raise PlanError(f"failed to read plan file: {path}") from exc
+    try:
         content = path.read_text(encoding="utf-8")
     except FileNotFoundError as exc:
         raise PlanError(f"plan file not found: {path}") from exc

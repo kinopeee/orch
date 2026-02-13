@@ -80,3 +80,20 @@ def test_load_plan_rejects_non_utf8_file(tmp_path: Path) -> None:
 
     with pytest.raises(PlanError, match="failed to decode plan file as utf-8"):
         load_plan(plan_path)
+
+
+def test_load_plan_rejects_symlink_path(tmp_path: Path) -> None:
+    real_plan = tmp_path / "real_plan.yaml"
+    real_plan.write_text(
+        """
+tasks:
+  - id: a
+    cmd: ["echo", "x"]
+""".strip(),
+        encoding="utf-8",
+    )
+    symlink_plan = tmp_path / "plan_symlink.yaml"
+    symlink_plan.symlink_to(real_plan)
+
+    with pytest.raises(PlanError, match="plan file must not be symlink"):
+        load_plan(symlink_plan)

@@ -5116,6 +5116,30 @@ def test_cli_dry_run_rejects_plan_with_unknown_task_field(tmp_path: Path) -> Non
     assert "Plan validation error" in output
 
 
+def test_cli_dry_run_rejects_symlink_plan_path(tmp_path: Path) -> None:
+    real_plan = tmp_path / "real_plan.yaml"
+    _write_plan(
+        real_plan,
+        """
+        tasks:
+          - id: a
+            cmd: ["python3", "-c", "print('a')"]
+        """,
+    )
+    symlink_plan = tmp_path / "plan_symlink.yaml"
+    symlink_plan.symlink_to(real_plan)
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "run", str(symlink_plan), "--dry-run"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Plan validation error" in output
+
+
 def test_cli_dry_run_rejects_plan_with_case_insensitive_duplicate_outputs(
     tmp_path: Path,
 ) -> None:
@@ -5338,6 +5362,33 @@ def test_cli_resume_invalid_plan_copy_returns_two(tmp_path: Path) -> None:
     run_dir.mkdir(parents=True)
     (run_dir / "state.json").write_text("{}", encoding="utf-8")
     (run_dir / "plan.yaml").write_text("tasks: [", encoding="utf-8")
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "resume", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Plan validation error" in output
+
+
+def test_cli_resume_rejects_symlink_plan_file(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    run_id = "20260101_000000_abcdef"
+    run_dir = home / "runs" / run_id
+    run_dir.mkdir(parents=True)
+    real_plan = tmp_path / "real_plan.yaml"
+    _write_plan(
+        real_plan,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+    (run_dir / "plan.yaml").symlink_to(real_plan)
 
     proc = subprocess.run(
         [sys.executable, "-m", "orch.cli", "resume", run_id, "--home", str(home)],
