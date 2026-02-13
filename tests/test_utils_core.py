@@ -162,7 +162,12 @@ def test_source_uses_path_guard_for_is_symlink_checks() -> None:
     )
 
 
-def _collect_unguarded_calls(method_name: str, *, receiver_name: str | None = None) -> list[str]:
+def _collect_unguarded_calls(
+    method_name: str,
+    *,
+    receiver_name: str | None = None,
+    allow_suppress_guard: bool = False,
+) -> list[str]:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     violations: list[str] = []
 
@@ -170,6 +175,7 @@ def _collect_unguarded_calls(method_name: str, *, receiver_name: str | None = No
         def __init__(self, relative_path: Path) -> None:
             self.relative_path = relative_path
             self.guard_stack: list[bool] = []
+            self.suppress_guard_stack: list[bool] = []
 
         @staticmethod
         def _covers(name: str, handler_type: ast.expr | None) -> bool:
@@ -213,10 +219,64 @@ def _collect_unguarded_calls(method_name: str, *, receiver_name: str | None = No
                 isinstance(node.func, ast.Attribute)
                 and node.func.attr == method_name
                 and matches_receiver
-                and not any(self.guard_stack)
+                and not (any(self.guard_stack) or any(self.suppress_guard_stack))
             ):
                 violations.append(f"{self.relative_path}:{node.lineno}")
             self.generic_visit(node)
+
+        def visit_With(self, node: ast.With) -> None:
+            suppresses = False
+            if allow_suppress_guard:
+                for item in node.items:
+                    context_expr = item.context_expr
+                    if not isinstance(context_expr, ast.Call):
+                        continue
+                    func = context_expr.func
+                    if isinstance(func, ast.Name) and func.id == "suppress":
+                        handles_oserror = any(
+                            self._covers("OSError", handler_type)
+                            for handler_type in context_expr.args
+                        )
+                        handles_runtime = any(
+                            self._covers("RuntimeError", handler_type)
+                            for handler_type in context_expr.args
+                        )
+                        suppresses = handles_oserror and handles_runtime
+                        if suppresses:
+                            break
+            self.suppress_guard_stack.append(suppresses)
+            for stmt in node.body:
+                self.visit(stmt)
+            self.suppress_guard_stack.pop()
+            for item in node.items:
+                self.visit(item)
+
+        def visit_AsyncWith(self, node: ast.AsyncWith) -> None:
+            suppresses = False
+            if allow_suppress_guard:
+                for item in node.items:
+                    context_expr = item.context_expr
+                    if not isinstance(context_expr, ast.Call):
+                        continue
+                    func = context_expr.func
+                    if isinstance(func, ast.Name) and func.id == "suppress":
+                        handles_oserror = any(
+                            self._covers("OSError", handler_type)
+                            for handler_type in context_expr.args
+                        )
+                        handles_runtime = any(
+                            self._covers("RuntimeError", handler_type)
+                            for handler_type in context_expr.args
+                        )
+                        suppresses = handles_oserror and handles_runtime
+                        if suppresses:
+                            break
+            self.suppress_guard_stack.append(suppresses)
+            for stmt in node.body:
+                self.visit(stmt)
+            self.suppress_guard_stack.pop()
+            for item in node.items:
+                self.visit(item)
 
     for file_path in src_root.rglob("*.py"):
         relative_path = file_path.relative_to(src_root)
@@ -248,3 +308,21 @@ def test_source_wraps_os_fstat_calls_with_oserror_and_runtimeerror_handlers() ->
     violations = _collect_unguarded_calls("fstat", receiver_name="os")
 
     assert not violations, "unguarded os.fstat calls found:\n" + "\n".join(violations)
+
+
+def test_source_wraps_os_replace_calls_with_oserror_and_runtimeerror_handlers() -> None:
+    violations = _collect_unguarded_calls("replace", receiver_name="os")
+
+    assert not violations, "unguarded os.replace calls found:\n" + "\n".join(violations)
+
+
+def test_source_guards_unlink_calls_with_try_or_suppress() -> None:
+    violations = _collect_unguarded_calls("unlink", allow_suppress_guard=True)
+
+    assert not violations, "unguarded unlink calls found:\n" + "\n".join(violations)
+
+
+def test_source_guards_os_close_calls_with_try_or_suppress() -> None:
+    violations = _collect_unguarded_calls("close", receiver_name="os", allow_suppress_guard=True)
+
+    assert not violations, "unguarded os.close calls found:\n" + "\n".join(violations)
