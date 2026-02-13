@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import stat
 from pathlib import Path
 
 from orch.util.path_guard import has_symlink_ancestor, is_symlink_path
@@ -17,10 +18,10 @@ def _ensure_directory(path: Path, *, parents: bool = False) -> None:
         raise OSError(f"path must not be symlink: {path}")
     path.mkdir(parents=parents, exist_ok=True)
     try:
-        is_dir = path.is_dir()
+        meta = path.lstat()
     except (OSError, RuntimeError) as exc:
         raise OSError(f"path must be directory: {path}") from exc
-    if is_symlink_path(path) or not is_dir:
+    if is_symlink_path(path) or not stat.S_ISDIR(meta.st_mode):
         raise OSError(f"path must be directory: {path}")
 
 

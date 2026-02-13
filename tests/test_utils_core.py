@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -75,35 +76,49 @@ def test_ensure_run_layout_rejects_symlink_ancestor(tmp_path: Path) -> None:
     assert not (real_home / "runs").exists()
 
 
-def test_ensure_run_layout_normalizes_is_dir_errors(
+def test_ensure_run_layout_normalizes_lstat_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     path = run_dir(tmp_path, "run_1")
-    original_is_dir = Path.is_dir
+    original_lstat = Path.lstat
+    original_is_symlink = Path.is_symlink
 
-    def flaky_is_dir(path_obj: Path) -> bool:
+    def flaky_lstat(path_obj: Path) -> os.stat_result:
         if path_obj == path:
-            raise PermissionError("simulated is_dir failure")
-        return original_is_dir(path_obj)
+            raise PermissionError("simulated lstat failure")
+        return original_lstat(path_obj)
 
-    monkeypatch.setattr(Path, "is_dir", flaky_is_dir)
+    def fake_is_symlink(path_obj: Path) -> bool:
+        if path_obj == path:
+            return False
+        return original_is_symlink(path_obj)
+
+    monkeypatch.setattr(Path, "is_symlink", fake_is_symlink)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
 
     with pytest.raises(OSError, match="path must be directory"):
         ensure_run_layout(path)
 
 
-def test_ensure_run_layout_normalizes_is_dir_runtime_errors(
+def test_ensure_run_layout_normalizes_lstat_runtime_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     path = run_dir(tmp_path, "run_1")
-    original_is_dir = Path.is_dir
+    original_lstat = Path.lstat
+    original_is_symlink = Path.is_symlink
 
-    def flaky_is_dir(path_obj: Path) -> bool:
+    def flaky_lstat(path_obj: Path) -> os.stat_result:
         if path_obj == path:
-            raise RuntimeError("simulated is_dir runtime failure")
-        return original_is_dir(path_obj)
+            raise RuntimeError("simulated lstat runtime failure")
+        return original_lstat(path_obj)
 
-    monkeypatch.setattr(Path, "is_dir", flaky_is_dir)
+    def fake_is_symlink(path_obj: Path) -> bool:
+        if path_obj == path:
+            return False
+        return original_is_symlink(path_obj)
+
+    monkeypatch.setattr(Path, "is_symlink", fake_is_symlink)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
 
     with pytest.raises(OSError, match="path must be directory"):
         ensure_run_layout(path)
