@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import os
 import re
 from datetime import UTC, datetime, timedelta
@@ -159,3 +160,59 @@ def test_source_uses_path_guard_for_is_symlink_checks() -> None:
     assert not violations, "direct is_symlink usage found outside path_guard:\n" + "\n".join(
         violations
     )
+
+
+def test_source_wraps_lstat_calls_with_oserror_and_runtimeerror_handlers() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    violations: list[str] = []
+
+    class LstatGuardVisitor(ast.NodeVisitor):
+        def __init__(self, relative_path: Path) -> None:
+            self.relative_path = relative_path
+            self.guard_stack: list[bool] = []
+
+        @staticmethod
+        def _covers(name: str, handler_type: ast.expr | None) -> bool:
+            if handler_type is None:
+                return True
+            if isinstance(handler_type, ast.Name):
+                return handler_type.id in {name, "Exception", "BaseException"}
+            if isinstance(handler_type, ast.Attribute):
+                return handler_type.attr in {name, "Exception", "BaseException"}
+            if isinstance(handler_type, ast.Tuple):
+                return any(LstatGuardVisitor._covers(name, elem) for elem in handler_type.elts)
+            return False
+
+        def visit_Try(self, node: ast.Try) -> None:
+            handles_oserror = any(
+                self._covers("OSError", handler.type) for handler in node.handlers
+            )
+            handles_runtime = any(
+                self._covers("RuntimeError", handler.type) for handler in node.handlers
+            )
+            self.guard_stack.append(handles_oserror and handles_runtime)
+            for stmt in node.body:
+                self.visit(stmt)
+            self.guard_stack.pop()
+            for handler in node.handlers:
+                self.visit(handler)
+            for stmt in node.orelse:
+                self.visit(stmt)
+            for stmt in node.finalbody:
+                self.visit(stmt)
+
+        def visit_Call(self, node: ast.Call) -> None:
+            if (
+                isinstance(node.func, ast.Attribute)
+                and node.func.attr == "lstat"
+                and not any(self.guard_stack)
+            ):
+                violations.append(f"{self.relative_path}:{node.lineno}")
+            self.generic_visit(node)
+
+    for file_path in src_root.rglob("*.py"):
+        relative_path = file_path.relative_to(src_root)
+        module = ast.parse(file_path.read_text(encoding="utf-8"))
+        LstatGuardVisitor(relative_path).visit(module)
+
+    assert not violations, "unguarded lstat calls found:\n" + "\n".join(violations)
