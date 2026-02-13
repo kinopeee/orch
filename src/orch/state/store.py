@@ -283,6 +283,12 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
                 raise StateError("invalid state field: tasks")
         if bool_values["canceled"] is True and task_status != "CANCELED":
             raise StateError("invalid state field: tasks")
+        if task_status in {"SUCCESS", "FAILED", "SKIPPED"} and bool_values["canceled"] is not False:
+            raise StateError("invalid state field: tasks")
+        if task_status in {"SUCCESS", "SKIPPED"} and bool_values["timed_out"] is not False:
+            raise StateError("invalid state field: tasks")
+        if task_status == "FAILED" and bool_values["timed_out"] is None:
+            raise StateError("invalid state field: tasks")
         if task_status == "CANCELED" and bool_values["canceled"] is not True:
             raise StateError("invalid state field: tasks")
         if task_status == "CANCELED" and bool_values["timed_out"] is not False:
