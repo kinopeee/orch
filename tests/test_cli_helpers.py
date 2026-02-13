@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -56,3 +57,19 @@ def test_write_plan_snapshot_rejects_symlink_destination(tmp_path: Path) -> None
     with pytest.raises(OSError, match="plan snapshot path must not be symlink"):
         _write_plan_snapshot(plan, snapshot_path)
     assert target.read_text(encoding="utf-8") == "sentinel\n"
+
+
+def test_write_plan_snapshot_rejects_non_regular_destination(tmp_path: Path) -> None:
+    if not hasattr(os, "mkfifo"):
+        pytest.skip("mkfifo is not supported on this platform")
+
+    plan = PlanSpec(
+        goal=None,
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="only", cmd=["python3", "-c", "print('ok')"])],
+    )
+    snapshot_path = tmp_path / "plan.yaml"
+    os.mkfifo(snapshot_path)
+
+    with pytest.raises(OSError, match="plan snapshot path must be regular file"):
+        _write_plan_snapshot(plan, snapshot_path)

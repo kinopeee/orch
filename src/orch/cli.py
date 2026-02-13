@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import errno
 import json
 import os
 import re
@@ -76,15 +77,34 @@ def _write_plan_snapshot(plan: PlanSpec, destination: Path) -> None:
     payload = yaml.safe_dump(plan_data, sort_keys=False, allow_unicode=True)
     if destination.parent.is_symlink() or destination.is_symlink():
         raise OSError(f"plan snapshot path must not be symlink: {destination}")
+    try:
+        destination_meta = destination.lstat()
+    except FileNotFoundError:
+        destination_meta = None
+    except OSError as exc:
+        raise OSError(f"failed to prepare plan snapshot path: {destination}") from exc
+    if destination_meta is not None and not stat.S_ISREG(destination_meta.st_mode):
+        raise OSError(f"plan snapshot path must be regular file: {destination}")
     flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    if hasattr(os, "O_NONBLOCK"):
+        flags |= os.O_NONBLOCK
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
     fd: int | None = None
     try:
         fd = os.open(str(destination), flags, 0o600)
+        opened_meta = os.fstat(fd)
+        if not stat.S_ISREG(opened_meta.st_mode):
+            raise OSError(f"plan snapshot path must be regular file: {destination}")
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             fd = None
             f.write(payload)
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise OSError(f"plan snapshot path must not be symlink: {destination}") from exc
+        if exc.errno == errno.ENXIO:
+            raise OSError(f"plan snapshot path must be regular file: {destination}") from exc
+        raise
     finally:
         if fd is not None:
             with suppress(OSError):
@@ -97,12 +117,38 @@ def _write_report(state: RunState, current_run_dir: Path) -> Path:
     report_path = current_run_dir / "report" / "final_report.md"
     if report_path.parent.is_symlink() or report_path.is_symlink():
         raise OSError(f"report path must not be symlink: {report_path}")
+    try:
+        report_meta = report_path.lstat()
+    except FileNotFoundError:
+        report_meta = None
+    except OSError as exc:
+        raise OSError(f"failed to prepare report path: {report_path}") from exc
+    if report_meta is not None and not stat.S_ISREG(report_meta.st_mode):
+        raise OSError(f"report path must be regular file: {report_path}")
     flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    if hasattr(os, "O_NONBLOCK"):
+        flags |= os.O_NONBLOCK
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
-    fd = os.open(str(report_path), flags, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        f.write(md + "\n")
+    fd: int | None = None
+    try:
+        fd = os.open(str(report_path), flags, 0o600)
+        opened_meta = os.fstat(fd)
+        if not stat.S_ISREG(opened_meta.st_mode):
+            raise OSError(f"report path must be regular file: {report_path}")
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            fd = None
+            f.write(md + "\n")
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise OSError(f"report path must not be symlink: {report_path}") from exc
+        if exc.errno == errno.ENXIO:
+            raise OSError(f"report path must be regular file: {report_path}") from exc
+        raise
+    finally:
+        if fd is not None:
+            with suppress(OSError):
+                os.close(fd)
     return report_path
 
 

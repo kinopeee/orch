@@ -150,6 +150,20 @@ def test_save_state_atomic_rejects_symlink_tmp_without_overwriting_target(
     assert target.read_text(encoding="utf-8") == "do-not-touch\n"
 
 
+def test_save_state_atomic_rejects_non_regular_tmp_path(tmp_path: Path) -> None:
+    if not hasattr(os, "mkfifo"):
+        pytest.skip("mkfifo is not supported on this platform")
+
+    run_dir = tmp_path / "run_fifo_tmp"
+    run_dir.mkdir()
+    state = RunState.from_dict(_minimal_state_payload(run_id=run_dir.name))
+    os.mkfifo(run_dir / "state.json.tmp")
+
+    with pytest.raises(OSError):
+        save_state_atomic(run_dir, state)
+    assert not (run_dir / "state.json").exists()
+
+
 def test_save_state_atomic_ignores_directory_close_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

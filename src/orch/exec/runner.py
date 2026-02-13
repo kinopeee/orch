@@ -5,6 +5,7 @@ import glob as globlib
 import os
 import re
 import shutil
+import stat
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime
@@ -62,18 +63,30 @@ def _append_text_best_effort(log_path: Path, text: str) -> None:
     except OSError:
         return
     flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND
+    if hasattr(os, "O_NONBLOCK"):
+        flags |= os.O_NONBLOCK
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
+    fd: int | None = None
     try:
         fd = os.open(str(log_path), flags, 0o600)
+        opened_meta = os.fstat(fd)
+        if not stat.S_ISREG(opened_meta.st_mode):
+            return
     except OSError:
+        if fd is not None:
+            with suppress(OSError):
+                os.close(fd)
         return
     try:
+        assert fd is not None
         with os.fdopen(fd, "a", encoding="utf-8") as f:
+            fd = None
             f.write(text)
     except OSError:
-        with suppress(OSError):
-            os.close(fd)
+        if fd is not None:
+            with suppress(OSError):
+                os.close(fd)
         return
 
 

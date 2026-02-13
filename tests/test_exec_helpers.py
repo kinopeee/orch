@@ -92,6 +92,52 @@ async def test_stream_to_file_ignores_symlink_parent_directory(tmp_path: Path) -
     assert target.read_text(encoding="utf-8") == "keep-parent\n"
 
 
+@pytest.mark.asyncio
+async def test_stream_to_file_rejects_non_regular_opened_target(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    file_path = tmp_path / "capture.log"
+    original_open = os.open
+
+    def redirect_open(path: str, flags: int, mode: int = 0o777) -> int:
+        if path == str(file_path):
+            return original_open("/dev/null", os.O_WRONLY)
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", redirect_open)
+
+    stream = asyncio.StreamReader()
+    stream.feed_data(b"line-a\n")
+    stream.feed_eof()
+    await stream_to_file(stream, file_path)
+
+    assert not file_path.exists()
+
+
+@pytest.mark.asyncio
+async def test_stream_to_file_uses_nonblock_open_flag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    file_path = tmp_path / "capture.log"
+    captured_flags: dict[str, int] = {}
+    original_open = os.open
+
+    def capture_open(path: str, flags: int, mode: int = 0o777) -> int:
+        if path == str(file_path):
+            captured_flags["flags"] = flags
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", capture_open)
+
+    stream = asyncio.StreamReader()
+    stream.feed_data(b"line-a\n")
+    stream.feed_eof()
+    await stream_to_file(stream, file_path)
+
+    if hasattr(os, "O_NONBLOCK"):
+        assert captured_flags["flags"] & os.O_NONBLOCK
+
+
 def test_cancel_request_helpers(tmp_path: Path) -> None:
     run_dir = tmp_path / "run"
     run_dir.mkdir()
