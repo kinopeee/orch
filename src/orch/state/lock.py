@@ -8,7 +8,7 @@ from contextlib import contextmanager, suppress
 from pathlib import Path
 
 from orch.util.errors import RunConflictError
-from orch.util.path_guard import has_symlink_ancestor
+from orch.util.path_guard import has_symlink_ancestor, is_symlink_path
 
 
 @contextmanager
@@ -17,7 +17,7 @@ def run_lock(
 ) -> Iterator[None]:
     if has_symlink_ancestor(run_dir):
         raise OSError(f"run directory path contains symlink component: {run_dir}")
-    if run_dir.is_symlink():
+    if is_symlink_path(run_dir):
         raise OSError(f"run directory must not be symlink: {run_dir}")
     lock_path = run_dir / ".lock"
     fd: int | None = None
@@ -36,12 +36,7 @@ def run_lock(
 
     attempt = 0
     while True:
-        try:
-            lock_path_is_symlink = lock_path.is_symlink()
-        except FileNotFoundError:
-            lock_path_is_symlink = False
-        except OSError:
-            lock_path_is_symlink = True
+        lock_path_is_symlink = is_symlink_path(lock_path)
         if lock_path_is_symlink:
             raise OSError(f"lock path must not be symlink: {lock_path}")
         try:

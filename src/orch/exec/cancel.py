@@ -6,7 +6,7 @@ import stat
 from contextlib import suppress
 from pathlib import Path
 
-from orch.util.path_guard import has_symlink_ancestor
+from orch.util.path_guard import has_symlink_ancestor, is_symlink_path
 
 
 def cancel_requested(run_dir: Path) -> bool:
@@ -14,7 +14,7 @@ def cancel_requested(run_dir: Path) -> bool:
     if has_symlink_ancestor(path):
         return False
     try:
-        return path.is_file() and not path.is_symlink()
+        return path.is_file() and not is_symlink_path(path)
     except OSError:
         return False
 
@@ -23,9 +23,14 @@ def write_cancel_request(run_dir: Path) -> None:
     path = run_dir / "cancel.request"
     if has_symlink_ancestor(path):
         raise OSError("cancel request path contains symlink component")
-    if path.is_symlink():
+    if is_symlink_path(path):
         raise OSError("cancel request path must not be symlink")
-    if path.exists() and not path.is_file():
+    try:
+        path_exists = path.exists()
+        path_is_file = path.is_file()
+    except OSError as exc:
+        raise OSError("cancel request path must be regular file") from exc
+    if path_exists and not path_is_file:
         raise OSError("cancel request path must be regular file")
     flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
     if hasattr(os, "O_NONBLOCK"):
@@ -42,12 +47,7 @@ def write_cancel_request(run_dir: Path) -> None:
             fd = None
             f.write("cancel requested\n")
     except OSError as exc:
-        try:
-            is_symlink = path.is_symlink()
-        except FileNotFoundError:
-            is_symlink = False
-        except OSError:
-            is_symlink = True
+        is_symlink = is_symlink_path(path)
         if is_symlink or exc.errno == errno.ELOOP:
             raise OSError("cancel request path must not be symlink") from exc
         if exc.errno == errno.ENXIO:

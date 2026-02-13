@@ -301,6 +301,26 @@ def test_write_cancel_request_fails_closed_when_symlink_check_errors(
     assert not cancel_path.exists()
 
 
+def test_write_cancel_request_fails_closed_when_initial_symlink_check_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_cancel_symlink_check_error_precheck"
+    run_dir.mkdir()
+    cancel_path = run_dir / "cancel.request"
+    original_is_symlink = Path.is_symlink
+
+    def flaky_is_symlink(path_obj: Path) -> bool:
+        if path_obj == cancel_path:
+            raise PermissionError("simulated precheck lstat failure")
+        return original_is_symlink(path_obj)
+
+    monkeypatch.setattr(Path, "is_symlink", flaky_is_symlink)
+
+    with pytest.raises(OSError, match="must not be symlink"):
+        write_cancel_request(run_dir)
+    assert not cancel_path.exists()
+
+
 def test_write_cancel_request_rejects_non_regular_opened_target(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

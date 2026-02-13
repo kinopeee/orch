@@ -168,6 +168,28 @@ def test_save_state_atomic_rejects_symlink_state_target_without_overwriting(
     assert not (run_dir / "state.json.tmp").exists()
 
 
+def test_save_state_atomic_fails_closed_when_state_symlink_check_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_symlink_check_error"
+    run_dir.mkdir()
+    state = RunState.from_dict(_minimal_state_payload(run_id=run_dir.name))
+    state_path = run_dir / "state.json"
+    original_is_symlink = Path.is_symlink
+
+    def flaky_is_symlink(path_obj: Path) -> bool:
+        if path_obj == state_path:
+            raise PermissionError("simulated state_path lstat failure")
+        return original_is_symlink(path_obj)
+
+    monkeypatch.setattr(Path, "is_symlink", flaky_is_symlink)
+
+    with pytest.raises(OSError, match="state file path must not be symlink"):
+        save_state_atomic(run_dir, state)
+    assert not state_path.exists()
+    assert not (run_dir / "state.json.tmp").exists()
+
+
 def test_save_state_atomic_rejects_state_path_with_symlink_ancestor(tmp_path: Path) -> None:
     real_parent = tmp_path / "real_parent"
     real_parent.mkdir()

@@ -12,7 +12,7 @@ from pathlib import Path
 
 from orch.state.model import RUN_STATUS_VALUES, TASK_STATUS_VALUES, RunState
 from orch.util.errors import StateError
-from orch.util.path_guard import has_symlink_ancestor
+from orch.util.path_guard import has_symlink_ancestor, is_symlink_path
 
 _SAFE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _TASK_ID_MAX_LEN = 128
@@ -624,7 +624,7 @@ def save_state_atomic(run_dir: Path, state: RunState) -> None:
     tmp_path = run_dir / "state.json.tmp"
     if has_symlink_ancestor(state_path) or has_symlink_ancestor(tmp_path):
         raise OSError(f"state file path contains symlink component: {state_path}")
-    if state_path.is_symlink():
+    if is_symlink_path(state_path):
         raise OSError(f"state file path must not be symlink: {state_path}")
     try:
         state_meta = state_path.lstat()
