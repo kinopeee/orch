@@ -408,6 +408,34 @@ def test_load_state_rejects_home_mismatch_with_run_directory(tmp_path: Path) -> 
         load_state(run_dir)
 
 
+def test_load_state_rejects_when_expected_home_resolve_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_id = "run_home_resolve_error"
+    run_dir = tmp_path / ".orch" / "runs" / run_id
+    run_dir.mkdir(parents=True)
+    home_dir = tmp_path / ".orch"
+    payload = _minimal_state_payload(run_id=run_id)
+    payload["home"] = str(home_dir.resolve())
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    original_resolve = Path.resolve
+    calls = 0
+
+    def flaky_resolve(path_obj: Path, *args: object, **kwargs: object) -> Path:
+        nonlocal calls
+        if path_obj == home_dir:
+            calls += 1
+            if calls >= 2:
+                raise PermissionError("simulated expected_home resolve failure")
+        return original_resolve(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", flaky_resolve)
+
+    with pytest.raises(StateError, match="invalid state field: home"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_naive_timestamp(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_naive_ts"
     run_dir.mkdir()

@@ -166,7 +166,10 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
     except (OSError, RuntimeError) as exc:
         raise StateError("invalid state field: home") from exc
     if run_dir.parent.name == "runs":
-        expected_home = run_dir.parent.parent.resolve()
+        try:
+            expected_home = run_dir.parent.parent.resolve()
+        except (OSError, RuntimeError) as exc:
+            raise StateError("invalid state field: home") from exc
         if resolved_home != expected_home:
             raise StateError("state home does not match directory")
 
