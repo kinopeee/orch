@@ -54,6 +54,12 @@ def _validate_state_shape(raw: dict[str, object]) -> None:
     tasks = raw.get("tasks")
     if not isinstance(tasks, dict) or not tasks:
         raise StateError("invalid state field: tasks")
+    task_ids = list(tasks.keys())
+    if any(not isinstance(task_id, str) for task_id in task_ids):
+        raise StateError("invalid state field: tasks")
+    folded = {task_id.casefold() for task_id in task_ids}
+    if len(folded) != len(task_ids):
+        raise StateError("invalid state field: tasks")
 
     for task_id, task_data in tasks.items():
         if (

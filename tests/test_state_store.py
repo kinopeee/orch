@@ -183,3 +183,45 @@ def test_load_state_rejects_artifact_path_for_different_task_id(tmp_path: Path) 
 
     with pytest.raises(StateError, match="invalid state field: tasks"):
         load_state(run_dir)
+
+
+def test_load_state_rejects_case_insensitive_duplicate_task_ids(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_case_dup_tasks"
+    run_dir.mkdir()
+    payload = _minimal_state_payload()
+    payload["tasks"] = {
+        "Build": {
+            "status": "SUCCESS",
+            "depends_on": [],
+            "cmd": ["echo", "ok"],
+            "cwd": ".",
+            "env": None,
+            "timeout_sec": None,
+            "retries": 0,
+            "retry_backoff_sec": [],
+            "outputs": [],
+            "attempts": 1,
+            "stdout_path": "logs/Build.out.log",
+            "stderr_path": "logs/Build.err.log",
+            "artifact_paths": ["artifacts/Build/out.txt"],
+        },
+        "build": {
+            "status": "SUCCESS",
+            "depends_on": [],
+            "cmd": ["echo", "ok"],
+            "cwd": ".",
+            "env": None,
+            "timeout_sec": None,
+            "retries": 0,
+            "retry_backoff_sec": [],
+            "outputs": [],
+            "attempts": 1,
+            "stdout_path": "logs/build.out.log",
+            "stderr_path": "logs/build.err.log",
+            "artifact_paths": ["artifacts/build/out.txt"],
+        },
+    }
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
