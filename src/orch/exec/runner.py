@@ -157,7 +157,7 @@ def _iter_output_matches(pattern: str, cwd: Path) -> list[Path]:
         if Path(pattern).is_absolute():
             return [Path(p) for p in globlib.glob(pattern, recursive=True)]
         return list(cwd.glob(pattern))
-    except (OSError, ValueError, re.error):
+    except (OSError, RuntimeError, ValueError, re.error):
         return []
 
 
@@ -428,7 +428,7 @@ async def run_task(
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-    except (OSError, ValueError) as exc:
+    except (OSError, RuntimeError, ValueError) as exc:
         _append_text_best_effort(err_path, f"failed to start process: {exc}\n")
         ended_dt = datetime.now().astimezone()
         return TaskResult(

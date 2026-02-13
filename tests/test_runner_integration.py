@@ -453,6 +453,51 @@ async def test_runner_handles_subprocess_value_error_as_start_failure(
 
 
 @pytest.mark.asyncio
+async def test_runner_handles_subprocess_runtime_error_as_start_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_start_runtime_error"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    async def _raise_runtime_error(*args: object, **kwargs: object) -> object:
+        raise RuntimeError("simulated subprocess runtime failure")
+
+    monkeypatch.setattr(runner_module.asyncio, "create_subprocess_exec", _raise_runtime_error)
+
+    plan = PlanSpec(
+        goal="start runtime error",
+        artifacts_dir=None,
+        tasks=[
+            TaskSpec(
+                id="badcmd",
+                cmd=[sys.executable, "-c", "print('x')"],
+                retries=3,
+                retry_backoff_sec=[0.01],
+            )
+        ],
+    )
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "FAILED"
+    assert state.tasks["badcmd"].status == "FAILED"
+    assert state.tasks["badcmd"].attempts == 1
+    assert state.tasks["badcmd"].exit_code == 127
+    assert state.tasks["badcmd"].skip_reason == "process_start_failed"
+    stderr_log = run_dir / "logs" / "badcmd.err.log"
+    assert "failed to start process" in stderr_log.read_text(encoding="utf-8")
+
+
+@pytest.mark.asyncio
 async def test_runner_collects_declared_outputs_even_when_task_fails(tmp_path: Path) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run_fail_artifacts"
     workdir = tmp_path / "wd"
@@ -1064,6 +1109,51 @@ async def test_runner_ignores_invalid_output_glob_patterns(tmp_path: Path) -> No
         artifacts_dir=None,
         tasks=[TaskSpec(id="publish", cmd=create_outputs_cmd, outputs=["**a"])],
     )
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "SUCCESS"
+    assert state.tasks["publish"].status == "SUCCESS"
+    assert state.tasks["publish"].artifact_paths == []
+
+
+@pytest.mark.asyncio
+async def test_runner_ignores_runtime_errors_from_output_glob_matching(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_runtime_output_glob"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    create_outputs_cmd = [
+        sys.executable,
+        "-c",
+        "from pathlib import Path; Path('out').mkdir(exist_ok=True); "
+        "Path('out/ok.txt').write_text('OK', encoding='utf-8')",
+    ]
+    plan = PlanSpec(
+        goal="runtime outputs glob failure",
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="publish", cmd=create_outputs_cmd, outputs=["out/*.txt"])],
+    )
+
+    original_glob = Path.glob
+    resolved_workdir = workdir.resolve()
+
+    def flaky_glob(path_obj: Path, pattern: str):
+        if path_obj == resolved_workdir and pattern == "out/*.txt":
+            raise RuntimeError("simulated glob runtime failure")
+        return original_glob(path_obj, pattern)
+
+    monkeypatch.setattr(Path, "glob", flaky_glob)
 
     state = await run_plan(
         plan,
