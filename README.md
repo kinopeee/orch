@@ -43,7 +43,7 @@ tasks:
     # cmd: "python3 tools/fake_agent.py inspect"
     depends_on: ["other_task_id"]
     cwd: "."
-    env: {"KEY": "VALUE"}
+    env: {"KEY": "VALUE"}  # KEY は非空かつ '=' を含まない文字列
     timeout_sec: 60
     retries: 2
     retry_backoff_sec: [1, 3, 10]

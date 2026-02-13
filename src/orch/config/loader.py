@@ -28,6 +28,12 @@ def _is_str_without_nul(value: object) -> bool:
     return isinstance(value, str) and "\x00" not in value
 
 
+def _is_valid_env_key(value: object) -> bool:
+    if not isinstance(value, str):
+        return False
+    return _is_non_blank_str(value) and "=" not in value
+
+
 def _is_safe_id(value: object) -> bool:
     return isinstance(value, str) and _SAFE_ID_PATTERN.fullmatch(value) is not None
 
@@ -97,7 +103,7 @@ def _parse_task(raw: Any) -> TaskSpec:
     env = raw.get("env")
     if env is not None and (
         not isinstance(env, dict)
-        or not all(_is_non_blank_str(k) and _is_str_without_nul(v) for k, v in env.items())
+        or not all(_is_valid_env_key(k) and _is_str_without_nul(v) for k, v in env.items())
     ):
         raise PlanError(f"task '{raw['id']}' env must be dict[str, str]")
 

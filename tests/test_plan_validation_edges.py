@@ -376,6 +376,19 @@ def test_load_plan_rejects_non_string_env_entries(tmp_path: Path) -> None:
     with pytest.raises(PlanError):
         load_plan(nul_value)
 
+    key_with_equals = tmp_path / "plan_env_key_equals.yaml"
+    _write(
+        key_with_equals,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('x')"]
+            env: {"A=B": "1"}
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(key_with_equals)
+
 
 def test_load_plan_rejects_non_list_depends_on_and_outputs(tmp_path: Path) -> None:
     plan_dep = tmp_path / "plan_dep.yaml"
