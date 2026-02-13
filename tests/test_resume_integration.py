@@ -150,6 +150,7 @@ async def test_resume_failed_only_reruns_interrupted_ready_task(tmp_path: Path) 
     interrupted.status = "RUNNING"
     interrupted_task = interrupted.tasks["flaky"]
     interrupted_task.status = "READY"
+    interrupted_task.attempts = 2
     interrupted_task.skip_reason = None
     save_state_atomic(run_dir, interrupted)
 
@@ -165,4 +166,4 @@ async def test_resume_failed_only_reruns_interrupted_ready_task(tmp_path: Path) 
     )
     assert resumed.status == "SUCCESS"
     assert resumed.tasks["flaky"].status == "SUCCESS"
-    assert resumed.tasks["flaky"].attempts == 4
+    assert resumed.tasks["flaky"].attempts == 3

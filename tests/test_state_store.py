@@ -422,6 +422,21 @@ def test_load_state_rejects_success_task_with_skip_reason(tmp_path: Path) -> Non
         load_state(run_dir)
 
 
+def test_load_state_rejects_success_task_without_exit_code(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_success_no_exit_code"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["exit_code"] = None
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_running_task_without_started_at(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad_running_started"
     run_dir.mkdir()
@@ -518,6 +533,31 @@ def test_load_state_accepts_ready_task_after_timeout_attempt(tmp_path: Path) -> 
     assert loaded.tasks["t1"].timed_out is True
 
 
+def test_load_state_rejects_ready_task_with_attempts_exhausted(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_ready_attempts_exhausted"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["status"] = "RUNNING"
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["status"] = "READY"
+    task["started_at"] = "2026-01-01T00:00:00+00:00"
+    task["ended_at"] = "2026-01-01T00:00:01+00:00"
+    task["duration_sec"] = 1.0
+    task["exit_code"] = 1
+    task["timed_out"] = False
+    task["canceled"] = False
+    task["skip_reason"] = None
+    task["attempts"] = 2
+    task["retries"] = 1
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_ready_task_with_success_exit_code(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad_ready_success_exit"
     run_dir.mkdir()
@@ -537,6 +577,26 @@ def test_load_state_rejects_ready_task_with_success_exit_code(tmp_path: Path) ->
     task["skip_reason"] = None
     task["attempts"] = 1
     task["retries"] = 2
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
+def test_load_state_rejects_failed_timeout_task_with_exit_code(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_failed_timeout_exit_code"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["status"] = "FAILED"
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["status"] = "FAILED"
+    task["exit_code"] = 124
+    task["timed_out"] = True
+    task["canceled"] = False
+    task["skip_reason"] = None
     (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
 
     with pytest.raises(StateError, match="invalid state field: tasks"):

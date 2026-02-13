@@ -1198,6 +1198,61 @@ def test_cli_status_accepts_running_state_with_ready_timeout_task(tmp_path: Path
     assert "READY" in proc.stdout
 
 
+def test_cli_status_rejects_running_state_with_ready_attempts_exhausted(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    run_id = "20260101_000000_abcdef"
+    run_dir = home / "runs" / run_id
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").write_text(
+        json.dumps(
+            {
+                "run_id": run_id,
+                "created_at": "2026-01-01T00:00:00+00:00",
+                "updated_at": "2026-01-01T00:00:01+00:00",
+                "status": "RUNNING",
+                "goal": None,
+                "plan_relpath": "plan.yaml",
+                "home": str(home),
+                "workdir": str(tmp_path),
+                "max_parallel": 1,
+                "fail_fast": False,
+                "tasks": {
+                    "t1": {
+                        "status": "READY",
+                        "depends_on": [],
+                        "cmd": ["python3", "-c", "print('ok')"],
+                        "cwd": None,
+                        "env": None,
+                        "timeout_sec": 1.0,
+                        "retries": 1,
+                        "retry_backoff_sec": [0.5],
+                        "outputs": [],
+                        "attempts": 2,
+                        "started_at": "2026-01-01T00:00:00+00:00",
+                        "ended_at": "2026-01-01T00:00:01+00:00",
+                        "duration_sec": 1.0,
+                        "exit_code": 1,
+                        "timed_out": False,
+                        "canceled": False,
+                        "stdout_path": "logs/t1.out.log",
+                        "stderr_path": "logs/t1.err.log",
+                        "artifact_paths": [],
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "status", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "Failed to load state" in proc.stdout
+
+
 def test_cli_status_rejects_state_with_unsafe_plan_relpath(tmp_path: Path) -> None:
     home = tmp_path / ".orch_cli"
     run_id = "20260101_000000_abcdef"
@@ -1500,6 +1555,61 @@ def test_cli_status_rejects_success_task_with_skip_reason(tmp_path: Path) -> Non
                         "timed_out": False,
                         "canceled": False,
                         "skip_reason": "unexpected",
+                        "stdout_path": "logs/t1.out.log",
+                        "stderr_path": "logs/t1.err.log",
+                        "artifact_paths": ["artifacts/t1/out.txt"],
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "status", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "Failed to load state" in proc.stdout
+
+
+def test_cli_status_rejects_success_task_without_exit_code(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    run_id = "20260101_000000_abcdef"
+    run_dir = home / "runs" / run_id
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").write_text(
+        json.dumps(
+            {
+                "run_id": run_id,
+                "created_at": "2026-01-01T00:00:00+00:00",
+                "updated_at": "2026-01-01T00:00:00+00:00",
+                "status": "RUNNING",
+                "goal": None,
+                "plan_relpath": "plan.yaml",
+                "home": str(home),
+                "workdir": str(tmp_path),
+                "max_parallel": 1,
+                "fail_fast": False,
+                "tasks": {
+                    "t1": {
+                        "status": "SUCCESS",
+                        "depends_on": [],
+                        "cmd": ["python3", "-c", "print('ok')"],
+                        "cwd": None,
+                        "env": None,
+                        "timeout_sec": None,
+                        "retries": 0,
+                        "retry_backoff_sec": [],
+                        "outputs": [],
+                        "attempts": 1,
+                        "started_at": "2026-01-01T00:00:00+00:00",
+                        "ended_at": "2026-01-01T00:00:01+00:00",
+                        "duration_sec": 1.0,
+                        "exit_code": None,
+                        "timed_out": False,
+                        "canceled": False,
                         "stdout_path": "logs/t1.out.log",
                         "stderr_path": "logs/t1.err.log",
                         "artifact_paths": ["artifacts/t1/out.txt"],
