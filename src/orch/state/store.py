@@ -104,6 +104,7 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
     folded = {task_id.casefold() for task_id in task_ids}
     if len(folded) != len(task_ids):
         raise StateError("invalid state field: tasks")
+    task_statuses: list[str] = []
 
     for task_id, task_data in tasks.items():
         if (
@@ -116,6 +117,7 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
         task_status = task_data.get("status")
         if not isinstance(task_status, str) or task_status not in TASK_STATUS_VALUES:
             raise StateError("invalid state field: tasks")
+        task_statuses.append(task_status)
         attempts = task_data.get("attempts")
         if attempts is not None and not _is_non_negative_int(attempts):
             raise StateError("invalid state field: tasks")
@@ -166,6 +168,15 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
                 raise StateError("invalid state field: tasks")
             if len(artifact_path.parts) < 3 or artifact_path.parts[1] != task_id:
                 raise StateError("invalid state field: tasks")
+
+    if status == "SUCCESS" and any(task_status != "SUCCESS" for task_status in task_statuses):
+        raise StateError("invalid state field: status")
+    if status == "CANCELED" and not any(task_status == "CANCELED" for task_status in task_statuses):
+        raise StateError("invalid state field: status")
+    if status == "FAILED" and not any(
+        task_status in {"FAILED", "SKIPPED"} for task_status in task_statuses
+    ):
+        raise StateError("invalid state field: status")
 
 
 def load_state(run_dir: Path) -> RunState:
