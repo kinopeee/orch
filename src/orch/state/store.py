@@ -80,6 +80,11 @@ def _validate_state_shape(raw: dict[str, object]) -> None:
                 or rel_path.parts[0] != "logs"
             ):
                 raise StateError("invalid state field: tasks")
+            if len(rel_path.parts) != 2:
+                raise StateError("invalid state field: tasks")
+            filename = rel_path.parts[1]
+            if not filename.startswith(f"{task_id}.") or not filename.endswith(".log"):
+                raise StateError("invalid state field: tasks")
 
         artifact_paths = task_data.get("artifact_paths")
         if artifact_paths is None:
@@ -96,6 +101,8 @@ def _validate_state_shape(raw: dict[str, object]) -> None:
                 or not artifact_path.parts
                 or artifact_path.parts[0] != "artifacts"
             ):
+                raise StateError("invalid state field: tasks")
+            if len(artifact_path.parts) < 3 or artifact_path.parts[1] != task_id:
                 raise StateError("invalid state field: tasks")
 
 

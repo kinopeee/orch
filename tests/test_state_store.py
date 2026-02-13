@@ -140,6 +140,21 @@ def test_load_state_rejects_unsafe_task_log_path(tmp_path: Path) -> None:
         load_state(run_dir)
 
 
+def test_load_state_rejects_log_path_for_different_task_id(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_log_task_binding"
+    run_dir.mkdir()
+    payload = _minimal_state_payload()
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["stdout_path"] = "logs/t2.out.log"
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_unsafe_artifact_paths(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad_artifact_path"
     run_dir.mkdir()
@@ -149,6 +164,21 @@ def test_load_state_rejects_unsafe_artifact_paths(tmp_path: Path) -> None:
     task = tasks["t1"]
     assert isinstance(task, dict)
     task["artifact_paths"] = ["../outside.txt"]
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
+def test_load_state_rejects_artifact_path_for_different_task_id(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_artifact_task_binding"
+    run_dir.mkdir()
+    payload = _minimal_state_payload()
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["artifact_paths"] = ["artifacts/t2/out.txt"]
     (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
 
     with pytest.raises(StateError, match="invalid state field: tasks"):

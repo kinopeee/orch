@@ -672,6 +672,55 @@ def test_cli_logs_rejects_state_with_unsafe_log_path(tmp_path: Path) -> None:
     assert "Failed to load state" in proc.stdout
 
 
+def test_cli_logs_rejects_state_with_log_path_bound_to_other_task(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    run_id = "20260101_000000_abcdef"
+    run_dir = home / "runs" / run_id
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").write_text(
+        json.dumps(
+            {
+                "run_id": run_id,
+                "created_at": "2026-01-01T00:00:00+00:00",
+                "updated_at": "2026-01-01T00:00:00+00:00",
+                "status": "RUNNING",
+                "goal": None,
+                "plan_relpath": "plan.yaml",
+                "home": str(home),
+                "workdir": str(tmp_path),
+                "max_parallel": 1,
+                "fail_fast": False,
+                "tasks": {
+                    "t1": {
+                        "status": "SUCCESS",
+                        "depends_on": [],
+                        "cmd": ["python3", "-c", "print('ok')"],
+                        "cwd": None,
+                        "env": None,
+                        "timeout_sec": None,
+                        "retries": 0,
+                        "retry_backoff_sec": [],
+                        "outputs": [],
+                        "attempts": 1,
+                        "stdout_path": "logs/t2.out.log",
+                        "stderr_path": "logs/t1.err.log",
+                        "artifact_paths": [],
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "logs", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "Failed to load state" in proc.stdout
+
+
 def test_cli_status_rejects_file_home_path(tmp_path: Path) -> None:
     home_file = tmp_path / "home_file"
     home_file.write_text("not a dir\n", encoding="utf-8")
