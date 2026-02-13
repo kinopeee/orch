@@ -90,6 +90,40 @@ def test_cli_run_rejects_non_positive_max_parallel(tmp_path: Path) -> None:
     assert "x>=1" in output
 
 
+def test_cli_run_rejects_file_home_path(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    home_file = tmp_path / "home_file"
+    home_file.write_text("not a dir\n", encoding="utf-8")
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home_file),
+            "--workdir",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+
+
 def test_cli_run_rejects_missing_workdir_without_creating_run_dir(tmp_path: Path) -> None:
     plan_path = tmp_path / "plan.yaml"
     home = tmp_path / ".orch_cli"
@@ -536,6 +570,20 @@ def test_cli_status_missing_run_returns_two(tmp_path: Path) -> None:
     )
     assert proc.returncode == 2
     assert "Failed to load state" in proc.stdout
+
+
+def test_cli_status_rejects_file_home_path(tmp_path: Path) -> None:
+    home_file = tmp_path / "home_file"
+    home_file.write_text("not a dir\n", encoding="utf-8")
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "status", "any_run", "--home", str(home_file)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
 
 
 def test_cli_logs_unknown_task_returns_two(tmp_path: Path) -> None:

@@ -64,6 +64,12 @@ def _resolve_workdir_or_exit(workdir: Path) -> Path:
     return resolved
 
 
+def _validate_home_or_exit(home: Path) -> None:
+    if home.exists() and not home.is_dir():
+        console.print(f"[red]Invalid home:[/red] {home}")
+        raise typer.Exit(2)
+
+
 @app.command()
 def run(
     plan_path: Annotated[Path, typer.Argument(exists=True)],
@@ -73,6 +79,7 @@ def run(
     fail_fast: Annotated[bool, typer.Option("--fail-fast/--no-fail-fast")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
 ) -> None:
+    _validate_home_or_exit(home)
     try:
         plan = load_plan(plan_path)
         dependents, in_degree = build_adjacency(plan)
@@ -123,6 +130,7 @@ def resume(
     fail_fast: Annotated[bool, typer.Option("--fail-fast/--no-fail-fast")] = False,
     failed_only: Annotated[bool, typer.Option("--failed-only")] = False,
 ) -> None:
+    _validate_home_or_exit(home)
     resolved_workdir = _resolve_workdir_or_exit(workdir)
     current_run_dir = run_dir(home, run_id)
     try:
@@ -164,6 +172,7 @@ def status(
     home: Annotated[Path, typer.Option("--home")] = Path(".orch"),
     as_json: Annotated[bool, typer.Option("--json")] = False,
 ) -> None:
+    _validate_home_or_exit(home)
     current_run_dir = run_dir(home, run_id)
     try:
         with run_lock(current_run_dir, retries=5, retry_interval=0.1):
@@ -206,6 +215,7 @@ def logs(
     task: Annotated[str | None, typer.Option("--task")] = None,
     tail: Annotated[int, typer.Option("--tail", min=1)] = 100,
 ) -> None:
+    _validate_home_or_exit(home)
     current_run_dir = run_dir(home, run_id)
     try:
         state = load_state(current_run_dir)
@@ -249,6 +259,7 @@ def cancel(
     run_id: Annotated[str, typer.Argument()],
     home: Annotated[Path, typer.Option("--home")] = Path(".orch"),
 ) -> None:
+    _validate_home_or_exit(home)
     current_run_dir = run_dir(home, run_id)
     if not _run_exists(current_run_dir):
         console.print(f"[red]Run not found:[/red] {run_id}")
