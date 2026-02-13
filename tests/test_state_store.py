@@ -320,6 +320,20 @@ def test_load_state_wraps_read_oserror(tmp_path: Path) -> None:
         load_state(run_dir)
 
 
+def test_load_state_rejects_symlink_state_file(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_state_symlink"
+    run_dir.mkdir()
+    real_state = tmp_path / "real_state.json"
+    real_state.write_text(
+        json.dumps(_minimal_state_payload(run_id=run_dir.name)),
+        encoding="utf-8",
+    )
+    (run_dir / "state.json").symlink_to(real_state)
+
+    with pytest.raises(StateError, match="state file must not be symlink"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_unsafe_task_log_path(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad_log_path"
     run_dir.mkdir()
