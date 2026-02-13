@@ -505,3 +505,54 @@ def test_source_does_not_use_os_ordwr_flag() -> None:
                 violations.append(f"{relative_path}:{node.lineno}")
 
     assert not violations, "unexpected os.O_RDWR usage found:\n" + "\n".join(violations)
+
+
+def test_source_os_open_functions_define_nonblock_and_nofollow_flags() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    violations: list[str] = []
+
+    for file_path in src_root.rglob("*.py"):
+        relative_path = file_path.relative_to(src_root)
+        module = ast.parse(file_path.read_text(encoding="utf-8"))
+        parents: dict[ast.AST, ast.AST] = {}
+        for parent in ast.walk(module):
+            for child in ast.iter_child_nodes(parent):
+                parents[child] = parent
+
+        open_functions: dict[ast.AST, list[int]] = {}
+        for node in ast.walk(module):
+            if not (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "os"
+                and node.func.attr == "open"
+            ):
+                continue
+            current: ast.AST | None = node
+            while current is not None and not isinstance(
+                current, (ast.FunctionDef, ast.AsyncFunctionDef)
+            ):
+                current = parents.get(current)
+            if current is None:
+                violations.append(f"{relative_path}:{node.lineno}: os.open outside function")
+                continue
+            open_functions.setdefault(current, []).append(node.lineno)
+
+        for function_node, open_lines in open_functions.items():
+            os_attrs = {
+                attr.attr
+                for attr in ast.walk(function_node)
+                if isinstance(attr, ast.Attribute)
+                and isinstance(attr.value, ast.Name)
+                and attr.value.id == "os"
+            }
+            for required_flag in ("O_NONBLOCK", "O_NOFOLLOW"):
+                if required_flag not in os_attrs:
+                    function_name = getattr(function_node, "name", "<unknown>")
+                    lines = ",".join(str(line) for line in sorted(open_lines))
+                    violations.append(
+                        f"{relative_path}:{function_name}:os.open@{lines} missing {required_flag}"
+                    )
+
+    assert not violations, "os.open flag policy violations found:\n" + "\n".join(violations)
