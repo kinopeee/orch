@@ -509,6 +509,21 @@ def test_load_plan_rejects_duplicate_dependencies(tmp_path: Path) -> None:
         load_plan(plan)
 
 
+def test_load_plan_rejects_duplicate_outputs(tmp_path: Path) -> None:
+    plan = tmp_path / "plan_dup_outputs.yaml"
+    _write(
+        plan,
+        """
+        tasks:
+          - id: a
+            cmd: ["python3", "-c", "print('a')"]
+            outputs: ["dist/**", "dist/**"]
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan)
+
+
 def test_load_plan_rejects_empty_string_items_in_depends_on_and_outputs(tmp_path: Path) -> None:
     plan_dep = tmp_path / "plan_dep.yaml"
     _write(
