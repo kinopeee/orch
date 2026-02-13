@@ -638,6 +638,48 @@ def test_cli_timeout_with_retry_records_attempts_and_fails(tmp_path: Path) -> No
     assert state["tasks"]["slow"]["timed_out"] is True
 
 
+def test_cli_run_missing_command_fails_without_retry_and_logs_reason(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_missing_cmd.yaml"
+    home = tmp_path / ".orch_cli"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: badcmd
+            cmd: ["__definitely_missing_command__", "--version"]
+            retries: 3
+            retry_backoff_sec: [0.01, 0.01, 0.01]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--workdir",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 3
+    run_id = _extract_run_id(proc.stdout)
+    state = json.loads((home / "runs" / run_id / "state.json").read_text(encoding="utf-8"))
+    assert state["status"] == "FAILED"
+    badcmd = state["tasks"]["badcmd"]
+    assert badcmd["status"] == "FAILED"
+    assert badcmd["attempts"] == 1
+    assert badcmd["exit_code"] == 127
+    stderr_log = home / "runs" / run_id / badcmd["stderr_path"]
+    assert "failed to start process" in stderr_log.read_text(encoding="utf-8")
+
+
 def test_cli_status_json_outputs_valid_state_payload(tmp_path: Path) -> None:
     plan_path = tmp_path / "plan_status_json.yaml"
     home = tmp_path / ".orch_cli"
