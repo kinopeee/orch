@@ -894,6 +894,75 @@ def test_cancel_helpers_ignore_symlink_ancestor_paths(tmp_path: Path) -> None:
     assert cancel_path.read_text(encoding="utf-8") == "cancel requested\n"
 
 
+def test_cancel_helpers_ignore_symlink_run_dir_paths(tmp_path: Path) -> None:
+    real_run_dir = tmp_path / "real_run"
+    real_run_dir.mkdir()
+    linked_run_dir = tmp_path / "run_link"
+    linked_run_dir.symlink_to(real_run_dir, target_is_directory=True)
+    cancel_path = real_run_dir / "cancel.request"
+    cancel_path.write_text("cancel requested\n", encoding="utf-8")
+
+    assert cancel_requested(linked_run_dir) is False
+    clear_cancel_request(linked_run_dir)
+    assert cancel_path.exists()
+
+    with pytest.raises(OSError, match="contains symlink component"):
+        write_cancel_request(linked_run_dir)
+    assert cancel_path.read_text(encoding="utf-8") == "cancel requested\n"
+
+
+def test_cancel_requested_symlink_run_dir_skips_target_lstat(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_run_dir = tmp_path / "real_run"
+    real_run_dir.mkdir()
+    linked_run_dir = tmp_path / "run_link"
+    linked_run_dir.symlink_to(real_run_dir, target_is_directory=True)
+    target_cancel_path = linked_run_dir / "cancel.request"
+    real_cancel_path = real_run_dir / "cancel.request"
+    real_cancel_path.write_text("cancel requested\n", encoding="utf-8")
+    original_lstat = Path.lstat
+    target_lstat_calls = 0
+
+    def capture_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal target_lstat_calls
+        if path_obj == target_cancel_path:
+            target_lstat_calls += 1
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", capture_lstat)
+
+    assert cancel_requested(linked_run_dir) is False
+    assert target_lstat_calls == 0
+    assert real_cancel_path.exists()
+
+
+def test_clear_cancel_request_symlink_run_dir_skips_target_unlink(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_run_dir = tmp_path / "real_run"
+    real_run_dir.mkdir()
+    linked_run_dir = tmp_path / "run_link"
+    linked_run_dir.symlink_to(real_run_dir, target_is_directory=True)
+    target_cancel_path = linked_run_dir / "cancel.request"
+    real_cancel_path = real_run_dir / "cancel.request"
+    real_cancel_path.write_text("cancel requested\n", encoding="utf-8")
+    original_unlink = Path.unlink
+    target_unlink_calls = 0
+
+    def capture_unlink(path_obj: Path, *args: object, **kwargs: object) -> None:
+        nonlocal target_unlink_calls
+        if path_obj == target_cancel_path:
+            target_unlink_calls += 1
+        original_unlink(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", capture_unlink)
+
+    clear_cancel_request(linked_run_dir)
+    assert target_unlink_calls == 0
+    assert real_cancel_path.exists()
+
+
 def test_cancel_requested_symlink_ancestor_skips_target_lstat(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
