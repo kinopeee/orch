@@ -508,6 +508,12 @@ async def run_plan(
 
             task_state.status = "RUNNING"
             task_state.started_at = now_iso()
+            task_state.ended_at = None
+            task_state.duration_sec = None
+            task_state.exit_code = None
+            task_state.timed_out = False
+            task_state.canceled = False
+            task_state.skip_reason = None
             task_state.attempts += 1
             attempt = task_state.attempts
             _persist(run_dir, state)

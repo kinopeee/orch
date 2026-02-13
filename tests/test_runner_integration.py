@@ -106,6 +106,84 @@ async def test_runner_timeout_marks_task_failed(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_runner_clears_terminal_fields_before_retry_attempt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_retry_reset"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    call_count = 0
+
+    async def _fake_run_task(
+        task: TaskSpec,
+        run_dir_for_task: Path,
+        *,
+        attempt: int,
+        default_cwd: Path,
+    ) -> runner_module.TaskResult:
+        nonlocal call_count
+        assert task.id == "flaky"
+        assert default_cwd == workdir
+        call_count += 1
+        if call_count == 1:
+            assert attempt == 1
+            return runner_module.TaskResult(
+                exit_code=1,
+                timed_out=False,
+                canceled=False,
+                start_failed=False,
+                started_at="2026-01-01T00:00:00+00:00",
+                ended_at="2026-01-01T00:00:01+00:00",
+                duration_sec=1.0,
+            )
+
+        assert attempt == 2
+        persisted = load_state(run_dir_for_task)
+        task_state = persisted.tasks["flaky"]
+        assert task_state.status == "RUNNING"
+        assert task_state.attempts == 2
+        assert task_state.started_at is not None
+        assert task_state.ended_at is None
+        assert task_state.duration_sec is None
+        assert task_state.exit_code is None
+        assert task_state.timed_out is False
+        assert task_state.canceled is False
+        assert task_state.skip_reason is None
+        return runner_module.TaskResult(
+            exit_code=0,
+            timed_out=False,
+            canceled=False,
+            start_failed=False,
+            started_at="2026-01-01T00:00:02+00:00",
+            ended_at="2026-01-01T00:00:03+00:00",
+            duration_sec=1.0,
+        )
+
+    monkeypatch.setattr(runner_module, "run_task", _fake_run_task)
+
+    plan = PlanSpec(
+        goal="retry reset test",
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="flaky", cmd=[sys.executable, "-c", "print('x')"], retries=1)],
+    )
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert call_count == 2
+    assert state.status == "SUCCESS"
+    assert state.tasks["flaky"].status == "SUCCESS"
+    assert state.tasks["flaky"].attempts == 2
+
+
+@pytest.mark.asyncio
 async def test_runner_marks_task_failed_when_command_cannot_start(tmp_path: Path) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run_start_failure"
     workdir = tmp_path / "wd"

@@ -87,6 +87,11 @@ async def test_resume_converts_interrupted_running_and_reruns(tmp_path: Path) ->
     interrupted = load_state(run_dir)
     interrupted.status = "RUNNING"
     interrupted.tasks["single"].status = "RUNNING"
+    interrupted.tasks["single"].ended_at = None
+    interrupted.tasks["single"].duration_sec = None
+    interrupted.tasks["single"].exit_code = None
+    interrupted.tasks["single"].timed_out = False
+    interrupted.tasks["single"].canceled = False
     interrupted.tasks["single"].skip_reason = None
     save_state_atomic(run_dir, interrupted)
 
