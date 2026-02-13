@@ -14,9 +14,14 @@ def cancel_requested(run_dir: Path) -> bool:
     if has_symlink_ancestor(path):
         return False
     try:
-        return path.is_file() and not is_symlink_path(path)
+        meta = path.lstat()
+    except FileNotFoundError:
+        return False
     except (OSError, RuntimeError):
         return False
+    if stat.S_ISLNK(meta.st_mode):
+        return False
+    return stat.S_ISREG(meta.st_mode)
 
 
 def write_cancel_request(run_dir: Path) -> None:
@@ -26,12 +31,16 @@ def write_cancel_request(run_dir: Path) -> None:
     if is_symlink_path(path):
         raise OSError("cancel request path must not be symlink")
     try:
-        path_exists = path.exists()
-        path_is_file = path.is_file()
+        path_meta = path.lstat()
+    except FileNotFoundError:
+        path_meta = None
     except (OSError, RuntimeError) as exc:
         raise OSError("cancel request path must be regular file") from exc
-    if path_exists and not path_is_file:
-        raise OSError("cancel request path must be regular file")
+    if path_meta is not None:
+        if stat.S_ISLNK(path_meta.st_mode):
+            raise OSError("cancel request path must not be symlink")
+        if not stat.S_ISREG(path_meta.st_mode):
+            raise OSError("cancel request path must be regular file")
     flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
     if hasattr(os, "O_NONBLOCK"):
         flags |= os.O_NONBLOCK
