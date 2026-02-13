@@ -6,7 +6,7 @@ import stat
 from contextlib import suppress
 from pathlib import Path
 
-from orch.util.path_guard import has_symlink_ancestor
+from orch.util.path_guard import has_symlink_ancestor, is_symlink_path
 
 
 async def stream_to_file(stream: asyncio.StreamReader | None, file_path: Path) -> None:
@@ -18,7 +18,7 @@ async def stream_to_file(stream: asyncio.StreamReader | None, file_path: Path) -
         file_path.parent.mkdir(parents=True, exist_ok=True)
     except OSError:
         return
-    if file_path.parent.is_symlink() or file_path.is_symlink():
+    if is_symlink_path(file_path.parent) or is_symlink_path(file_path):
         return
 
     flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND

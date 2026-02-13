@@ -160,6 +160,28 @@ async def test_stream_to_file_uses_nonblock_open_flag(
         assert captured_flags["flags"] & os.O_NONBLOCK
 
 
+@pytest.mark.asyncio
+async def test_stream_to_file_ignores_when_symlink_check_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    file_path = tmp_path / "capture.log"
+    original_is_symlink = Path.is_symlink
+
+    def flaky_is_symlink(path_obj: Path) -> bool:
+        if path_obj in {file_path, file_path.parent}:
+            raise PermissionError("simulated lstat failure")
+        return original_is_symlink(path_obj)
+
+    monkeypatch.setattr(Path, "is_symlink", flaky_is_symlink)
+
+    stream = asyncio.StreamReader()
+    stream.feed_data(b"line-a\n")
+    stream.feed_eof()
+    await stream_to_file(stream, file_path)
+
+    assert not file_path.exists()
+
+
 def test_cancel_request_helpers(tmp_path: Path) -> None:
     run_dir = tmp_path / "run"
     run_dir.mkdir()

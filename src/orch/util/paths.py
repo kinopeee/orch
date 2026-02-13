@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from orch.util.path_guard import has_symlink_ancestor
+from orch.util.path_guard import has_symlink_ancestor, is_symlink_path
 
 
 def run_dir(home: Path, run_id: str) -> Path:
@@ -13,10 +13,10 @@ def run_dir(home: Path, run_id: str) -> Path:
 def _ensure_directory(path: Path, *, parents: bool = False) -> None:
     if has_symlink_ancestor(path):
         raise OSError(f"path contains symlink component: {path}")
-    if path.is_symlink():
+    if is_symlink_path(path):
         raise OSError(f"path must not be symlink: {path}")
     path.mkdir(parents=parents, exist_ok=True)
-    if path.is_symlink() or not path.is_dir():
+    if is_symlink_path(path) or not path.is_dir():
         raise OSError(f"path must be directory: {path}")
 
 

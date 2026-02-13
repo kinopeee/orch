@@ -527,6 +527,23 @@ def test_runner_append_text_best_effort_ignores_symlink_ancestor_path(tmp_path: 
     assert target.read_text(encoding="utf-8") == "keep\n"
 
 
+def test_runner_append_text_best_effort_ignores_symlink_check_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    log_path = tmp_path / "logs" / "task.err.log"
+    original_is_symlink = Path.is_symlink
+
+    def flaky_is_symlink(path_obj: Path) -> bool:
+        if path_obj in {log_path, log_path.parent}:
+            raise PermissionError("simulated lstat failure")
+        return original_is_symlink(path_obj)
+
+    monkeypatch.setattr(Path, "is_symlink", flaky_is_symlink)
+
+    runner_module._append_text_best_effort(log_path, "new-line\n")
+    assert not log_path.exists()
+
+
 @pytest.mark.asyncio
 async def test_runner_start_failure_does_not_write_symlinked_logs(tmp_path: Path) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run_logs_symlink_start_fail"

@@ -29,7 +29,7 @@ from orch.state.model import RunState
 from orch.state.store import load_state
 from orch.util.errors import PlanError, RunConflictError, StateError
 from orch.util.ids import new_run_id
-from orch.util.path_guard import has_symlink_ancestor
+from orch.util.path_guard import has_symlink_ancestor, is_symlink_path
 from orch.util.paths import ensure_run_layout, run_dir
 from orch.util.tail import tail_lines
 
@@ -78,7 +78,7 @@ def _write_plan_snapshot(plan: PlanSpec, destination: Path) -> None:
     payload = yaml.safe_dump(plan_data, sort_keys=False, allow_unicode=True)
     if has_symlink_ancestor(destination):
         raise OSError(f"plan snapshot path contains symlink component: {destination}")
-    if destination.parent.is_symlink() or destination.is_symlink():
+    if is_symlink_path(destination.parent) or is_symlink_path(destination):
         raise OSError(f"plan snapshot path must not be symlink: {destination}")
     try:
         destination_meta = destination.lstat()
@@ -120,7 +120,7 @@ def _write_report(state: RunState, current_run_dir: Path) -> Path:
     report_path = current_run_dir / "report" / "final_report.md"
     if has_symlink_ancestor(report_path):
         raise OSError(f"report path contains symlink component: {report_path}")
-    if report_path.parent.is_symlink() or report_path.is_symlink():
+    if is_symlink_path(report_path.parent) or is_symlink_path(report_path):
         raise OSError(f"report path must not be symlink: {report_path}")
     try:
         report_meta = report_path.lstat()
