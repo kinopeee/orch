@@ -957,6 +957,42 @@ def test_cli_cancel_missing_run_returns_two_without_creating_run_dir(tmp_path: P
     assert not run_dir.exists()
 
 
+def test_cli_cancel_handles_non_directory_runs_path(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    home.mkdir(parents=True)
+    runs_path = home / "runs"
+    runs_path.write_text("not a directory\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "cancel", "20260101_000000_abcdef", "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "Run not found" in proc.stdout
+    assert runs_path.read_text(encoding="utf-8") == "not a directory\n"
+
+
+def test_cli_cancel_handles_non_directory_run_target_path(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    run_id = "20260101_000000_abcdef"
+    run_dir = home / "runs" / run_id
+    run_dir.parent.mkdir(parents=True)
+    run_dir.write_text("not a directory\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "cancel", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "Run not found" in proc.stdout
+    assert run_dir.read_text(encoding="utf-8") == "not a directory\n"
+    assert not (run_dir.parent / "cancel.request").exists()
+
+
 def test_cli_cancel_accepts_existing_run_dir_with_plan_copy(tmp_path: Path) -> None:
     home = tmp_path / ".orch_cli"
     run_id = "20260101_000000_abcdef"
