@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from datetime import datetime
 from pathlib import Path
 
 from orch.state.model import RUN_STATUS_VALUES, TASK_STATUS_VALUES, RunState
@@ -26,19 +27,25 @@ def _fsync_directory(path: Path) -> None:
         os.close(fd)
 
 
+def _is_iso_datetime(value: object) -> bool:
+    if not isinstance(value, str) or not value:
+        return False
+    try:
+        datetime.fromisoformat(value)
+    except ValueError:
+        return False
+    return True
+
+
 def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
-    required_str = (
-        "run_id",
-        "created_at",
-        "updated_at",
-        "status",
-        "plan_relpath",
-        "home",
-        "workdir",
-    )
+    required_str = ("run_id", "status", "plan_relpath", "home", "workdir")
     for key in required_str:
         value = raw.get(key)
         if not isinstance(value, str) or not value:
+            raise StateError(f"invalid state field: {key}")
+
+    for key in ("created_at", "updated_at"):
+        if not _is_iso_datetime(raw.get(key)):
             raise StateError(f"invalid state field: {key}")
 
     run_id = raw["run_id"]

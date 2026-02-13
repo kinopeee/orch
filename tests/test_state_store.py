@@ -107,6 +107,17 @@ def test_load_state_rejects_incomplete_object(tmp_path: Path) -> None:
         load_state(run_dir)
 
 
+def test_load_state_rejects_invalid_timestamps(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_ts"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["created_at"] = "not-iso"
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: created_at"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_non_utf8_file(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_non_utf8"
     run_dir.mkdir()
