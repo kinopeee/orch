@@ -1009,3 +1009,79 @@ def test_source_cancel_helpers_check_ancestor_guard_before_target_ops() -> None:
                 )
 
     assert not violations, "cancel helper guard-order violations found:\n" + "\n".join(violations)
+
+
+def test_source_cancel_helpers_check_run_dir_lstat_before_target_ops() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cancel_module = ast.parse((src_root / "exec/cancel.py").read_text(encoding="utf-8"))
+    targets: list[tuple[str, tuple[tuple[str, str], ...]]] = [
+        ("cancel_requested", (("path", "lstat"),)),
+        ("clear_cancel_request", (("path", "lstat"), ("path", "unlink"))),
+        ("write_cancel_request", (("path", "lstat"), ("os", "open"))),
+    ]
+    violations: list[str] = []
+
+    for function_name, operations in targets:
+        function_node = next(
+            (
+                node
+                for node in ast.walk(cancel_module)
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and node.name == function_name
+            ),
+            None,
+        )
+        if function_node is None:
+            violations.append(f"exec/cancel.py:{function_name}: function not found")
+            continue
+
+        run_dir_lstat_lines = [
+            node.lineno
+            for node in ast.walk(function_node)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "run_dir"
+            and node.func.attr == "lstat"
+        ]
+        if not run_dir_lstat_lines:
+            violations.append(f"exec/cancel.py:{function_name}: run_dir.lstat not found")
+            continue
+        first_run_dir_lstat = min(run_dir_lstat_lines)
+
+        for receiver_name, method_name in operations:
+            operation_lines: list[int] = []
+            if receiver_name == "os":
+                operation_lines = [
+                    node.lineno
+                    for node in ast.walk(function_node)
+                    if isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == "os"
+                    and node.func.attr == method_name
+                ]
+            else:
+                operation_lines = [
+                    node.lineno
+                    for node in ast.walk(function_node)
+                    if isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == receiver_name
+                    and node.func.attr == method_name
+                ]
+            if not operation_lines:
+                violations.append(
+                    f"exec/cancel.py:{function_name}: {receiver_name}.{method_name} not found"
+                )
+                continue
+            if first_run_dir_lstat >= min(operation_lines):
+                violations.append(
+                    f"exec/cancel.py:{function_name}: run_dir.lstat occurs after "
+                    f"{receiver_name}.{method_name}"
+                )
+
+    assert not violations, "cancel helper run_dir-lstat order violations found:\n" + "\n".join(
+        violations
+    )
