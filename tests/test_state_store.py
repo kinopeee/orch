@@ -214,6 +214,31 @@ def test_save_state_atomic_normalizes_open_enxio_as_regular_file_error(
         save_state_atomic(run_dir, state)
 
 
+def test_save_state_atomic_cleans_tmp_when_tmp_path_changes_before_replace(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_tmp_swapped"
+    run_dir.mkdir()
+    state = RunState.from_dict(_minimal_state_payload(run_id=run_dir.name))
+    tmp_state_path = run_dir / "state.json.tmp"
+    imposter = tmp_path / "imposter.tmp"
+    imposter.write_text("imposter\n", encoding="utf-8")
+    imposter_meta = imposter.lstat()
+    original_lstat = Path.lstat
+
+    def swapped_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        if path_obj == tmp_state_path:
+            return imposter_meta
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", swapped_lstat)
+
+    with pytest.raises(OSError, match="temporary state path changed before replace"):
+        save_state_atomic(run_dir, state)
+    assert not (run_dir / "state.json").exists()
+    assert not tmp_state_path.exists()
+
+
 def test_save_state_atomic_ignores_directory_close_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

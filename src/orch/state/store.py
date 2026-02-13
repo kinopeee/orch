@@ -655,9 +655,13 @@ def save_state_atomic(run_dir: Path, state: RunState) -> None:
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
     fd: int | None = None
+    tmp_dev: int | None = None
+    tmp_ino: int | None = None
     try:
         fd = os.open(str(tmp_path), flags, 0o600)
         opened_meta = os.fstat(fd)
+        tmp_dev = opened_meta.st_dev
+        tmp_ino = opened_meta.st_ino
         if not stat.S_ISREG(opened_meta.st_mode):
             raise OSError(f"temporary state path must be regular file: {tmp_path}")
     except OSError as exc:
@@ -682,6 +686,20 @@ def save_state_atomic(run_dir: Path, state: RunState) -> None:
         if fd is not None:
             with suppress(OSError):
                 os.close(fd)
+        raise
+    try:
+        current_tmp_meta = tmp_path.lstat()
+        if (
+            not stat.S_ISREG(current_tmp_meta.st_mode)
+            or tmp_dev is None
+            or tmp_ino is None
+            or current_tmp_meta.st_dev != tmp_dev
+            or current_tmp_meta.st_ino != tmp_ino
+        ):
+            raise OSError(f"temporary state path changed before replace: {tmp_path}")
+    except OSError:
+        with suppress(OSError):
+            tmp_path.unlink(missing_ok=True)
         raise
     try:
         os.replace(tmp_path, state_path)
