@@ -43,8 +43,19 @@ def _should_retry(task: TaskSpec, result: TaskResult, attempt: int) -> bool:
 
 
 def _append_attempt_header(log_path: Path, attempt: int, max_attempts: int) -> None:
-    with log_path.open("a", encoding="utf-8") as f:
-        f.write(f"\n===== attempt {attempt} / {max_attempts} =====\n")
+    try:
+        with log_path.open("a", encoding="utf-8") as f:
+            f.write(f"\n===== attempt {attempt} / {max_attempts} =====\n")
+    except OSError:
+        return
+
+
+def _append_text_best_effort(log_path: Path, text: str) -> None:
+    try:
+        with log_path.open("a", encoding="utf-8") as f:
+            f.write(text)
+    except OSError:
+        return
 
 
 def _resolve_task_cwd(task_cwd: str | None, default_cwd: Path) -> Path:
@@ -299,13 +310,25 @@ async def run_task(
     if task.env:
         merged_env.update(task.env)
     cwd = _resolve_task_cwd(task.cwd, default_cwd)
-    proc = await asyncio.create_subprocess_exec(
-        *task.cmd,
-        cwd=str(cwd),
-        env=merged_env,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *task.cmd,
+            cwd=str(cwd),
+            env=merged_env,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+    except OSError as exc:
+        _append_text_best_effort(err_path, f"failed to start process: {exc}\n")
+        ended_dt = datetime.now().astimezone()
+        return TaskResult(
+            exit_code=127,
+            timed_out=False,
+            canceled=False,
+            started_at=started_iso,
+            ended_at=ended_dt.isoformat(timespec="seconds"),
+            duration_sec=duration_sec(started_dt, ended_dt),
+        )
 
     out_stream = asyncio.create_task(stream_to_file(proc.stdout, out_path))
     err_stream = asyncio.create_task(stream_to_file(proc.stderr, err_path))
@@ -341,7 +364,7 @@ async def run_task(
                 break
         await asyncio.sleep(0.1)
 
-    await asyncio.gather(out_stream, err_stream)
+    await asyncio.gather(out_stream, err_stream, return_exceptions=True)
     ended_dt = datetime.now().astimezone()
     return TaskResult(
         exit_code=exit_code,
