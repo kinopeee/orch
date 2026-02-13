@@ -421,6 +421,8 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
         if task_status == "SUCCESS":
             if not isinstance(attempts, int) or attempts < 1:
                 raise StateError("invalid state field: tasks")
+            if duration_sec is None:
+                raise StateError("invalid state field: tasks")
             if exit_code != 0:
                 raise StateError("invalid state field: tasks")
             if _is_non_blank_str_without_nul(skip_reason):
