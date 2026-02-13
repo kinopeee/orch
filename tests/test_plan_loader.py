@@ -39,3 +39,19 @@ tasks:
 
     with pytest.raises(PlanError):
         load_plan(plan_path)
+
+
+def test_load_plan_rejects_unreadable_path_like_directory(tmp_path: Path) -> None:
+    plan_dir = tmp_path / "plan_dir"
+    plan_dir.mkdir()
+
+    with pytest.raises(PlanError, match="failed to read plan file"):
+        load_plan(plan_dir)
+
+
+def test_load_plan_rejects_invalid_yaml_syntax(tmp_path: Path) -> None:
+    plan_path = tmp_path / "bad.yaml"
+    plan_path.write_text("tasks: [\n", encoding="utf-8")
+
+    with pytest.raises(PlanError, match="failed to parse yaml"):
+        load_plan(plan_path)
