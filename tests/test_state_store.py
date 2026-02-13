@@ -122,7 +122,7 @@ def test_save_state_atomic_cleans_tmp_when_replace_runtime_fails(
 
     monkeypatch.setattr(os, "replace", failing_replace)
 
-    with pytest.raises(RuntimeError, match="simulated replace runtime failure"):
+    with pytest.raises(OSError, match="failed to replace state file"):
         save_state_atomic(run_dir, state)
     assert not (run_dir / "state.json.tmp").exists()
 
@@ -168,7 +168,7 @@ def test_save_state_atomic_cleans_tmp_when_write_fsync_runtime_fails(
 
     monkeypatch.setattr(os, "fsync", flaky_fsync)
 
-    with pytest.raises(RuntimeError, match="simulated write fsync runtime failure"):
+    with pytest.raises(OSError, match="failed to write temporary state file"):
         save_state_atomic(run_dir, state)
     assert not (run_dir / "state.json.tmp").exists()
 
@@ -362,7 +362,7 @@ def test_save_state_atomic_cleans_tmp_when_tmp_lstat_runtime_error(
 
     monkeypatch.setattr(Path, "lstat", flaky_lstat)
 
-    with pytest.raises(RuntimeError, match="simulated tmp lstat runtime failure"):
+    with pytest.raises(OSError, match="failed to validate temporary state path"):
         save_state_atomic(run_dir, state)
     assert not (run_dir / "state.json").exists()
     assert not tmp_state_path.exists()

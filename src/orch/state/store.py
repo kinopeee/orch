@@ -690,12 +690,14 @@ def save_state_atomic(run_dir: Path, state: RunState) -> None:
             f.write(payload + "\n")
             f.flush()
             os.fsync(f.fileno())
-    except (OSError, RuntimeError):
+    except (OSError, RuntimeError) as exc:
         with suppress(OSError, RuntimeError):
             tmp_path.unlink(missing_ok=True)
         if fd is not None:
             with suppress(OSError, RuntimeError):
                 os.close(fd)
+        if isinstance(exc, RuntimeError):
+            raise OSError(f"failed to write temporary state file: {tmp_path}") from exc
         raise
     try:
         current_tmp_meta = tmp_path.lstat()
@@ -707,14 +709,18 @@ def save_state_atomic(run_dir: Path, state: RunState) -> None:
             or current_tmp_meta.st_ino != tmp_ino
         ):
             raise OSError(f"temporary state path changed before replace: {tmp_path}")
-    except (OSError, RuntimeError):
+    except (OSError, RuntimeError) as exc:
         with suppress(OSError, RuntimeError):
             tmp_path.unlink(missing_ok=True)
+        if isinstance(exc, RuntimeError):
+            raise OSError(f"failed to validate temporary state path: {tmp_path}") from exc
         raise
     try:
         os.replace(tmp_path, state_path)
-    except (OSError, RuntimeError):
+    except (OSError, RuntimeError) as exc:
         with suppress(OSError, RuntimeError):
             tmp_path.unlink(missing_ok=True)
+        if isinstance(exc, RuntimeError):
+            raise OSError(f"failed to replace state file: {state_path}") from exc
         raise
     _fsync_directory(run_dir)
