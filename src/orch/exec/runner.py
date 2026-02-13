@@ -5,6 +5,7 @@ import glob as globlib
 import os
 import re
 import shutil
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -47,18 +48,32 @@ def _should_retry(task: TaskSpec, result: TaskResult, attempt: int) -> bool:
 
 
 def _append_attempt_header(log_path: Path, attempt: int, max_attempts: int) -> None:
-    try:
-        with log_path.open("a", encoding="utf-8") as f:
-            f.write(f"\n===== attempt {attempt} / {max_attempts} =====\n")
-    except OSError:
-        return
+    _append_text_best_effort(
+        log_path,
+        f"\n===== attempt {attempt} / {max_attempts} =====\n",
+    )
 
 
 def _append_text_best_effort(log_path: Path, text: str) -> None:
+    if log_path.parent.is_symlink() or log_path.is_symlink():
+        return
     try:
-        with log_path.open("a", encoding="utf-8") as f:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return
+    flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        fd = os.open(str(log_path), flags, 0o600)
+    except OSError:
+        return
+    try:
+        with os.fdopen(fd, "a", encoding="utf-8") as f:
             f.write(text)
     except OSError:
+        with suppress(OSError):
+            os.close(fd)
         return
 
 

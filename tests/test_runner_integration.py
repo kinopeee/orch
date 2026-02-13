@@ -406,6 +406,70 @@ async def test_runner_skips_symlink_output_artifacts(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_runner_does_not_write_logs_when_logs_dir_is_symlink(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_logs_symlink"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+    outside_logs = tmp_path / "outside_logs"
+    outside_logs.mkdir()
+    logs_dir = run_dir / "logs"
+    logs_dir.rmdir()
+    logs_dir.symlink_to(outside_logs, target_is_directory=True)
+
+    plan = PlanSpec(
+        goal="log symlink safety",
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="t1", cmd=[sys.executable, "-c", "print('ok')"])],
+    )
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "SUCCESS"
+    assert state.tasks["t1"].status == "SUCCESS"
+    assert list(outside_logs.iterdir()) == []
+
+
+@pytest.mark.asyncio
+async def test_runner_start_failure_does_not_write_symlinked_logs(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_logs_symlink_start_fail"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+    outside_logs = tmp_path / "outside_logs_fail"
+    outside_logs.mkdir()
+    logs_dir = run_dir / "logs"
+    logs_dir.rmdir()
+    logs_dir.symlink_to(outside_logs, target_is_directory=True)
+
+    plan = PlanSpec(
+        goal="log symlink safety start failure",
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="bad", cmd=["__definitely_missing_command__"])],
+    )
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "FAILED"
+    assert state.tasks["bad"].status == "FAILED"
+    assert list(outside_logs.iterdir()) == []
+
+
+@pytest.mark.asyncio
 async def test_runner_preserves_case_only_colliding_artifacts_with_suffix(tmp_path: Path) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run_artifacts_case_collision"
     workdir = tmp_path / "wd"
