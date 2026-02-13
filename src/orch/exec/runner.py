@@ -75,6 +75,9 @@ def _append_text_best_effort(log_path: Path, text: str) -> None:
         fd = os.open(str(log_path), flags, 0o600)
         opened_meta = os.fstat(fd)
         if not stat.S_ISREG(opened_meta.st_mode):
+            with suppress(OSError, RuntimeError):
+                os.close(fd)
+            fd = None
             return
     except (OSError, RuntimeError):
         if fd is not None:

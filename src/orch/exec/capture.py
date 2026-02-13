@@ -32,6 +32,9 @@ async def stream_to_file(stream: asyncio.StreamReader | None, file_path: Path) -
         fd = os.open(str(file_path), flags, 0o600)
         opened_meta = os.fstat(fd)
         if not stat.S_ISREG(opened_meta.st_mode):
+            with suppress(OSError, RuntimeError):
+                os.close(fd)
+            fd = None
             return
     except (OSError, RuntimeError):
         if fd is not None:

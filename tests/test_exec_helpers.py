@@ -137,6 +137,41 @@ async def test_stream_to_file_rejects_non_regular_opened_target(
 
 
 @pytest.mark.asyncio
+async def test_stream_to_file_closes_fd_when_opened_target_not_regular(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    file_path = tmp_path / "capture.log"
+    original_open = os.open
+    original_close = os.close
+    tracked_fd: int | None = None
+    closed_fd = False
+
+    def redirect_open(path: str, flags: int, mode: int = 0o777) -> int:
+        nonlocal tracked_fd
+        if path == str(file_path):
+            fd = original_open("/dev/null", os.O_WRONLY)
+            tracked_fd = fd
+            return fd
+        return original_open(path, flags, mode)
+
+    def capture_close(fd: int) -> None:
+        nonlocal closed_fd
+        if tracked_fd is not None and fd == tracked_fd:
+            closed_fd = True
+        original_close(fd)
+
+    monkeypatch.setattr(os, "open", redirect_open)
+    monkeypatch.setattr(os, "close", capture_close)
+
+    stream = asyncio.StreamReader()
+    stream.feed_data(b"line-a\n")
+    stream.feed_eof()
+    await stream_to_file(stream, file_path)
+
+    assert closed_fd is True
+
+
+@pytest.mark.asyncio
 async def test_stream_to_file_ignores_fstat_runtime_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

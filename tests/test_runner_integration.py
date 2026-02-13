@@ -735,6 +735,37 @@ def test_runner_append_text_best_effort_ignores_fstat_runtime_errors(
     assert log_path.read_text(encoding="utf-8") == ""
 
 
+def test_runner_append_text_best_effort_closes_fd_when_target_not_regular(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    log_path = tmp_path / "logs" / "task.err.log"
+    original_open = os.open
+    original_close = os.close
+    tracked_fd: int | None = None
+    closed_fd = False
+
+    def redirect_open(path: str, flags: int, mode: int = 0o777) -> int:
+        nonlocal tracked_fd
+        if path == str(log_path):
+            fd = original_open("/dev/null", os.O_WRONLY)
+            tracked_fd = fd
+            return fd
+        return original_open(path, flags, mode)
+
+    def capture_close(fd: int) -> None:
+        nonlocal closed_fd
+        if tracked_fd is not None and fd == tracked_fd:
+            closed_fd = True
+        original_close(fd)
+
+    monkeypatch.setattr(os, "open", redirect_open)
+    monkeypatch.setattr(os, "close", capture_close)
+
+    runner_module._append_text_best_effort(log_path, "new-line\n")
+    assert closed_fd is True
+    assert not log_path.exists()
+
+
 @pytest.mark.asyncio
 async def test_runner_start_failure_does_not_write_symlinked_logs(tmp_path: Path) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run_logs_symlink_start_fail"
