@@ -179,6 +179,34 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
         backoff = task_data.get("retry_backoff_sec")
         if backoff is not None and not _is_non_negative_finite_number_list(backoff):
             raise StateError("invalid state field: tasks")
+        started_at = task_data.get("started_at")
+        if started_at is not None and not _is_iso_datetime(started_at):
+            raise StateError("invalid state field: tasks")
+        ended_at = task_data.get("ended_at")
+        if ended_at is not None and not _is_iso_datetime(ended_at):
+            raise StateError("invalid state field: tasks")
+        if isinstance(started_at, str) and isinstance(ended_at, str):
+            start_dt = datetime.fromisoformat(started_at)
+            end_dt = datetime.fromisoformat(ended_at)
+            if end_dt < start_dt:
+                raise StateError("invalid state field: tasks")
+        duration_sec = task_data.get("duration_sec")
+        if duration_sec is not None and not (
+            isinstance(duration_sec, (int, float))
+            and not isinstance(duration_sec, bool)
+            and math.isfinite(duration_sec)
+            and duration_sec >= 0
+        ):
+            raise StateError("invalid state field: tasks")
+        exit_code = task_data.get("exit_code")
+        if exit_code is not None and (
+            not isinstance(exit_code, int) or isinstance(exit_code, bool)
+        ):
+            raise StateError("invalid state field: tasks")
+        for bool_field in ("timed_out", "canceled"):
+            bval = task_data.get(bool_field)
+            if bval is not None and not isinstance(bval, bool):
+                raise StateError("invalid state field: tasks")
         for key in ("stdout_path", "stderr_path"):
             rel = task_data.get(key)
             if rel is None:

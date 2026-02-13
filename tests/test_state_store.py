@@ -316,6 +316,37 @@ def test_load_state_rejects_non_finite_backoff_in_task(tmp_path: Path) -> None:
         load_state(run_dir)
 
 
+def test_load_state_rejects_invalid_task_timestamps(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_task_timestamps"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["started_at"] = "not-iso"
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
+def test_load_state_rejects_task_end_before_start(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_task_time_order"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["started_at"] = "2026-01-02T00:00:00+00:00"
+    task["ended_at"] = "2026-01-01T00:00:00+00:00"
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_unknown_dependency_in_task(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad_dep_ref"
     run_dir.mkdir()
