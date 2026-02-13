@@ -94,7 +94,10 @@ def _copy_artifacts(task: TaskSpec, run_dir: Path, cwd: Path) -> list[str]:
             rel = _artifact_relative_path(match, cwd)
             dest = task_root / rel
             dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(match, dest)
+            try:
+                shutil.copy2(match, dest)
+            except OSError:
+                continue
             copied.append(str(dest.relative_to(run_dir)))
     return sorted(set(copied))
 
@@ -118,7 +121,10 @@ def _copy_to_aggregate_dir(
             rel = _artifact_relative_path(match, cwd)
             dest = task_root / rel
             dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(match, dest)
+            try:
+                shutil.copy2(match, dest)
+            except OSError:
+                continue
 
 
 def _copy_to_aggregate_dir_best_effort(

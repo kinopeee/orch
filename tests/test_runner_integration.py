@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from orch.config.schema import PlanSpec, TaskSpec
+from orch.exec import runner as runner_module
 from orch.exec.runner import run_plan
 from orch.util.paths import ensure_run_layout
 
@@ -109,6 +110,55 @@ async def test_runner_copies_declared_output_artifacts(tmp_path: Path) -> None:
     assert (run_dir / "artifacts" / "publish" / "out" / "sub" / "a.txt").read_text(
         encoding="utf-8"
     ) == "A"
+
+
+@pytest.mark.asyncio
+async def test_runner_ignores_copy_failures_and_keeps_success(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_artifacts_copy_error"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    create_outputs_cmd = [
+        sys.executable,
+        "-c",
+        "from pathlib import Path; Path('out').mkdir(exist_ok=True); "
+        "Path('out/ok.txt').write_text('OK', encoding='utf-8'); "
+        "Path('out/fail.txt').write_text('FAIL', encoding='utf-8')",
+    ]
+    plan = PlanSpec(
+        goal="artifact copy best effort",
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="publish", cmd=create_outputs_cmd, outputs=["out/*.txt"])],
+    )
+
+    original_copy2 = runner_module.shutil.copy2
+
+    def flaky_copy2(src: object, dst: object, *args: object, **kwargs: object) -> object:
+        if Path(src).name == "fail.txt":
+            raise OSError("simulated copy failure")
+        return original_copy2(src, dst, *args, **kwargs)
+
+    monkeypatch.setattr(runner_module.shutil, "copy2", flaky_copy2)
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "SUCCESS"
+    assert state.tasks["publish"].status == "SUCCESS"
+    assert state.tasks["publish"].artifact_paths == ["artifacts/publish/out/ok.txt"]
+    copied_ok = run_dir / "artifacts" / "publish" / "out" / "ok.txt"
+    assert copied_ok.read_text(encoding="utf-8") == "OK"
+    assert not (run_dir / "artifacts" / "publish" / "out" / "fail.txt").exists()
 
 
 @pytest.mark.asyncio
