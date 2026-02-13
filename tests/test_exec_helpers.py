@@ -50,6 +50,48 @@ async def test_stream_to_file_writes_all_stream_data(tmp_path: Path) -> None:
     assert "line-b" in content
 
 
+@pytest.mark.asyncio
+async def test_stream_to_file_ignores_symlink_target_path(tmp_path: Path) -> None:
+    target = tmp_path / "outside.log"
+    target.write_text("keep\n", encoding="utf-8")
+    symlink = tmp_path / "capture.log"
+    symlink.symlink_to(target)
+
+    proc = await asyncio.create_subprocess_exec(
+        sys.executable,
+        "-c",
+        "print('line-a')",
+        stdout=asyncio.subprocess.PIPE,
+    )
+    await stream_to_file(proc.stdout, symlink)
+    await proc.wait()
+
+    assert target.read_text(encoding="utf-8") == "keep\n"
+
+
+@pytest.mark.asyncio
+async def test_stream_to_file_ignores_symlink_parent_directory(tmp_path: Path) -> None:
+    outside_dir = tmp_path / "outside_logs"
+    outside_dir.mkdir()
+    target = outside_dir / "capture.log"
+    target.write_text("keep-parent\n", encoding="utf-8")
+
+    link_parent = tmp_path / "logs_link"
+    link_parent.symlink_to(outside_dir, target_is_directory=True)
+    linked_path = link_parent / "capture.log"
+
+    proc = await asyncio.create_subprocess_exec(
+        sys.executable,
+        "-c",
+        "print('line-a')",
+        stdout=asyncio.subprocess.PIPE,
+    )
+    await stream_to_file(proc.stdout, linked_path)
+    await proc.wait()
+
+    assert target.read_text(encoding="utf-8") == "keep-parent\n"
+
+
 def test_cancel_request_helpers(tmp_path: Path) -> None:
     run_dir = tmp_path / "run"
     run_dir.mkdir()
