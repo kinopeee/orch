@@ -371,6 +371,8 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
         if task_status == "READY":
             if not isinstance(started_at, str) or not isinstance(ended_at, str):
                 raise StateError("invalid state field: tasks")
+            if duration_sec is None:
+                raise StateError("invalid state field: tasks")
             if (
                 not isinstance(attempts, int)
                 or not isinstance(retries, int)
