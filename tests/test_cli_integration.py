@@ -636,6 +636,46 @@ def test_cli_status_rejects_home_with_file_ancestor(tmp_path: Path) -> None:
     assert "Invalid home" in output
 
 
+def test_cli_status_logs_resume_reject_path_like_run_id(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    bad_run_id = "../escape"
+    for command in ("status", "logs", "resume"):
+        proc = subprocess.run(
+            [sys.executable, "-m", "orch.cli", command, bad_run_id, "--home", str(home)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        output = proc.stdout + proc.stderr
+        assert proc.returncode == 2, command
+        assert "Invalid run_id" in output, command
+
+
+def test_cli_cancel_rejects_absolute_run_id_without_side_effect(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    outside_run_dir = tmp_path / "outside_run"
+    outside_run_dir.mkdir()
+    (outside_run_dir / "plan.yaml").write_text("tasks: []\n", encoding="utf-8")
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "cancel",
+            str(outside_run_dir),
+            "--home",
+            str(home),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid run_id" in output
+    assert not (outside_run_dir / "cancel.request").exists()
+
+
 def test_cli_logs_unknown_task_returns_two(tmp_path: Path) -> None:
     plan_path = tmp_path / "plan_logs_task.yaml"
     home = tmp_path / ".orch_cli"

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -28,6 +29,7 @@ from orch.util.tail import tail_lines
 
 app = typer.Typer(help="CLI agent task orchestrator")
 console = Console()
+_RUN_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 
 def _exit_code_for_state(state: RunState) -> int:
@@ -72,6 +74,12 @@ def _validate_home_or_exit(home: Path) -> None:
         if candidate.is_dir():
             break
         console.print(f"[red]Invalid home:[/red] {home}")
+        raise typer.Exit(2)
+
+
+def _validate_run_id_or_exit(run_id: str) -> None:
+    if _RUN_ID_PATTERN.fullmatch(run_id) is None:
+        console.print(f"[red]Invalid run_id:[/red] {run_id}")
         raise typer.Exit(2)
 
 
@@ -135,6 +143,7 @@ def resume(
     fail_fast: Annotated[bool, typer.Option("--fail-fast/--no-fail-fast")] = False,
     failed_only: Annotated[bool, typer.Option("--failed-only")] = False,
 ) -> None:
+    _validate_run_id_or_exit(run_id)
     _validate_home_or_exit(home)
     resolved_workdir = _resolve_workdir_or_exit(workdir)
     current_run_dir = run_dir(home, run_id)
@@ -177,6 +186,7 @@ def status(
     home: Annotated[Path, typer.Option("--home")] = Path(".orch"),
     as_json: Annotated[bool, typer.Option("--json")] = False,
 ) -> None:
+    _validate_run_id_or_exit(run_id)
     _validate_home_or_exit(home)
     current_run_dir = run_dir(home, run_id)
     try:
@@ -220,6 +230,7 @@ def logs(
     task: Annotated[str | None, typer.Option("--task")] = None,
     tail: Annotated[int, typer.Option("--tail", min=1)] = 100,
 ) -> None:
+    _validate_run_id_or_exit(run_id)
     _validate_home_or_exit(home)
     current_run_dir = run_dir(home, run_id)
     try:
@@ -264,6 +275,7 @@ def cancel(
     run_id: Annotated[str, typer.Argument()],
     home: Annotated[Path, typer.Option("--home")] = Path(".orch"),
 ) -> None:
+    _validate_run_id_or_exit(run_id)
     _validate_home_or_exit(home)
     current_run_dir = run_dir(home, run_id)
     if not _run_exists(current_run_dir):
