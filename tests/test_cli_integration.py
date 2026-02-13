@@ -140,3 +140,70 @@ def test_cli_cancel_stops_running_process(tmp_path: Path) -> None:
     assert run_proc.returncode == 4, f"stdout={stdout}\nstderr={stderr}"
     state = json.loads((home / "runs" / run_id / "state.json").read_text(encoding="utf-8"))
     assert state["status"] == "CANCELED"
+
+
+def test_cli_resume_failed_only_does_not_rerun_success(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_resume.yaml"
+    home = tmp_path / ".orch_cli"
+    gate = tmp_path / "gate.ok"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: root
+            cmd: ["python3", "-c", "print('root')"]
+          - id: flaky
+            cmd:
+              [
+                "python3",
+                "-c",
+                "import os,sys;sys.exit(0 if os.path.exists('gate.ok') else 1)",
+              ]
+            depends_on: ["root"]
+        """,
+    )
+
+    first = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--workdir",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert first.returncode == 3
+    run_id = _extract_run_id(first.stdout)
+
+    gate.write_text("ok\n", encoding="utf-8")
+    resumed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "resume",
+            run_id,
+            "--home",
+            str(home),
+            "--workdir",
+            str(tmp_path),
+            "--failed-only",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert resumed.returncode == 0
+    state = json.loads((home / "runs" / run_id / "state.json").read_text(encoding="utf-8"))
+    assert state["status"] == "SUCCESS"
+    assert state["tasks"]["root"]["status"] == "SUCCESS"
+    assert state["tasks"]["root"]["attempts"] == 1
+    assert state["tasks"]["flaky"]["status"] == "SUCCESS"
+    assert state["tasks"]["flaky"]["attempts"] == 2
