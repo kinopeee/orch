@@ -121,6 +121,10 @@ def validate_plan(plan: PlanSpec) -> None:
         unknown = [dep for dep in task.depends_on if dep not in known]
         if unknown:
             raise PlanError(f"task '{task.id}' has unknown dependencies: {unknown}")
+        if task.id in task.depends_on:
+            raise PlanError(f"task '{task.id}' must not depend on itself")
+        if len(set(task.depends_on)) != len(task.depends_on):
+            raise PlanError(f"task '{task.id}' has duplicate dependencies")
 
     dependents, in_degree = build_adjacency(plan)
     assert_acyclic(ids, dependents, in_degree)
