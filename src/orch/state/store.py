@@ -666,6 +666,8 @@ def save_state_atomic(run_dir: Path, state: RunState) -> None:
                 os.close(fd)
         if exc.errno == errno.ELOOP:
             raise OSError(f"temporary state path must not be symlink: {tmp_path}") from exc
+        if exc.errno == errno.ENXIO:
+            raise OSError(f"temporary state path must be regular file: {tmp_path}") from exc
         raise
     try:
         assert fd is not None

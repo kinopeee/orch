@@ -198,6 +198,22 @@ def test_save_state_atomic_rejects_non_regular_tmp_path(tmp_path: Path) -> None:
     assert not (run_dir / "state.json").exists()
 
 
+def test_save_state_atomic_normalizes_open_enxio_as_regular_file_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_tmp_open_enxio"
+    run_dir.mkdir()
+    state = RunState.from_dict(_minimal_state_payload(run_id=run_dir.name))
+
+    def _raise_enxio(_path: str, _flags: int, _mode: int = 0o777) -> int:
+        raise OSError(errno.ENXIO, "No such device or address")
+
+    monkeypatch.setattr(os, "open", _raise_enxio)
+
+    with pytest.raises(OSError, match="temporary state path must be regular file"):
+        save_state_atomic(run_dir, state)
+
+
 def test_save_state_atomic_ignores_directory_close_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

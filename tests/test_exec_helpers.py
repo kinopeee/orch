@@ -236,6 +236,21 @@ def test_write_cancel_request_normalizes_eloop_as_symlink_error(
         write_cancel_request(run_dir)
 
 
+def test_write_cancel_request_normalizes_enxio_as_regular_file_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_cancel_enxio"
+    run_dir.mkdir()
+
+    def _raise_enxio(_path: os.PathLike[str] | str, _flags: int, _mode: int) -> int:
+        raise OSError(errno.ENXIO, "No such device or address")
+
+    monkeypatch.setattr(os, "open", _raise_enxio)
+
+    with pytest.raises(OSError, match="must be regular file"):
+        write_cancel_request(run_dir)
+
+
 def test_write_cancel_request_rejects_non_regular_opened_target(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
