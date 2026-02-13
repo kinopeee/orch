@@ -605,6 +605,58 @@ def test_run_lock_rejects_non_directory_run_path(tmp_path: Path) -> None:
         pass
 
 
+def test_run_lock_normalizes_run_dir_lstat_oserror(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    original_lstat = Path.lstat
+    original_is_symlink = Path.is_symlink
+
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        if path_obj == run_dir:
+            raise PermissionError("simulated run_dir lstat failure")
+        return original_lstat(path_obj, *args, **kwargs)
+
+    def fake_is_symlink(path_obj: Path) -> bool:
+        if path_obj == run_dir:
+            return False
+        return original_is_symlink(path_obj)
+
+    monkeypatch.setattr(Path, "is_symlink", fake_is_symlink)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
+
+    with pytest.raises(OSError, match="failed to access run directory"), run_lock(run_dir):
+        pass
+    assert not (run_dir / ".lock").exists()
+
+
+def test_run_lock_normalizes_run_dir_lstat_runtime_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    original_lstat = Path.lstat
+    original_is_symlink = Path.is_symlink
+
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        if path_obj == run_dir:
+            raise RuntimeError("simulated run_dir lstat runtime failure")
+        return original_lstat(path_obj, *args, **kwargs)
+
+    def fake_is_symlink(path_obj: Path) -> bool:
+        if path_obj == run_dir:
+            return False
+        return original_is_symlink(path_obj)
+
+    monkeypatch.setattr(Path, "is_symlink", fake_is_symlink)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
+
+    with pytest.raises(OSError, match="failed to access run directory"), run_lock(run_dir):
+        pass
+    assert not (run_dir / ".lock").exists()
+
+
 def test_run_lock_rejects_symlink_lock_path(tmp_path: Path) -> None:
     run_dir = tmp_path / "run"
     run_dir.mkdir()
