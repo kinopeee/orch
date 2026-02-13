@@ -63,7 +63,7 @@ def _append_text_best_effort(log_path: Path, text: str) -> None:
         return
     try:
         log_path.parent.mkdir(parents=True, exist_ok=True)
-    except OSError:
+    except (OSError, RuntimeError):
         return
     flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND
     if hasattr(os, "O_NONBLOCK"):
@@ -76,9 +76,9 @@ def _append_text_best_effort(log_path: Path, text: str) -> None:
         opened_meta = os.fstat(fd)
         if not stat.S_ISREG(opened_meta.st_mode):
             return
-    except OSError:
+    except (OSError, RuntimeError):
         if fd is not None:
-            with suppress(OSError):
+            with suppress(OSError, RuntimeError):
                 os.close(fd)
         return
     try:
@@ -86,9 +86,9 @@ def _append_text_best_effort(log_path: Path, text: str) -> None:
         with os.fdopen(fd, "a", encoding="utf-8") as f:
             fd = None
             f.write(text)
-    except OSError:
+    except (OSError, RuntimeError):
         if fd is not None:
-            with suppress(OSError):
+            with suppress(OSError, RuntimeError):
                 os.close(fd)
         return
 
@@ -180,7 +180,7 @@ def _iter_unique_artifact_sources(task: TaskSpec, cwd: Path) -> list[tuple[Path,
         for match in matches:
             try:
                 is_regular_file = match.exists() and match.is_file() and not match.is_dir()
-            except OSError:
+            except (OSError, RuntimeError):
                 continue
             if not is_regular_file or is_symlink_path(match) or has_symlink_ancestor(match):
                 continue
@@ -212,7 +212,7 @@ def _copy_artifacts(task: TaskSpec, run_dir: Path, cwd: Path) -> list[str]:
         return copied
     try:
         task_root.mkdir(parents=True, exist_ok=True)
-    except OSError:
+    except (OSError, RuntimeError):
         return copied
     for match, rel in _iter_unique_artifact_sources(task, cwd):
         dest = task_root / rel
@@ -225,7 +225,7 @@ def _copy_artifacts(task: TaskSpec, run_dir: Path, cwd: Path) -> list[str]:
             if is_symlink_path(dest.parent) or is_symlink_path(dest):
                 continue
             shutil.copy2(match, dest)
-        except (OSError, shutil.Error):
+        except (OSError, RuntimeError, shutil.Error):
             continue
         copied.append(str(dest.relative_to(run_dir)))
     return sorted(copied, key=lambda rel: rel.casefold())
@@ -248,7 +248,7 @@ def _copy_to_aggregate_dir(
         return
     try:
         task_root.mkdir(parents=True, exist_ok=True)
-    except OSError:
+    except (OSError, RuntimeError):
         return
     for match, rel in _iter_unique_artifact_sources(task, cwd):
         dest = task_root / rel
@@ -261,7 +261,7 @@ def _copy_to_aggregate_dir(
             if is_symlink_path(dest.parent) or is_symlink_path(dest):
                 continue
             shutil.copy2(match, dest)
-        except (OSError, shutil.Error):
+        except (OSError, RuntimeError, shutil.Error):
             continue
 
 
@@ -273,7 +273,7 @@ def _copy_to_aggregate_dir_best_effort(
 ) -> None:
     try:
         _copy_to_aggregate_dir(task, cwd, aggregate_root=aggregate_root)
-    except (OSError, shutil.Error):
+    except (OSError, RuntimeError, shutil.Error):
         return
 
 

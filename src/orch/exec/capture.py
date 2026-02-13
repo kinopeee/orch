@@ -16,7 +16,7 @@ async def stream_to_file(stream: asyncio.StreamReader | None, file_path: Path) -
         return
     try:
         file_path.parent.mkdir(parents=True, exist_ok=True)
-    except OSError:
+    except (OSError, RuntimeError):
         return
     if is_symlink_path(file_path.parent) or is_symlink_path(file_path):
         return
@@ -33,9 +33,9 @@ async def stream_to_file(stream: asyncio.StreamReader | None, file_path: Path) -
         opened_meta = os.fstat(fd)
         if not stat.S_ISREG(opened_meta.st_mode):
             return
-    except OSError:
+    except (OSError, RuntimeError):
         if fd is not None:
-            with suppress(OSError):
+            with suppress(OSError, RuntimeError):
                 os.close(fd)
         return
 
@@ -49,8 +49,8 @@ async def stream_to_file(stream: asyncio.StreamReader | None, file_path: Path) -
                     break
                 f.write(chunk)
                 f.flush()
-    except OSError:
+    except (OSError, RuntimeError):
         if fd is not None:
-            with suppress(OSError):
+            with suppress(OSError, RuntimeError):
                 os.close(fd)
         return

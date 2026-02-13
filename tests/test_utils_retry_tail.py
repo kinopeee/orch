@@ -71,6 +71,33 @@ def test_tail_lines_returns_empty_for_non_regular_file(tmp_path: Path) -> None:
     assert tail_lines(fifo, 10) == []
 
 
+def test_tail_lines_returns_empty_when_fstat_runtime_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    file_path = tmp_path / "log.txt"
+    file_path.write_text("a\nb\n", encoding="utf-8")
+    original_open = os.open
+    original_fstat = os.fstat
+    tracked_fd: int | None = None
+
+    def capture_open(path: str, flags: int, mode: int = 0o777) -> int:
+        nonlocal tracked_fd
+        fd = original_open(path, flags, mode)
+        if path == str(file_path):
+            tracked_fd = fd
+        return fd
+
+    def flaky_fstat(fd: int) -> os.stat_result:
+        if tracked_fd is not None and fd == tracked_fd:
+            raise RuntimeError("simulated fstat runtime failure")
+        return original_fstat(fd)
+
+    monkeypatch.setattr(os, "open", capture_open)
+    monkeypatch.setattr(os, "fstat", flaky_fstat)
+
+    assert tail_lines(file_path, 10) == []
+
+
 def test_tail_lines_returns_empty_when_symlink_check_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

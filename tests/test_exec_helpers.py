@@ -137,6 +137,39 @@ async def test_stream_to_file_rejects_non_regular_opened_target(
 
 
 @pytest.mark.asyncio
+async def test_stream_to_file_ignores_fstat_runtime_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    file_path = tmp_path / "capture.log"
+    original_open = os.open
+    original_fstat = os.fstat
+    tracked_fd: int | None = None
+
+    def capture_open(path: str, flags: int, mode: int = 0o777) -> int:
+        nonlocal tracked_fd
+        fd = original_open(path, flags, mode)
+        if path == str(file_path):
+            tracked_fd = fd
+        return fd
+
+    def flaky_fstat(fd: int) -> os.stat_result:
+        if tracked_fd is not None and fd == tracked_fd:
+            raise RuntimeError("simulated fstat runtime failure")
+        return original_fstat(fd)
+
+    monkeypatch.setattr(os, "open", capture_open)
+    monkeypatch.setattr(os, "fstat", flaky_fstat)
+
+    stream = asyncio.StreamReader()
+    stream.feed_data(b"line-a\n")
+    stream.feed_eof()
+    await stream_to_file(stream, file_path)
+
+    assert file_path.exists()
+    assert file_path.read_text(encoding="utf-8") == ""
+
+
+@pytest.mark.asyncio
 async def test_stream_to_file_uses_nonblock_open_flag(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

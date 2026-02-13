@@ -27,9 +27,9 @@ def tail_lines(path: Path, n: int) -> list[str]:
         with os.fdopen(fd, "r", encoding="utf-8", errors="replace") as f:
             fd = None
             return [line.rstrip("\n") for line in deque(f, maxlen=n)]
-    except OSError:
+    except (OSError, RuntimeError):
         return []
     finally:
         if fd is not None:
-            with suppress(OSError):
+            with suppress(OSError, RuntimeError):
                 os.close(fd)

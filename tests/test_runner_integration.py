@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -704,6 +705,34 @@ def test_runner_append_text_best_effort_ignores_symlink_check_errors(
 
     runner_module._append_text_best_effort(log_path, "new-line\n")
     assert not log_path.exists()
+
+
+def test_runner_append_text_best_effort_ignores_fstat_runtime_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    log_path = tmp_path / "logs" / "task.err.log"
+    original_open = os.open
+    original_fstat = os.fstat
+    tracked_fd: int | None = None
+
+    def capture_open(path: str, flags: int, mode: int = 0o777) -> int:
+        nonlocal tracked_fd
+        fd = original_open(path, flags, mode)
+        if path == str(log_path):
+            tracked_fd = fd
+        return fd
+
+    def flaky_fstat(fd: int) -> os.stat_result:
+        if tracked_fd is not None and fd == tracked_fd:
+            raise RuntimeError("simulated fstat runtime failure")
+        return original_fstat(fd)
+
+    monkeypatch.setattr(os, "open", capture_open)
+    monkeypatch.setattr(os, "fstat", flaky_fstat)
+
+    runner_module._append_text_best_effort(log_path, "new-line\n")
+    assert log_path.exists()
+    assert log_path.read_text(encoding="utf-8") == ""
 
 
 @pytest.mark.asyncio
