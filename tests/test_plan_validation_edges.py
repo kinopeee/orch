@@ -280,6 +280,20 @@ def test_load_plan_rejects_empty_string_cmd(tmp_path: Path) -> None:
         load_plan(plan)
 
 
+def test_load_plan_rejects_malformed_cmd_string(tmp_path: Path) -> None:
+    plan = tmp_path / "plan_bad_cmd_quote.yaml"
+    _write(
+        plan,
+        """
+        tasks:
+          - id: t1
+            cmd: "python3 -c \"print('oops')"
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan)
+
+
 def test_load_plan_rejects_empty_cwd(tmp_path: Path) -> None:
     plan = tmp_path / "plan.yaml"
     _write(

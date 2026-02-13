@@ -30,7 +30,10 @@ def _is_safe_id(value: object) -> bool:
 
 def normalize_cmd(cmd: str | list[str]) -> list[str]:
     if isinstance(cmd, str):
-        parts = shlex.split(cmd)
+        try:
+            parts = shlex.split(cmd)
+        except ValueError as exc:
+            raise PlanError(f"invalid cmd string: {exc}") from exc
         if not parts:
             raise PlanError("cmd string must not be empty")
         return parts
