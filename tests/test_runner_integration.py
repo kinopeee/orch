@@ -148,6 +148,44 @@ async def test_runner_copies_artifacts_to_plan_artifacts_dir(tmp_path: Path) -> 
 
 
 @pytest.mark.asyncio
+async def test_runner_keeps_success_when_plan_artifacts_dir_is_unusable(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_artifacts_dir_unusable"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    unusable = workdir / "blocked"
+    unusable.write_text("this is a file, not a directory\n", encoding="utf-8")
+
+    create_outputs_cmd = [
+        sys.executable,
+        "-c",
+        "from pathlib import Path; Path('build').mkdir(exist_ok=True); "
+        "Path('build/out.txt').write_text('OK', encoding='utf-8')",
+    ]
+    plan = PlanSpec(
+        goal="artifacts dir unusable test",
+        artifacts_dir="blocked",
+        tasks=[TaskSpec(id="publish", cmd=create_outputs_cmd, outputs=["build/**/*.txt"])],
+    )
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "SUCCESS"
+    assert state.tasks["publish"].status == "SUCCESS"
+    run_copy = run_dir / "artifacts" / "publish" / "build" / "out.txt"
+    assert run_copy.read_text(encoding="utf-8") == "OK"
+    assert not (workdir / "blocked" / "publish").exists()
+
+
+@pytest.mark.asyncio
 async def test_runner_resolves_relative_task_cwd_against_workdir(tmp_path: Path) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run_cwd_relative"
     workdir = tmp_path / "wd"

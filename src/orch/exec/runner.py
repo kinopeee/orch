@@ -121,6 +121,18 @@ def _copy_to_aggregate_dir(
             shutil.copy2(match, dest)
 
 
+def _copy_to_aggregate_dir_best_effort(
+    task: TaskSpec,
+    cwd: Path,
+    *,
+    aggregate_root: Path,
+) -> None:
+    try:
+        _copy_to_aggregate_dir(task, cwd, aggregate_root=aggregate_root)
+    except OSError:
+        return
+
+
 def _finalize_run_status(state: RunState) -> None:
     statuses = [task.status for task in state.tasks.values()]
     if any(status == "CANCELED" for status in statuses):
@@ -459,7 +471,7 @@ async def run_plan(
                 cwd = _resolve_task_cwd(task.cwd, workdir)
                 task_state.artifact_paths = _copy_artifacts(task, run_dir, cwd)
                 if aggregate_root is not None:
-                    _copy_to_aggregate_dir(task, cwd, aggregate_root=aggregate_root)
+                    _copy_to_aggregate_dir_best_effort(task, cwd, aggregate_root=aggregate_root)
             else:
                 task_state.status = "FAILED"
                 if fail_fast:
