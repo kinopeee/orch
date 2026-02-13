@@ -147,7 +147,7 @@ def _iter_unique_artifact_sources(task: TaskSpec, cwd: Path) -> list[tuple[Path,
             key=lambda path: (str(path).casefold(), str(path)),
         )
         for match in matches:
-            if not match.exists() or match.is_dir():
+            if not match.exists() or match.is_dir() or match.is_symlink():
                 continue
             rel = _artifact_relative_path(match, cwd)
             source_rel = str(rel)

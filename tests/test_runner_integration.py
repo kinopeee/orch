@@ -369,6 +369,43 @@ async def test_runner_copies_declared_output_artifacts(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_runner_skips_symlink_output_artifacts(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_artifacts_symlink"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    create_outputs_cmd = [
+        sys.executable,
+        "-c",
+        "from pathlib import Path; "
+        "Path('outside').mkdir(exist_ok=True); "
+        "Path('outside/secret.txt').write_text('SECRET', encoding='utf-8'); "
+        "Path('out').mkdir(exist_ok=True); "
+        "Path('out/link.txt').symlink_to('../outside/secret.txt')",
+    ]
+    plan = PlanSpec(
+        goal="artifact symlink skip",
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="publish", cmd=create_outputs_cmd, outputs=["out/*.txt"])],
+    )
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "SUCCESS"
+    assert state.tasks["publish"].status == "SUCCESS"
+    assert state.tasks["publish"].artifact_paths == []
+    assert not any((run_dir / "artifacts" / "publish").rglob("*.txt"))
+
+
+@pytest.mark.asyncio
 async def test_runner_preserves_case_only_colliding_artifacts_with_suffix(tmp_path: Path) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run_artifacts_case_collision"
     workdir = tmp_path / "wd"
