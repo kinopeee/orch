@@ -135,3 +135,24 @@ def test_run_lock_does_not_delete_replaced_foreign_lock(tmp_path: Path) -> None:
 
     assert lock_path.exists()
     assert lock_path.read_text(encoding="utf-8") == "foreign-holder"
+
+
+def test_run_lock_ignores_release_unlink_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    lock_path = run_dir / ".lock"
+    original_unlink = Path.unlink
+
+    def flaky_unlink(path_obj: Path, *args: object, **kwargs: object) -> None:
+        if path_obj == lock_path:
+            raise PermissionError("simulated release unlink failure")
+        original_unlink(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", flaky_unlink)
+
+    with run_lock(run_dir):
+        assert lock_path.exists()
+
+    assert lock_path.exists()

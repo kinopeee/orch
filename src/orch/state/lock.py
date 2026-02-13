@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import time
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from pathlib import Path
 
 from orch.util.errors import RunConflictError
@@ -63,4 +63,5 @@ def run_lock(
             except OSError:
                 current = None
             if current is not None and current.st_ino == lock_inode and current.st_dev == lock_dev:
-                lock_path.unlink(missing_ok=True)
+                with suppress(OSError):
+                    lock_path.unlink(missing_ok=True)
