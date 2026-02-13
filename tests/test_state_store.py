@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -88,6 +89,23 @@ def test_save_and_load_state_atomic(tmp_path: Path) -> None:
     loaded = load_state(run_dir)
     assert loaded.run_id == "run1"
     assert loaded.tasks["t1"].status == "SUCCESS"
+    assert not (run_dir / "state.json.tmp").exists()
+
+
+def test_save_state_atomic_cleans_tmp_when_replace_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_replace_fail"
+    run_dir.mkdir()
+    state = RunState.from_dict(_minimal_state_payload(run_id=run_dir.name))
+
+    def failing_replace(_src: str | Path, _dst: str | Path) -> None:
+        raise OSError("simulated replace failure")
+
+    monkeypatch.setattr(os, "replace", failing_replace)
+
+    with pytest.raises(OSError, match="simulated replace failure"):
+        save_state_atomic(run_dir, state)
     assert not (run_dir / "state.json.tmp").exists()
 
 

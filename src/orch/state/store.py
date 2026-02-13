@@ -4,6 +4,7 @@ import json
 import math
 import os
 import re
+from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
 
@@ -530,5 +531,10 @@ def save_state_atomic(run_dir: Path, state: RunState) -> None:
         f.write(payload + "\n")
         f.flush()
         os.fsync(f.fileno())
-    os.replace(tmp_path, state_path)
+    try:
+        os.replace(tmp_path, state_path)
+    except OSError:
+        with suppress(OSError):
+            tmp_path.unlink(missing_ok=True)
+        raise
     _fsync_directory(run_dir)
