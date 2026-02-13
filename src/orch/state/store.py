@@ -261,6 +261,8 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
             raise StateError("invalid state field: tasks")
         if task_status == "CANCELED" and bool_values["canceled"] is not True:
             raise StateError("invalid state field: tasks")
+        if task_status == "CANCELED" and isinstance(exit_code, int) and exit_code == 0:
+            raise StateError("invalid state field: tasks")
         skip_reason = task_data.get("skip_reason")
         if skip_reason is not None and not _is_non_blank_str_without_nul(skip_reason):
             raise StateError("invalid state field: tasks")
