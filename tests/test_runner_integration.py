@@ -149,3 +149,45 @@ async def test_runner_resolves_relative_task_cwd_against_workdir(tmp_path: Path)
     assert state.tasks["write"].status == "SUCCESS"
     assert (workdir / "subdir" / "marker.txt").read_text(encoding="utf-8") == "ok"
     assert state.tasks["write"].artifact_paths == ["artifacts/write/marker.txt"]
+
+
+@pytest.mark.asyncio
+async def test_runner_uses_absolute_task_cwd_without_rebasing(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_cwd_absolute"
+    workdir = tmp_path / "wd"
+    absolute_cwd = tmp_path / "absolute_target"
+    workdir.mkdir(parents=True)
+    absolute_cwd.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    write_cmd = [
+        sys.executable,
+        "-c",
+        "from pathlib import Path; Path('abs_marker.txt').write_text('abs', encoding='utf-8')",
+    ]
+    plan = PlanSpec(
+        goal="absolute cwd test",
+        artifacts_dir=None,
+        tasks=[
+            TaskSpec(
+                id="write_abs",
+                cmd=write_cmd,
+                cwd=str(absolute_cwd),
+                outputs=["abs_marker.txt"],
+            )
+        ],
+    )
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "SUCCESS"
+    assert state.tasks["write_abs"].status == "SUCCESS"
+    assert (absolute_cwd / "abs_marker.txt").read_text(encoding="utf-8") == "abs"
+    assert state.tasks["write_abs"].artifact_paths == ["artifacts/write_abs/abs_marker.txt"]
