@@ -202,6 +202,24 @@ def test_cancel_requested_ignores_directory_and_clear_is_safe(tmp_path: Path) ->
     assert cancel_path.is_dir()
 
 
+def test_cancel_requested_returns_false_when_is_file_runtime_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_cancel_runtime_error"
+    run_dir.mkdir()
+    cancel_path = run_dir / "cancel.request"
+    original_is_file = Path.is_file
+
+    def flaky_is_file(path_obj: Path) -> bool:
+        if path_obj == cancel_path:
+            raise RuntimeError("simulated is_file runtime failure")
+        return original_is_file(path_obj)
+
+    monkeypatch.setattr(Path, "is_file", flaky_is_file)
+
+    assert cancel_requested(run_dir) is False
+
+
 def test_clear_cancel_request_removes_non_regular_path(tmp_path: Path) -> None:
     if not hasattr(os, "mkfifo"):
         return
@@ -319,6 +337,27 @@ def test_write_cancel_request_fails_closed_when_initial_symlink_check_errors(
     with pytest.raises(OSError, match="must not be symlink"):
         write_cancel_request(run_dir)
     assert not cancel_path.exists()
+
+
+def test_write_cancel_request_normalizes_exists_runtime_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_cancel_exists_runtime_error"
+    run_dir.mkdir()
+    cancel_path = run_dir / "cancel.request"
+    original_exists = Path.exists
+
+    def flaky_exists(path_obj: Path) -> bool:
+        if path_obj == cancel_path:
+            raise RuntimeError("simulated exists runtime failure")
+        return original_exists(path_obj)
+
+    monkeypatch.setattr(Path, "exists", flaky_exists)
+
+    with pytest.raises(OSError, match="must be regular file"):
+        write_cancel_request(run_dir)
+    with pytest.raises(FileNotFoundError):
+        cancel_path.lstat()
 
 
 def test_write_cancel_request_rejects_non_regular_opened_target(

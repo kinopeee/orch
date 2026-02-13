@@ -141,6 +141,24 @@ def test_validate_home_or_exit_rejects_when_exists_errors(
     assert exc_info.value.exit_code == 2
 
 
+def test_validate_home_or_exit_rejects_when_exists_runtime_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "home"
+    original_exists = Path.exists
+
+    def flaky_exists(path_obj: Path) -> bool:
+        if path_obj == home:
+            raise RuntimeError("simulated exists runtime failure")
+        return original_exists(path_obj)
+
+    monkeypatch.setattr(Path, "exists", flaky_exists)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _validate_home_or_exit(home)
+    assert exc_info.value.exit_code == 2
+
+
 def test_validate_home_or_exit_rejects_when_is_dir_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -156,6 +174,31 @@ def test_validate_home_or_exit_rejects_when_is_dir_errors(
     def flaky_is_dir(path_obj: Path) -> bool:
         if path_obj == home:
             raise PermissionError("simulated is_dir failure")
+        return original_is_dir(path_obj)
+
+    monkeypatch.setattr(Path, "exists", fake_exists)
+    monkeypatch.setattr(Path, "is_dir", flaky_is_dir)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _validate_home_or_exit(home)
+    assert exc_info.value.exit_code == 2
+
+
+def test_validate_home_or_exit_rejects_when_is_dir_runtime_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "home"
+    original_exists = Path.exists
+    original_is_dir = Path.is_dir
+
+    def fake_exists(path_obj: Path) -> bool:
+        if path_obj == home:
+            return True
+        return original_exists(path_obj)
+
+    def flaky_is_dir(path_obj: Path) -> bool:
+        if path_obj == home:
+            raise RuntimeError("simulated is_dir runtime failure")
         return original_is_dir(path_obj)
 
     monkeypatch.setattr(Path, "exists", fake_exists)

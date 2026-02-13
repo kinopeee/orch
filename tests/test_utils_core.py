@@ -90,3 +90,20 @@ def test_ensure_run_layout_normalizes_is_dir_errors(
 
     with pytest.raises(OSError, match="path must be directory"):
         ensure_run_layout(path)
+
+
+def test_ensure_run_layout_normalizes_is_dir_runtime_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = run_dir(tmp_path, "run_1")
+    original_is_dir = Path.is_dir
+
+    def flaky_is_dir(path_obj: Path) -> bool:
+        if path_obj == path:
+            raise RuntimeError("simulated is_dir runtime failure")
+        return original_is_dir(path_obj)
+
+    monkeypatch.setattr(Path, "is_dir", flaky_is_dir)
+
+    with pytest.raises(OSError, match="path must be directory"):
+        ensure_run_layout(path)

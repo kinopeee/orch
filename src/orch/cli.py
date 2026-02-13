@@ -197,14 +197,14 @@ def _validate_home_or_exit(home: Path) -> None:
     for candidate in to_check:
         try:
             exists = candidate.exists()
-        except OSError as exc:
+        except (OSError, RuntimeError) as exc:
             console.print(f"[red]Invalid home:[/red] {home}")
             raise typer.Exit(2) from exc
         if not exists:
             continue
         try:
             is_dir = candidate.is_dir()
-        except OSError as exc:
+        except (OSError, RuntimeError) as exc:
             console.print(f"[red]Invalid home:[/red] {home}")
             raise typer.Exit(2) from exc
         if is_dir:

@@ -173,6 +173,41 @@ async def test_run_plan_normalizes_workdir_is_dir_errors(
 
 
 @pytest.mark.asyncio
+async def test_run_plan_normalizes_workdir_is_dir_runtime_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_workdir_is_dir_runtime_error"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+    plan = PlanSpec(
+        goal="workdir is_dir runtime error normalization",
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="t1", cmd=[sys.executable, "-c", "print('ok')"])],
+    )
+    original_is_dir = Path.is_dir
+    resolved_workdir = workdir.resolve()
+
+    def flaky_is_dir(path_obj: Path) -> bool:
+        if path_obj == resolved_workdir:
+            raise RuntimeError("simulated workdir is_dir runtime failure")
+        return original_is_dir(path_obj)
+
+    monkeypatch.setattr(Path, "is_dir", flaky_is_dir)
+
+    with pytest.raises(OSError, match="failed to access workdir"):
+        await run_plan(
+            plan,
+            run_dir,
+            max_parallel=1,
+            fail_fast=False,
+            workdir=workdir,
+            resume=False,
+            failed_only=False,
+        )
+
+
+@pytest.mark.asyncio
 async def test_runner_propagates_skipped_and_retries(tmp_path: Path) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run_retry"
     workdir = tmp_path / "wd"

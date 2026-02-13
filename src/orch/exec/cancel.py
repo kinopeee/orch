@@ -15,7 +15,7 @@ def cancel_requested(run_dir: Path) -> bool:
         return False
     try:
         return path.is_file() and not is_symlink_path(path)
-    except OSError:
+    except (OSError, RuntimeError):
         return False
 
 
@@ -28,7 +28,7 @@ def write_cancel_request(run_dir: Path) -> None:
     try:
         path_exists = path.exists()
         path_is_file = path.is_file()
-    except OSError as exc:
+    except (OSError, RuntimeError) as exc:
         raise OSError("cancel request path must be regular file") from exc
     if path_exists and not path_is_file:
         raise OSError("cancel request path must be regular file")

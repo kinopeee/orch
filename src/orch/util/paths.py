@@ -18,7 +18,7 @@ def _ensure_directory(path: Path, *, parents: bool = False) -> None:
     path.mkdir(parents=parents, exist_ok=True)
     try:
         is_dir = path.is_dir()
-    except OSError as exc:
+    except (OSError, RuntimeError) as exc:
         raise OSError(f"path must be directory: {path}") from exc
     if is_symlink_path(path) or not is_dir:
         raise OSError(f"path must be directory: {path}")
