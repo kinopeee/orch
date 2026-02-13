@@ -439,6 +439,61 @@ def test_save_state_atomic_uses_nofollow_for_directory_fsync(
         assert captured_flags["flags"] & os.O_NOFOLLOW
 
 
+def test_save_state_atomic_uses_nonblock_and_nofollow_for_tmp_state_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_tmp_open_flags"
+    run_dir.mkdir()
+    state = RunState.from_dict(_minimal_state_payload(run_id=run_dir.name))
+    tmp_state_path = run_dir / "state.json.tmp"
+    captured_flags: dict[str, int] = {}
+    original_open = os.open
+
+    def capture_open(path: str | os.PathLike[str], flags: int, mode: int = 0o777) -> int:
+        if str(path) == str(tmp_state_path):
+            captured_flags["flags"] = flags
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", capture_open)
+    save_state_atomic(run_dir, state)
+
+    assert "flags" in captured_flags
+    if hasattr(os, "O_NONBLOCK"):
+        assert captured_flags["flags"] & os.O_NONBLOCK
+    if hasattr(os, "O_NOFOLLOW"):
+        assert captured_flags["flags"] & os.O_NOFOLLOW
+
+
+def test_load_state_uses_nonblock_and_nofollow_open_flags(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_open_flags"
+    run_dir.mkdir(parents=True)
+    state = RunState.from_dict(_minimal_state_payload(run_id=run_dir.name))
+    state.status = "SUCCESS"
+    state.home = str(run_dir.parent.parent.resolve())
+    state.workdir = str(tmp_path.resolve())
+    save_state_atomic(run_dir, state)
+
+    state_path = run_dir / "state.json"
+    captured_flags: dict[str, int] = {}
+    original_open = os.open
+
+    def capture_open(path: str | os.PathLike[str], flags: int, mode: int = 0o777) -> int:
+        if str(path) == str(state_path):
+            captured_flags["flags"] = flags
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", capture_open)
+    loaded = load_state(run_dir)
+    assert loaded.run_id == run_dir.name
+    assert "flags" in captured_flags
+    if hasattr(os, "O_NONBLOCK"):
+        assert captured_flags["flags"] & os.O_NONBLOCK
+    if hasattr(os, "O_NOFOLLOW"):
+        assert captured_flags["flags"] & os.O_NOFOLLOW
+
+
 def test_save_state_atomic_preserves_write_error_when_tmp_cleanup_runtime_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
