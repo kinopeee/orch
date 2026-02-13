@@ -99,3 +99,44 @@ async def test_resume_after_cancel_ignores_stale_cancel_request(tmp_path: Path) 
     assert resumed.tasks["long"].status == "SUCCESS"
     assert resumed.tasks["downstream"].status == "SUCCESS"
     assert not (run_dir / "cancel.request").exists()
+
+
+@pytest.mark.asyncio
+async def test_resume_ignores_stale_cancel_request_directory(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_cancel_resume_dir"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    plan = PlanSpec(
+        goal="cancel dir then resume",
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="only", cmd=[sys.executable, "-c", "print('ok')"])],
+    )
+
+    first_state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert first_state.status == "SUCCESS"
+
+    cancel_path = run_dir / "cancel.request"
+    cancel_path.mkdir()
+
+    resumed = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=True,
+        failed_only=False,
+    )
+    assert resumed.status == "SUCCESS"
+    assert resumed.tasks["only"].status == "SUCCESS"
+    assert cancel_path.is_dir()

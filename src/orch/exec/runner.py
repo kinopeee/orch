@@ -11,7 +11,7 @@ from pathlib import Path
 
 from orch.config.schema import PlanSpec, TaskSpec
 from orch.dag.build import build_adjacency
-from orch.exec.cancel import cancel_requested
+from orch.exec.cancel import cancel_requested, clear_cancel_request
 from orch.exec.capture import stream_to_file
 from orch.exec.retry import backoff_for_attempt
 from orch.state.model import RunState, TaskState
@@ -437,7 +437,7 @@ async def run_plan(
     aggregate_root = _resolve_artifacts_dir(plan.artifacts_dir, resolved_workdir)
 
     if resume:
-        (run_dir / "cancel.request").unlink(missing_ok=True)
+        clear_cancel_request(run_dir)
         state = load_state(run_dir)
         _validate_resume_state_matches_plan(plan, state)
         _prepare_resume_state(state)

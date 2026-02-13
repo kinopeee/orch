@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from orch.exec.cancel import cancel_requested, write_cancel_request
+from orch.exec.cancel import cancel_requested, clear_cancel_request, write_cancel_request
 from orch.exec.capture import stream_to_file
 from orch.exec.timeout import wait_with_timeout
 
@@ -54,3 +54,15 @@ def test_cancel_request_helpers(tmp_path: Path) -> None:
     assert cancel_requested(run_dir) is False
     write_cancel_request(run_dir)
     assert cancel_requested(run_dir) is True
+    clear_cancel_request(run_dir)
+    assert cancel_requested(run_dir) is False
+
+
+def test_cancel_requested_ignores_directory_and_clear_is_safe(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_dir_cancel_dir"
+    run_dir.mkdir()
+    cancel_path = run_dir / "cancel.request"
+    cancel_path.mkdir()
+    assert cancel_requested(run_dir) is False
+    clear_cancel_request(run_dir)
+    assert cancel_path.is_dir()
