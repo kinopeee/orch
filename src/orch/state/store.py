@@ -215,11 +215,15 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
         retries = retries_raw
         if attempts > (retries + 1):
             raise StateError("invalid state field: tasks")
+        if "timeout_sec" not in task_data:
+            raise StateError("invalid state field: tasks")
         timeout_sec = task_data.get("timeout_sec")
         if timeout_sec is not None and not _is_positive_finite_number(timeout_sec):
             raise StateError("invalid state field: tasks")
+        if "retry_backoff_sec" not in task_data:
+            raise StateError("invalid state field: tasks")
         backoff = task_data.get("retry_backoff_sec")
-        if backoff is not None and not _is_non_negative_finite_number_list(backoff):
+        if not _is_non_negative_finite_number_list(backoff):
             raise StateError("invalid state field: tasks")
         started_at = task_data.get("started_at")
         if started_at is not None and not _is_iso_datetime(started_at):
