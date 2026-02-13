@@ -552,6 +552,22 @@ def test_run_lock_rejects_path_with_symlink_ancestor(tmp_path: Path) -> None:
     assert not (real_run_dir / ".lock").exists()
 
 
+def test_run_lock_rejects_missing_run_directory(tmp_path: Path) -> None:
+    run_dir = tmp_path / "missing_run"
+
+    with pytest.raises(OSError, match="run directory not found"), run_lock(run_dir):
+        pass
+    assert not (run_dir / ".lock").exists()
+
+
+def test_run_lock_rejects_non_directory_run_path(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_file"
+    run_dir.write_text("not a directory", encoding="utf-8")
+
+    with pytest.raises(OSError, match="run directory must be directory"), run_lock(run_dir):
+        pass
+
+
 def test_run_lock_rejects_symlink_lock_path(tmp_path: Path) -> None:
     run_dir = tmp_path / "run"
     run_dir.mkdir()

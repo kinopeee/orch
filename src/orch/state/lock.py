@@ -20,6 +20,14 @@ def run_lock(
         raise OSError(f"run directory path contains symlink component: {run_dir}")
     if is_symlink_path(run_dir):
         raise OSError(f"run directory must not be symlink: {run_dir}")
+    try:
+        run_meta = run_dir.lstat()
+    except FileNotFoundError as exc:
+        raise OSError(f"run directory not found: {run_dir}") from exc
+    except (OSError, RuntimeError) as exc:
+        raise OSError(f"failed to access run directory: {run_dir}") from exc
+    if not stat.S_ISDIR(run_meta.st_mode):
+        raise OSError(f"run directory must be directory: {run_dir}")
     lock_path = run_dir / ".lock"
     fd: int | None = None
     lock_inode: int | None = None
