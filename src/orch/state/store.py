@@ -74,6 +74,18 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
         if not isinstance(value, str) or not value:
             raise StateError(f"invalid state field: {key}")
 
+    plan_relpath = raw["plan_relpath"]
+    if not isinstance(plan_relpath, str) or "\x00" in plan_relpath:
+        raise StateError("invalid state field: plan_relpath")
+    plan_rel = Path(plan_relpath)
+    if (
+        plan_rel.is_absolute()
+        or ".." in plan_rel.parts
+        or len(plan_rel.parts) != 1
+        or plan_rel.name != "plan.yaml"
+    ):
+        raise StateError("invalid state field: plan_relpath")
+
     for key in ("created_at", "updated_at"):
         if not _is_iso_datetime(raw.get(key)):
             raise StateError(f"invalid state field: {key}")

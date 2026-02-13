@@ -126,6 +126,17 @@ def test_load_state_rejects_invalid_timestamps(tmp_path: Path) -> None:
         load_state(run_dir)
 
 
+def test_load_state_rejects_unsafe_plan_relpath(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_plan_relpath"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["plan_relpath"] = "../plan.yaml"
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: plan_relpath"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_naive_timestamp(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_naive_ts"
     run_dir.mkdir()
