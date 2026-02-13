@@ -66,3 +66,30 @@ def test_cancel_requested_ignores_directory_and_clear_is_safe(tmp_path: Path) ->
     assert cancel_requested(run_dir) is False
     clear_cancel_request(run_dir)
     assert cancel_path.is_dir()
+
+
+def test_cancel_requested_ignores_symlink_and_clear_removes_it(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_dir_cancel_symlink"
+    run_dir.mkdir()
+    target = tmp_path / "outside_cancel_request.txt"
+    target.write_text("outside\n", encoding="utf-8")
+    cancel_path = run_dir / "cancel.request"
+    cancel_path.symlink_to(target)
+
+    assert cancel_requested(run_dir) is False
+    clear_cancel_request(run_dir)
+    assert not cancel_path.exists()
+    assert target.read_text(encoding="utf-8") == "outside\n"
+
+
+def test_write_cancel_request_rejects_symlink_without_overwriting_target(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_dir_cancel_symlink_write"
+    run_dir.mkdir()
+    target = tmp_path / "outside_cancel_target.txt"
+    target.write_text("keep me\n", encoding="utf-8")
+    cancel_path = run_dir / "cancel.request"
+    cancel_path.symlink_to(target)
+
+    with pytest.raises(OSError, match="must not be symlink"):
+        write_cancel_request(run_dir)
+    assert target.read_text(encoding="utf-8") == "keep me\n"
