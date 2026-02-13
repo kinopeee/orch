@@ -385,6 +385,31 @@ def test_write_cancel_request_rejects_symlink_without_overwriting_target(tmp_pat
     assert target.read_text(encoding="utf-8") == "keep me\n"
 
 
+def test_write_cancel_request_rejects_symlink_without_open_side_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_cancel_symlink_write_no_open"
+    run_dir.mkdir()
+    target = tmp_path / "outside_cancel_target_no_open.txt"
+    target.write_text("keep me\n", encoding="utf-8")
+    cancel_path = run_dir / "cancel.request"
+    cancel_path.symlink_to(target)
+    open_called = False
+    original_open = os.open
+
+    def capture_open(path: os.PathLike[str] | str, flags: int, mode: int = 0o777) -> int:
+        nonlocal open_called
+        open_called = True
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", capture_open)
+
+    with pytest.raises(OSError, match="must not be symlink"):
+        write_cancel_request(run_dir)
+    assert open_called is False
+    assert target.read_text(encoding="utf-8") == "keep me\n"
+
+
 def test_write_cancel_request_normalizes_eloop_as_symlink_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -460,6 +485,35 @@ def test_write_cancel_request_fails_closed_when_initial_symlink_check_errors(
 
     with pytest.raises(OSError, match="must not be symlink"):
         write_cancel_request(run_dir)
+    assert not cancel_path.exists()
+
+
+def test_write_cancel_request_fails_closed_precheck_without_open_side_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_cancel_symlink_check_error_precheck_no_open"
+    run_dir.mkdir()
+    cancel_path = run_dir / "cancel.request"
+    original_is_symlink = Path.is_symlink
+    open_called = False
+    original_open = os.open
+
+    def flaky_is_symlink(path_obj: Path) -> bool:
+        if path_obj == cancel_path:
+            raise PermissionError("simulated precheck lstat failure")
+        return original_is_symlink(path_obj)
+
+    def capture_open(path: os.PathLike[str] | str, flags: int, mode: int = 0o777) -> int:
+        nonlocal open_called
+        open_called = True
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(Path, "is_symlink", flaky_is_symlink)
+    monkeypatch.setattr(os, "open", capture_open)
+
+    with pytest.raises(OSError, match="must not be symlink"):
+        write_cancel_request(run_dir)
+    assert open_called is False
     assert not cancel_path.exists()
 
 
@@ -591,4 +645,31 @@ def test_cancel_helpers_ignore_symlink_ancestor_paths(tmp_path: Path) -> None:
 
     with pytest.raises(OSError, match="contains symlink component"):
         write_cancel_request(linked_run_dir)
+    assert cancel_path.read_text(encoding="utf-8") == "cancel requested\n"
+
+
+def test_write_cancel_request_rejects_symlink_ancestor_without_open_side_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_home = tmp_path / "real_home"
+    real_run_dir = real_home / "runs" / "run1"
+    real_run_dir.mkdir(parents=True)
+    symlink_home = tmp_path / "home_link"
+    symlink_home.symlink_to(real_home, target_is_directory=True)
+    linked_run_dir = symlink_home / "runs" / "run1"
+    cancel_path = real_run_dir / "cancel.request"
+    cancel_path.write_text("cancel requested\n", encoding="utf-8")
+    open_called = False
+    original_open = os.open
+
+    def capture_open(path: os.PathLike[str] | str, flags: int, mode: int = 0o777) -> int:
+        nonlocal open_called
+        open_called = True
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", capture_open)
+
+    with pytest.raises(OSError, match="contains symlink component"):
+        write_cancel_request(linked_run_dir)
+    assert open_called is False
     assert cancel_path.read_text(encoding="utf-8") == "cancel requested\n"
