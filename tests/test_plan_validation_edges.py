@@ -54,6 +54,32 @@ def test_load_plan_rejects_cmd_list_with_empty_string(tmp_path: Path) -> None:
         load_plan(plan)
 
 
+def test_load_plan_rejects_whitespace_only_task_id_and_cmd_entry(tmp_path: Path) -> None:
+    plan_id = tmp_path / "plan_id.yaml"
+    _write(
+        plan_id,
+        """
+        tasks:
+          - id: "   "
+            cmd: ["python3", "-c", "print('x')"]
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan_id)
+
+    plan_cmd = tmp_path / "plan_cmd.yaml"
+    _write(
+        plan_cmd,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "   "]
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan_cmd)
+
+
 def test_load_plan_rejects_non_str_or_list_cmd(tmp_path: Path) -> None:
     plan = tmp_path / "plan.yaml"
     _write(
@@ -202,6 +228,19 @@ def test_load_plan_rejects_empty_cwd(tmp_path: Path) -> None:
     with pytest.raises(PlanError):
         load_plan(plan)
 
+    plan_ws = tmp_path / "plan_ws.yaml"
+    _write(
+        plan_ws,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('x')"]
+            cwd: "   "
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan_ws)
+
 
 def test_load_plan_rejects_non_string_env_entries(tmp_path: Path) -> None:
     plan = tmp_path / "plan.yaml"
@@ -272,3 +311,16 @@ def test_load_plan_rejects_empty_string_items_in_depends_on_and_outputs(tmp_path
     )
     with pytest.raises(PlanError):
         load_plan(plan_out)
+
+    plan_dep_ws = tmp_path / "plan_dep_ws.yaml"
+    _write(
+        plan_dep_ws,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('x')"]
+            depends_on: ["   "]
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan_dep_ws)

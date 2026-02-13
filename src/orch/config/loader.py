@@ -14,13 +14,17 @@ def _is_real_number(value: object) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
+def _is_non_blank_str(value: object) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
 def normalize_cmd(cmd: str | list[str]) -> list[str]:
     if isinstance(cmd, str):
         parts = shlex.split(cmd)
         if not parts:
             raise PlanError("cmd string must not be empty")
         return parts
-    if isinstance(cmd, list) and cmd and all(isinstance(p, str) and p for p in cmd):
+    if isinstance(cmd, list) and cmd and all(_is_non_blank_str(p) for p in cmd):
         return cmd
     raise PlanError("cmd must be str or non-empty list[str]")
 
@@ -30,7 +34,7 @@ def _ensure_list_str(name: str, value: Any, *, non_empty_items: bool = False) ->
         return []
     if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
         raise PlanError(f"{name} must be list[str]")
-    if non_empty_items and any(not v for v in value):
+    if non_empty_items and any(not _is_non_blank_str(v) for v in value):
         raise PlanError(f"{name} must not contain empty strings")
     return value
 
@@ -38,7 +42,7 @@ def _ensure_list_str(name: str, value: Any, *, non_empty_items: bool = False) ->
 def _parse_task(raw: Any) -> TaskSpec:
     if not isinstance(raw, dict):
         raise PlanError("task must be mapping")
-    if "id" not in raw or not isinstance(raw["id"], str) or not raw["id"]:
+    if "id" not in raw or not _is_non_blank_str(raw["id"]):
         raise PlanError("task.id is required and must be non-empty string")
     if "cmd" not in raw:
         raise PlanError(f"task '{raw['id']}' missing cmd")
@@ -64,7 +68,7 @@ def _parse_task(raw: Any) -> TaskSpec:
     outputs = _ensure_list_str("outputs", raw.get("outputs", []), non_empty_items=True)
 
     cwd = raw.get("cwd")
-    if cwd is not None and (not isinstance(cwd, str) or not cwd):
+    if cwd is not None and not _is_non_blank_str(cwd):
         raise PlanError(f"task '{raw['id']}' cwd must be non-empty string")
 
     env = raw.get("env")
