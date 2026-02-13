@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import re
 import shlex
+import stat
 from pathlib import Path
 from typing import Any
 
@@ -175,10 +176,17 @@ def validate_plan(plan: PlanSpec) -> None:
 
 def load_plan(path: Path) -> PlanSpec:
     try:
-        if path.is_symlink():
-            raise PlanError(f"plan file must not be symlink: {path}")
+        meta = path.lstat()
+    except FileNotFoundError:
+        meta = None
     except OSError as exc:
         raise PlanError(f"failed to read plan file: {path}") from exc
+
+    if meta is not None:
+        if stat.S_ISLNK(meta.st_mode):
+            raise PlanError(f"plan file must not be symlink: {path}")
+        if not stat.S_ISREG(meta.st_mode):
+            raise PlanError(f"failed to read plan file: {path}")
     try:
         content = path.read_text(encoding="utf-8")
     except FileNotFoundError as exc:

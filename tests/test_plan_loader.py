@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -97,3 +98,14 @@ tasks:
 
     with pytest.raises(PlanError, match="plan file must not be symlink"):
         load_plan(symlink_plan)
+
+
+def test_load_plan_rejects_non_regular_file_path(tmp_path: Path) -> None:
+    if not hasattr(os, "mkfifo"):
+        pytest.skip("mkfifo is not supported on this platform")
+
+    plan_path = tmp_path / "plan_fifo.yaml"
+    os.mkfifo(plan_path)
+
+    with pytest.raises(PlanError, match="failed to read plan file"):
+        load_plan(plan_path)

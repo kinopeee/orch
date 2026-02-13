@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -3580,6 +3581,27 @@ def test_cli_status_rejects_symlink_state_file(tmp_path: Path) -> None:
     assert "Failed to load state" in proc.stdout
 
 
+def test_cli_status_rejects_non_regular_state_file(tmp_path: Path) -> None:
+    if not hasattr(os, "mkfifo"):
+        return
+
+    home = tmp_path / ".orch_cli"
+    run_id = "20260101_000000_abcdef"
+    run_dir = home / "runs" / run_id
+    run_dir.mkdir(parents=True)
+    os.mkfifo(run_dir / "state.json")
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "status", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=5,
+    )
+    assert proc.returncode == 2
+    assert "Failed to load state" in proc.stdout
+
+
 def test_cli_status_rejects_state_with_home_mismatch(tmp_path: Path) -> None:
     home = tmp_path / ".orch_cli"
     run_id = "20260101_000000_abcdef"
@@ -5251,6 +5273,24 @@ def test_cli_dry_run_rejects_symlink_plan_path(tmp_path: Path) -> None:
         capture_output=True,
         text=True,
         check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Plan validation error" in output
+
+
+def test_cli_dry_run_rejects_non_regular_plan_path(tmp_path: Path) -> None:
+    if not hasattr(os, "mkfifo"):
+        return
+
+    plan_path = tmp_path / "plan_fifo.yaml"
+    os.mkfifo(plan_path)
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "run", str(plan_path), "--dry-run"],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=5,
     )
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2

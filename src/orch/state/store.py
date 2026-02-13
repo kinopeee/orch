@@ -5,6 +5,7 @@ import json
 import math
 import os
 import re
+import stat
 from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
@@ -570,10 +571,17 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
 def load_state(run_dir: Path) -> RunState:
     state_path = run_dir / "state.json"
     try:
-        if state_path.is_symlink():
-            raise StateError(f"state file must not be symlink: {state_path}")
+        meta = state_path.lstat()
+    except FileNotFoundError:
+        meta = None
     except OSError as exc:
         raise StateError(f"failed to read state file: {state_path}") from exc
+
+    if meta is not None:
+        if stat.S_ISLNK(meta.st_mode):
+            raise StateError(f"state file must not be symlink: {state_path}")
+        if not stat.S_ISREG(meta.st_mode):
+            raise StateError(f"failed to read state file: {state_path}")
     try:
         raw = json.loads(state_path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:

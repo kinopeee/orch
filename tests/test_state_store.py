@@ -337,6 +337,18 @@ def test_load_state_wraps_read_oserror(tmp_path: Path) -> None:
         load_state(run_dir)
 
 
+def test_load_state_rejects_non_regular_state_file(tmp_path: Path) -> None:
+    if not hasattr(os, "mkfifo"):
+        pytest.skip("mkfifo is not supported on this platform")
+
+    run_dir = tmp_path / "run_state_fifo"
+    run_dir.mkdir()
+    os.mkfifo(run_dir / "state.json")
+
+    with pytest.raises(StateError, match="failed to read state file"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_symlink_state_file(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_state_symlink"
     run_dir.mkdir()
