@@ -656,6 +656,62 @@ def test_run_lock_rejects_path_with_symlink_ancestor_without_open_side_effect(
     assert not (real_run_dir / ".lock").exists()
 
 
+def test_run_lock_fails_closed_when_ancestor_lstat_oserror_without_open_side_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    open_called = False
+    original_open = os.open
+    original_lstat = Path.lstat
+
+    def capture_open(path: str | os.PathLike[str], flags: int, mode: int = 0o777) -> int:
+        nonlocal open_called
+        open_called = True
+        return original_open(path, flags, mode)
+
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        if path_obj == tmp_path:
+            raise PermissionError("simulated ancestor lstat failure")
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", capture_open)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
+
+    with pytest.raises(OSError, match="path contains symlink component"), run_lock(run_dir):
+        pass
+    assert open_called is False
+    assert not (run_dir / ".lock").exists()
+
+
+def test_run_lock_fails_closed_when_ancestor_lstat_runtime_error_without_open_side_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    open_called = False
+    original_open = os.open
+    original_lstat = Path.lstat
+
+    def capture_open(path: str | os.PathLike[str], flags: int, mode: int = 0o777) -> int:
+        nonlocal open_called
+        open_called = True
+        return original_open(path, flags, mode)
+
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        if path_obj == tmp_path:
+            raise RuntimeError("simulated ancestor lstat runtime failure")
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", capture_open)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
+
+    with pytest.raises(OSError, match="path contains symlink component"), run_lock(run_dir):
+        pass
+    assert open_called is False
+    assert not (run_dir / ".lock").exists()
+
+
 def test_run_lock_rejects_missing_run_directory(tmp_path: Path) -> None:
     run_dir = tmp_path / "missing_run"
 
