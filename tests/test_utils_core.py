@@ -455,3 +455,34 @@ def test_source_oserror_handlers_also_cover_runtimeerror() -> None:
         HandlerVisitor(relative_path).visit(module)
 
     assert not violations, "try blocks with OSError-only handling found:\n" + "\n".join(violations)
+
+
+def test_source_three_arg_os_open_calls_use_secure_mode() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    violations: list[str] = []
+
+    for file_path in src_root.rglob("*.py"):
+        relative_path = file_path.relative_to(src_root)
+        module = ast.parse(file_path.read_text(encoding="utf-8"))
+        for node in ast.walk(module):
+            if not isinstance(node, ast.Call):
+                continue
+            if not (
+                isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "os"
+                and node.func.attr == "open"
+            ):
+                continue
+            if len(node.args) < 3:
+                continue
+            mode_arg = node.args[2]
+            if not (isinstance(mode_arg, ast.Constant) and isinstance(mode_arg.value, int)):
+                violations.append(f"{relative_path}:{node.lineno}: non-literal open mode")
+                continue
+            if mode_arg.value != 0o600:
+                violations.append(
+                    f"{relative_path}:{node.lineno}: unexpected open mode {mode_arg.value:#o}"
+                )
+
+    assert not violations, "os.open secure mode violations found:\n" + "\n".join(violations)
