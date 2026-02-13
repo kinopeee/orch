@@ -20,6 +20,7 @@ def _extract_run_id(output: str) -> str:
 
 def test_cli_run_dry_run_returns_zero(tmp_path: Path) -> None:
     plan_path = tmp_path / "plan.yaml"
+    home = tmp_path / ".orch_cli"
     _write_plan(
         plan_path,
         """
@@ -33,7 +34,16 @@ def test_cli_run_dry_run_returns_zero(tmp_path: Path) -> None:
     )
 
     proc = subprocess.run(
-        [sys.executable, "-m", "orch.cli", "run", str(plan_path), "--dry-run"],
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--dry-run",
+        ],
         capture_output=True,
         text=True,
         check=False,
@@ -42,6 +52,7 @@ def test_cli_run_dry_run_returns_zero(tmp_path: Path) -> None:
     assert "Dry Run" in proc.stdout
     assert "t1" in proc.stdout
     assert "t2" in proc.stdout
+    assert not (home / "runs").exists()
 
 
 def test_cli_run_failure_returns_three_and_writes_state(tmp_path: Path) -> None:
