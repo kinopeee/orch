@@ -144,3 +144,75 @@ def test_load_plan_rejects_non_string_artifacts_dir(tmp_path: Path) -> None:
     )
     with pytest.raises(PlanError):
         load_plan(plan)
+
+
+def test_load_plan_rejects_empty_string_cmd(tmp_path: Path) -> None:
+    plan = tmp_path / "plan.yaml"
+    _write(
+        plan,
+        """
+        tasks:
+          - id: t1
+            cmd: "   "
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan)
+
+
+def test_load_plan_rejects_empty_cwd(tmp_path: Path) -> None:
+    plan = tmp_path / "plan.yaml"
+    _write(
+        plan,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('x')"]
+            cwd: ""
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan)
+
+
+def test_load_plan_rejects_non_string_env_entries(tmp_path: Path) -> None:
+    plan = tmp_path / "plan.yaml"
+    _write(
+        plan,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('x')"]
+            env: {"OK": "1", "BAD": 2}
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan)
+
+
+def test_load_plan_rejects_non_list_depends_on_and_outputs(tmp_path: Path) -> None:
+    plan_dep = tmp_path / "plan_dep.yaml"
+    _write(
+        plan_dep,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('x')"]
+            depends_on: "other"
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan_dep)
+
+    plan_out = tmp_path / "plan_out.yaml"
+    _write(
+        plan_out,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('x')"]
+            outputs: "dist/**"
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan_out)
