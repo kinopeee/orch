@@ -67,7 +67,7 @@ def clear_cancel_request(run_dir: Path) -> None:
         meta = path.lstat()
     except FileNotFoundError:
         return
-    except OSError:
+    except (OSError, RuntimeError):
         return
     if stat.S_ISDIR(meta.st_mode):
         return

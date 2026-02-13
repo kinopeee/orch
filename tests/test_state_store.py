@@ -168,6 +168,35 @@ def test_save_state_atomic_rejects_symlink_state_target_without_overwriting(
     assert not (run_dir / "state.json.tmp").exists()
 
 
+def test_save_state_atomic_wraps_runtime_state_lstat_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_state_lstat_runtime_error"
+    run_dir.mkdir()
+    state = RunState.from_dict(_minimal_state_payload(run_id=run_dir.name))
+    state_path = run_dir / "state.json"
+    original_lstat = Path.lstat
+    original_is_symlink = Path.is_symlink
+
+    def fake_is_symlink(path_obj: Path) -> bool:
+        if path_obj == state_path:
+            return False
+        return original_is_symlink(path_obj)
+
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        if path_obj == state_path:
+            raise RuntimeError("simulated state lstat runtime failure")
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "is_symlink", fake_is_symlink)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
+
+    with pytest.raises(OSError, match="failed to prepare state file path"):
+        save_state_atomic(run_dir, state)
+    assert not state_path.exists()
+    assert not (run_dir / "state.json.tmp").exists()
+
+
 def test_save_state_atomic_fails_closed_when_state_symlink_check_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -256,6 +285,28 @@ def test_save_state_atomic_cleans_tmp_when_tmp_path_changes_before_replace(
     monkeypatch.setattr(Path, "lstat", swapped_lstat)
 
     with pytest.raises(OSError, match="temporary state path changed before replace"):
+        save_state_atomic(run_dir, state)
+    assert not (run_dir / "state.json").exists()
+    assert not tmp_state_path.exists()
+
+
+def test_save_state_atomic_cleans_tmp_when_tmp_lstat_runtime_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_tmp_lstat_runtime_error"
+    run_dir.mkdir()
+    state = RunState.from_dict(_minimal_state_payload(run_id=run_dir.name))
+    tmp_state_path = run_dir / "state.json.tmp"
+    original_lstat = Path.lstat
+
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        if path_obj == tmp_state_path:
+            raise RuntimeError("simulated tmp lstat runtime failure")
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
+
+    with pytest.raises(RuntimeError, match="simulated tmp lstat runtime failure"):
         save_state_atomic(run_dir, state)
     assert not (run_dir / "state.json").exists()
     assert not tmp_state_path.exists()
@@ -525,6 +576,27 @@ def test_load_state_wraps_read_oserror(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_state_dir"
     run_dir.mkdir()
     (run_dir / "state.json").mkdir()
+
+    with pytest.raises(StateError, match="failed to read state file"):
+        load_state(run_dir)
+
+
+def test_load_state_wraps_runtime_lstat_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_runtime_lstat"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+    state_path = run_dir / "state.json"
+    original_lstat = Path.lstat
+
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        if path_obj == state_path:
+            raise RuntimeError("simulated state lstat runtime failure")
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
 
     with pytest.raises(StateError, match="failed to read state file"):
         load_state(run_dir)

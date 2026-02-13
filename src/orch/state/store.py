@@ -594,7 +594,7 @@ def load_state(run_dir: Path) -> RunState:
         meta = state_path.lstat()
     except FileNotFoundError:
         meta = None
-    except OSError as exc:
+    except (OSError, RuntimeError) as exc:
         raise StateError(f"failed to read state file: {state_path}") from exc
 
     if meta is not None:
@@ -647,6 +647,8 @@ def save_state_atomic(run_dir: Path, state: RunState) -> None:
         state_meta = state_path.lstat()
     except FileNotFoundError:
         state_meta = None
+    except (OSError, RuntimeError) as exc:
+        raise OSError(f"failed to prepare state file path: {state_path}") from exc
     if state_meta is not None and not stat.S_ISREG(state_meta.st_mode):
         raise OSError(f"state file path must be regular file: {state_path}")
     payload = json.dumps(state.to_dict(), ensure_ascii=False, indent=2, sort_keys=True)
@@ -698,7 +700,7 @@ def save_state_atomic(run_dir: Path, state: RunState) -> None:
             or current_tmp_meta.st_ino != tmp_ino
         ):
             raise OSError(f"temporary state path changed before replace: {tmp_path}")
-    except OSError:
+    except (OSError, RuntimeError):
         with suppress(OSError):
             tmp_path.unlink(missing_ok=True)
         raise

@@ -185,7 +185,7 @@ def load_plan(path: Path) -> PlanSpec:
         meta = path.lstat()
     except FileNotFoundError:
         meta = None
-    except OSError as exc:
+    except (OSError, RuntimeError) as exc:
         raise PlanError(f"failed to read plan file: {path}") from exc
 
     if meta is not None:

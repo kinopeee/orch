@@ -84,7 +84,7 @@ def _write_plan_snapshot(plan: PlanSpec, destination: Path) -> None:
         destination_meta = destination.lstat()
     except FileNotFoundError:
         destination_meta = None
-    except OSError as exc:
+    except (OSError, RuntimeError) as exc:
         raise OSError(f"failed to prepare plan snapshot path: {destination}") from exc
     if destination_meta is not None and not stat.S_ISREG(destination_meta.st_mode):
         raise OSError(f"plan snapshot path must be regular file: {destination}")
@@ -126,7 +126,7 @@ def _write_report(state: RunState, current_run_dir: Path) -> Path:
         report_meta = report_path.lstat()
     except FileNotFoundError:
         report_meta = None
-    except OSError as exc:
+    except (OSError, RuntimeError) as exc:
         raise OSError(f"failed to prepare report path: {report_path}") from exc
     if report_meta is not None and not stat.S_ISREG(report_meta.st_mode):
         raise OSError(f"report path must be regular file: {report_path}")
@@ -162,7 +162,7 @@ def _run_exists(current_run_dir: Path) -> bool:
         return False
     try:
         run_meta = current_run_dir.lstat()
-    except OSError:
+    except (OSError, RuntimeError):
         return False
     if stat.S_ISLNK(run_meta.st_mode) or not stat.S_ISDIR(run_meta.st_mode):
         return False
@@ -170,7 +170,7 @@ def _run_exists(current_run_dir: Path) -> bool:
     def _is_regular_non_symlink(path: Path) -> bool:
         try:
             meta = path.lstat()
-        except OSError:
+        except (OSError, RuntimeError):
             return False
         return stat.S_ISREG(meta.st_mode)
 

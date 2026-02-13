@@ -97,6 +97,35 @@ def test_write_plan_snapshot_rejects_symlink_ancestor_destination(tmp_path: Path
         _write_plan_snapshot(plan, symlink_parent / "plan.yaml")
 
 
+def test_write_plan_snapshot_wraps_runtime_lstat_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plan = PlanSpec(
+        goal=None,
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="only", cmd=["python3", "-c", "print('ok')"])],
+    )
+    snapshot_path = tmp_path / "plan_runtime_lstat.yaml"
+    original_lstat = Path.lstat
+    original_is_symlink = Path.is_symlink
+
+    def fake_is_symlink(path_obj: Path) -> bool:
+        if path_obj in {snapshot_path, snapshot_path.parent}:
+            return False
+        return original_is_symlink(path_obj)
+
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> object:
+        if path_obj == snapshot_path:
+            raise RuntimeError("simulated snapshot lstat runtime failure")
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "is_symlink", fake_is_symlink)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
+
+    with pytest.raises(OSError, match="failed to prepare plan snapshot path"):
+        _write_plan_snapshot(plan, snapshot_path)
+
+
 def test_write_report_rejects_symlink_ancestor_path(tmp_path: Path) -> None:
     real_parent = tmp_path / "real_parent"
     real_run_dir = real_parent / "run"
@@ -121,6 +150,45 @@ def test_write_report_rejects_symlink_ancestor_path(tmp_path: Path) -> None:
     with pytest.raises(OSError, match="contains symlink component"):
         _write_report(state, symlink_parent / "run")
     assert not (real_run_dir / "report" / "final_report.md").exists()
+
+
+def test_write_report_wraps_runtime_lstat_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    (run_dir / "report").mkdir(parents=True)
+    state = RunState(
+        run_id="run",
+        created_at="2026-01-01T00:00:00+00:00",
+        updated_at="2026-01-01T00:00:01+00:00",
+        status="SUCCESS",
+        goal=None,
+        plan_relpath="plan.yaml",
+        home=str(tmp_path),
+        workdir=str(tmp_path),
+        max_parallel=1,
+        fail_fast=False,
+        tasks={},
+    )
+    report_path = run_dir / "report" / "final_report.md"
+    original_lstat = Path.lstat
+    original_is_symlink = Path.is_symlink
+
+    def fake_is_symlink(path_obj: Path) -> bool:
+        if path_obj in {report_path, report_path.parent}:
+            return False
+        return original_is_symlink(path_obj)
+
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> object:
+        if path_obj == report_path:
+            raise RuntimeError("simulated report lstat runtime failure")
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "is_symlink", fake_is_symlink)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
+
+    with pytest.raises(OSError, match="failed to prepare report path"):
+        _write_report(state, run_dir)
 
 
 def test_validate_home_or_exit_rejects_when_exists_errors(

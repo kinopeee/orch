@@ -145,6 +145,31 @@ tasks:
         load_plan(plan_path)
 
 
+def test_load_plan_wraps_runtime_lstat_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plan_path = tmp_path / "plan_runtime_lstat.yaml"
+    plan_path.write_text(
+        """
+tasks:
+  - id: a
+    cmd: ["echo", "x"]
+""".strip(),
+        encoding="utf-8",
+    )
+    original_lstat = Path.lstat
+
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        if path_obj == plan_path:
+            raise RuntimeError("simulated plan lstat runtime failure")
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
+
+    with pytest.raises(PlanError, match="failed to read plan file"):
+        load_plan(plan_path)
+
+
 def test_load_plan_rejects_non_regular_file_path(tmp_path: Path) -> None:
     if not hasattr(os, "mkfifo"):
         pytest.skip("mkfifo is not supported on this platform")
