@@ -268,6 +268,17 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
             skip_reason
         ):
             raise StateError("invalid state field: tasks")
+        if (
+            task_status == "CANCELED"
+            and started_at is None
+            and (
+                not isinstance(attempts, int)
+                or attempts != 0
+                or exit_code is not None
+                or duration_sec is not None
+            )
+        ):
+            raise StateError("invalid state field: tasks")
         if task_status == "FAILED":
             if not isinstance(attempts, int) or attempts < 1:
                 raise StateError("invalid state field: tasks")
