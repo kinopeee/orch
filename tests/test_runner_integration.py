@@ -133,6 +133,51 @@ async def test_runner_does_not_retry_when_command_cannot_start(tmp_path: Path) -
 
 
 @pytest.mark.asyncio
+async def test_runner_handles_subprocess_value_error_as_start_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_start_value_error"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    async def _raise_value_error(*args: object, **kwargs: object) -> object:
+        raise ValueError("illegal environment variable name")
+
+    monkeypatch.setattr(runner_module.asyncio, "create_subprocess_exec", _raise_value_error)
+
+    plan = PlanSpec(
+        goal="start value error",
+        artifacts_dir=None,
+        tasks=[
+            TaskSpec(
+                id="badcmd",
+                cmd=[sys.executable, "-c", "print('x')"],
+                retries=3,
+                retry_backoff_sec=[0.01],
+            )
+        ],
+    )
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "FAILED"
+    assert state.tasks["badcmd"].status == "FAILED"
+    assert state.tasks["badcmd"].attempts == 1
+    assert state.tasks["badcmd"].exit_code == 127
+    assert state.tasks["badcmd"].skip_reason == "process_start_failed"
+    stderr_log = run_dir / "logs" / "badcmd.err.log"
+    assert "failed to start process" in stderr_log.read_text(encoding="utf-8")
+
+
+@pytest.mark.asyncio
 async def test_runner_collects_declared_outputs_even_when_task_fails(tmp_path: Path) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run_fail_artifacts"
     workdir = tmp_path / "wd"

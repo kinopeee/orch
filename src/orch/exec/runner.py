@@ -321,7 +321,7 @@ async def run_task(
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-    except OSError as exc:
+    except (OSError, ValueError) as exc:
         _append_text_best_effort(err_path, f"failed to start process: {exc}\n")
         ended_dt = datetime.now().astimezone()
         return TaskResult(
