@@ -233,3 +233,64 @@ def test_cli_cancel_missing_run_returns_two_without_creating_run_dir(tmp_path: P
     assert proc.returncode == 2
     assert "Run not found" in proc.stdout
     assert not run_dir.exists()
+
+
+def test_cli_status_missing_run_returns_two(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "status", "missing_run", "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "Failed to load state" in proc.stdout
+
+
+def test_cli_logs_unknown_task_returns_two(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_logs_task.yaml"
+    home = tmp_path / ".orch_cli"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+    run_proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--workdir",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert run_proc.returncode == 0
+    run_id = _extract_run_id(run_proc.stdout)
+    logs_proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "logs",
+            run_id,
+            "--home",
+            str(home),
+            "--task",
+            "missing_task",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert logs_proc.returncode == 2
+    assert "unknown task" in logs_proc.stdout

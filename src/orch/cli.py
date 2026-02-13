@@ -201,9 +201,11 @@ def logs(
         console.print(f"[red]Failed to load state:[/red] {exc}")
         raise typer.Exit(2) from exc
     task_ids = [task] if task else list(state.tasks.keys())
+    missing_task = False
     for task_id in task_ids:
         if task_id not in state.tasks:
             console.print(f"[yellow]unknown task:[/yellow] {task_id}")
+            missing_task = True
             continue
         task_state = state.tasks[task_id]
         out_lines = (
@@ -226,6 +228,8 @@ def logs(
             console.print("\n".join(err_lines))
         else:
             console.print("(empty)")
+    if task is not None and missing_task:
+        raise typer.Exit(2)
 
 
 @app.command()
