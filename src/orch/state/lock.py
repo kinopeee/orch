@@ -22,7 +22,8 @@ def run_lock(
         age = time.time() - lock_path.stat().st_mtime
         return age > stale_sec
 
-    for attempt in range(retries + 1):
+    attempt = 0
+    while True:
         try:
             fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
             os.write(fd, str(os.getpid()).encode("utf-8"))
@@ -33,6 +34,7 @@ def run_lock(
                 continue
             if attempt >= retries:
                 raise RunConflictError(f"run is locked by another process: {lock_path}") from err
+            attempt += 1
             time.sleep(retry_interval)
 
     try:
