@@ -210,6 +210,28 @@ def test_run_lock_ignores_release_close_error(
         assert lock_path.exists()
 
 
+def test_run_lock_ignores_release_close_runtime_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    lock_path = run_dir / ".lock"
+    original_close = os.close
+    failed_once = False
+
+    def flaky_close(fd: int) -> None:
+        nonlocal failed_once
+        if not failed_once:
+            failed_once = True
+            raise RuntimeError("simulated close runtime failure")
+        original_close(fd)
+
+    monkeypatch.setattr(os, "close", flaky_close)
+
+    with run_lock(run_dir):
+        assert lock_path.exists()
+
+
 def test_run_lock_cleans_up_if_pid_write_fails(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -235,6 +257,39 @@ def test_run_lock_cleans_up_if_pid_write_fails(
 
     with run_lock(run_dir):
         assert lock_path.exists()
+
+
+def test_run_lock_preserves_write_error_when_cleanup_close_runtime_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    lock_path = run_dir / ".lock"
+    original_write = os.write
+    original_close = os.close
+    write_failed = False
+    close_failed = False
+
+    def flaky_write(fd: int, data: bytes) -> int:
+        nonlocal write_failed
+        if not write_failed:
+            write_failed = True
+            raise OSError("simulated write failure")
+        return original_write(fd, data)
+
+    def flaky_close(fd: int) -> None:
+        nonlocal close_failed
+        if not close_failed:
+            close_failed = True
+            raise RuntimeError("simulated close runtime failure")
+        original_close(fd)
+
+    monkeypatch.setattr(os, "write", flaky_write)
+    monkeypatch.setattr(os, "close", flaky_close)
+
+    with pytest.raises(OSError, match="simulated write failure"), run_lock(run_dir):
+        pass
+    assert lock_path.exists() is False
 
 
 def test_run_lock_preserves_write_error_when_cleanup_lstat_runtime_errors(

@@ -49,7 +49,7 @@ def run_lock(
             try:
                 os.write(acquired_fd, str(os.getpid()).encode("utf-8"))
             except OSError:
-                with suppress(OSError):
+                with suppress(OSError, RuntimeError):
                     os.close(acquired_fd)
                 try:
                     current_lock = lock_path.lstat()
@@ -93,7 +93,7 @@ def run_lock(
         yield
     finally:
         if fd is not None:
-            with suppress(OSError):
+            with suppress(OSError, RuntimeError):
                 os.close(fd)
         if lock_inode is not None and lock_dev is not None:
             current: os.stat_result | None
