@@ -893,6 +893,48 @@ def test_cli_cancel_returns_two_when_cancel_request_write_fails(tmp_path: Path) 
     assert "Failed to request cancel" in proc.stdout
 
 
+def test_cli_cancel_rejects_symlink_run_dir_without_side_effect(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    run_id = "20260101_000000_abcdef"
+    runs_dir = home / "runs"
+    runs_dir.mkdir(parents=True)
+    outside = tmp_path / "outside_run"
+    outside.mkdir()
+    (outside / "plan.yaml").write_text("tasks: []\n", encoding="utf-8")
+    symlink_run_dir = runs_dir / run_id
+    symlink_run_dir.symlink_to(outside, target_is_directory=True)
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "cancel", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "Run not found" in proc.stdout
+    assert not (outside / "cancel.request").exists()
+
+
+def test_cli_cancel_rejects_run_with_symlink_plan_marker(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    run_id = "20260101_000000_abcdef"
+    run_dir = home / "runs" / run_id
+    run_dir.mkdir(parents=True)
+    outside_plan = tmp_path / "outside_plan.yaml"
+    outside_plan.write_text("tasks: []\n", encoding="utf-8")
+    (run_dir / "plan.yaml").symlink_to(outside_plan)
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "cancel", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "Run not found" in proc.stdout
+    assert not (run_dir / "cancel.request").exists()
+
+
 def test_cli_status_missing_run_returns_two(tmp_path: Path) -> None:
     home = tmp_path / ".orch_cli"
     proc = subprocess.run(

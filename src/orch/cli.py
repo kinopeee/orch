@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 import re
+import stat
 from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
@@ -106,8 +107,22 @@ def _write_report(state: RunState, current_run_dir: Path) -> Path:
 
 
 def _run_exists(current_run_dir: Path) -> bool:
-    return current_run_dir.is_dir() and (
-        (current_run_dir / "state.json").exists() or (current_run_dir / "plan.yaml").exists()
+    try:
+        run_meta = current_run_dir.lstat()
+    except OSError:
+        return False
+    if stat.S_ISLNK(run_meta.st_mode) or not stat.S_ISDIR(run_meta.st_mode):
+        return False
+
+    def _is_regular_non_symlink(path: Path) -> bool:
+        try:
+            meta = path.lstat()
+        except OSError:
+            return False
+        return stat.S_ISREG(meta.st_mode)
+
+    return _is_regular_non_symlink(current_run_dir / "state.json") or _is_regular_non_symlink(
+        current_run_dir / "plan.yaml"
     )
 
 
