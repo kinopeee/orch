@@ -369,6 +369,15 @@ def test_source_wraps_subprocess_creation_calls_with_expected_handlers() -> None
     )
 
 
+def test_source_wraps_glob_calls_with_expected_handlers() -> None:
+    violations = _collect_unguarded_calls(
+        "glob",
+        required_exceptions=("OSError", "RuntimeError", "ValueError"),
+    )
+
+    assert not violations, "unguarded glob calls found:\n" + "\n".join(violations)
+
+
 def test_source_wraps_os_write_calls_with_oserror_and_runtimeerror_handlers() -> None:
     violations = _collect_unguarded_calls("write", receiver_name="os")
 
