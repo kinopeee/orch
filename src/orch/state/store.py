@@ -187,10 +187,14 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
         if len(set(outputs)) != len(outputs):
             raise StateError("invalid state field: tasks")
 
+        if "cwd" not in task_data:
+            raise StateError("invalid state field: tasks")
         cwd = task_data.get("cwd")
         if cwd is not None and not _is_non_blank_str_without_nul(cwd):
             raise StateError("invalid state field: tasks")
 
+        if "env" not in task_data:
+            raise StateError("invalid state field: tasks")
         env = task_data.get("env")
         if env is not None:
             if not isinstance(env, dict):
