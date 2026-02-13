@@ -340,3 +340,61 @@ def test_cli_fail_fast_skips_unstarted_ready_tasks(tmp_path: Path) -> None:
     assert state["tasks"]["independent"]["status"] == "SKIPPED"
     assert state["tasks"]["independent"]["skip_reason"] == "fail_fast"
     assert state["tasks"]["dependent"]["status"] == "SKIPPED"
+
+
+def test_cli_run_invalid_plan_returns_two_and_creates_no_run(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_invalid.yaml"
+    home = tmp_path / ".orch_cli"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+            depends_on: ["missing_dep"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--workdir",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Plan validation error" in output
+    assert not (home / "runs").exists()
+
+
+def test_cli_dry_run_invalid_plan_returns_two(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_invalid_dry.yaml"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: a
+            cmd: ["python3", "-c", "print('a')"]
+            depends_on: ["b"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "run", str(plan_path), "--dry-run"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Plan validation error" in output
