@@ -599,6 +599,34 @@ def test_load_state_accepts_pending_task_after_timeout_attempt(tmp_path: Path) -
     assert loaded.tasks["t1"].timed_out is True
 
 
+def test_load_state_accepts_pending_task_after_non_timeout_failure(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_pending_after_non_timeout_failure"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["status"] = "RUNNING"
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["status"] = "PENDING"
+    task["started_at"] = "2026-01-01T00:00:00+00:00"
+    task["ended_at"] = "2026-01-01T00:00:01+00:00"
+    task["duration_sec"] = 1.0
+    task["exit_code"] = 1
+    task["timed_out"] = False
+    task["canceled"] = False
+    task["skip_reason"] = None
+    task["attempts"] = 1
+    task["retries"] = 2
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    loaded = load_state(run_dir)
+    assert loaded.status == "RUNNING"
+    assert loaded.tasks["t1"].status == "PENDING"
+    assert loaded.tasks["t1"].exit_code == 1
+    assert loaded.tasks["t1"].timed_out is False
+
+
 def test_load_state_rejects_pending_timeout_task_with_zero_attempts(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad_pending_timeout_without_attempts"
     run_dir.mkdir()
@@ -617,6 +645,31 @@ def test_load_state_rejects_pending_timeout_task_with_zero_attempts(tmp_path: Pa
     task["canceled"] = False
     task["skip_reason"] = None
     task["attempts"] = 0
+    task["retries"] = 2
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
+def test_load_state_rejects_pending_timeout_task_without_timestamps(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_pending_timeout_without_timestamps"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["status"] = "RUNNING"
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["status"] = "PENDING"
+    task["started_at"] = None
+    task["ended_at"] = None
+    task["duration_sec"] = 1.0
+    task["exit_code"] = None
+    task["timed_out"] = True
+    task["canceled"] = False
+    task["skip_reason"] = None
+    task["attempts"] = 1
     task["retries"] = 2
     (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
 
