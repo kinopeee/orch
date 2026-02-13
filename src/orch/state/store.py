@@ -32,10 +32,10 @@ def _is_iso_datetime(value: object) -> bool:
     if not isinstance(value, str) or not value:
         return False
     try:
-        datetime.fromisoformat(value)
+        dt = datetime.fromisoformat(value)
     except ValueError:
         return False
-    return True
+    return dt.tzinfo is not None
 
 
 def _is_non_negative_int(value: object) -> bool:
@@ -73,6 +73,10 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
     for key in ("created_at", "updated_at"):
         if not _is_iso_datetime(raw.get(key)):
             raise StateError(f"invalid state field: {key}")
+    created_at = datetime.fromisoformat(str(raw["created_at"]))
+    updated_at = datetime.fromisoformat(str(raw["updated_at"]))
+    if updated_at < created_at:
+        raise StateError("invalid state field: updated_at")
 
     run_id = raw["run_id"]
     if (

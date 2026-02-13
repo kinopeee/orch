@@ -118,6 +118,29 @@ def test_load_state_rejects_invalid_timestamps(tmp_path: Path) -> None:
         load_state(run_dir)
 
 
+def test_load_state_rejects_naive_timestamp(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_naive_ts"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["created_at"] = "2026-01-01T00:00:00"
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: created_at"):
+        load_state(run_dir)
+
+
+def test_load_state_rejects_updated_at_earlier_than_created_at(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_ts_order"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["created_at"] = "2026-01-02T00:00:00+00:00"
+    payload["updated_at"] = "2026-01-01T00:00:00+00:00"
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: updated_at"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_non_utf8_file(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_non_utf8"
     run_dir.mkdir()
