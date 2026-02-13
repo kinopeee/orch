@@ -627,19 +627,40 @@ def test_write_cancel_request_rejects_missing_run_dir_without_open_side_effect(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     run_dir = tmp_path / "missing_run"
+    cancel_path = run_dir / "cancel.request"
     open_called = False
     original_open = os.open
+    original_lstat = Path.lstat
+    original_is_symlink = Path.is_symlink
+    target_lstat_calls = 0
+    target_is_symlink_calls = 0
 
     def capture_open(path: os.PathLike[str] | str, flags: int, mode: int = 0o777) -> int:
         nonlocal open_called
         open_called = True
         return original_open(path, flags, mode)
 
+    def capture_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal target_lstat_calls
+        if path_obj == cancel_path:
+            target_lstat_calls += 1
+        return original_lstat(path_obj, *args, **kwargs)
+
+    def capture_is_symlink(path_obj: Path) -> bool:
+        nonlocal target_is_symlink_calls
+        if path_obj == cancel_path:
+            target_is_symlink_calls += 1
+        return original_is_symlink(path_obj)
+
     monkeypatch.setattr(os, "open", capture_open)
+    monkeypatch.setattr(Path, "lstat", capture_lstat)
+    monkeypatch.setattr(Path, "is_symlink", capture_is_symlink)
 
     with pytest.raises(OSError, match="run directory not found"):
         write_cancel_request(run_dir)
     assert open_called is False
+    assert target_lstat_calls == 0
+    assert target_is_symlink_calls == 0
     assert not (run_dir / "cancel.request").exists()
 
 
@@ -648,19 +669,40 @@ def test_write_cancel_request_rejects_non_directory_run_path_without_open_side_e
 ) -> None:
     run_dir = tmp_path / "run_as_file"
     run_dir.write_text("not a directory", encoding="utf-8")
+    cancel_path = run_dir / "cancel.request"
     open_called = False
     original_open = os.open
+    original_lstat = Path.lstat
+    original_is_symlink = Path.is_symlink
+    target_lstat_calls = 0
+    target_is_symlink_calls = 0
 
     def capture_open(path: os.PathLike[str] | str, flags: int, mode: int = 0o777) -> int:
         nonlocal open_called
         open_called = True
         return original_open(path, flags, mode)
 
+    def capture_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal target_lstat_calls
+        if path_obj == cancel_path:
+            target_lstat_calls += 1
+        return original_lstat(path_obj, *args, **kwargs)
+
+    def capture_is_symlink(path_obj: Path) -> bool:
+        nonlocal target_is_symlink_calls
+        if path_obj == cancel_path:
+            target_is_symlink_calls += 1
+        return original_is_symlink(path_obj)
+
     monkeypatch.setattr(os, "open", capture_open)
+    monkeypatch.setattr(Path, "lstat", capture_lstat)
+    monkeypatch.setattr(Path, "is_symlink", capture_is_symlink)
 
     with pytest.raises(OSError, match="run directory must be directory"):
         write_cancel_request(run_dir)
     assert open_called is False
+    assert target_lstat_calls == 0
+    assert target_is_symlink_calls == 0
 
 
 def test_write_cancel_request_normalizes_run_dir_lstat_oserror_without_open_side_effect(
