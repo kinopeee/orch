@@ -406,6 +406,45 @@ async def test_runner_skips_symlink_output_artifacts(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_runner_skips_output_artifacts_under_symlink_ancestor(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_artifacts_source_symlink_ancestor"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    outside = tmp_path / "outside_src"
+    outside.mkdir()
+    (outside / "secret.txt").write_text("SECRET", encoding="utf-8")
+    (workdir / "linked").symlink_to(outside, target_is_directory=True)
+
+    plan = PlanSpec(
+        goal="artifact source symlink ancestor skip",
+        artifacts_dir=None,
+        tasks=[
+            TaskSpec(
+                id="publish",
+                cmd=[sys.executable, "-c", "print('ok')"],
+                outputs=["linked/*.txt"],
+            )
+        ],
+    )
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "SUCCESS"
+    assert state.tasks["publish"].status == "SUCCESS"
+    assert state.tasks["publish"].artifact_paths == []
+    assert not any((run_dir / "artifacts" / "publish").rglob("*.txt"))
+
+
+@pytest.mark.asyncio
 async def test_runner_skips_copy_when_run_artifacts_root_is_symlink(tmp_path: Path) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run_artifacts_root_symlink"
     workdir = tmp_path / "wd"
