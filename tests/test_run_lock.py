@@ -337,6 +337,84 @@ def test_run_lock_wraps_runtime_open_error_as_oserror(
         pass
 
 
+def test_run_lock_closes_fd_when_fstat_oserror_raised(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    lock_path = run_dir / ".lock"
+    original_open = os.open
+    original_fstat = os.fstat
+    original_close = os.close
+    tracked_fd: int | None = None
+    closed_fd = False
+
+    def capture_open(path: str | os.PathLike[str], flags: int, mode: int = 0o777) -> int:
+        nonlocal tracked_fd
+        fd = original_open(path, flags, mode)
+        if str(path) == str(lock_path):
+            tracked_fd = fd
+        return fd
+
+    def flaky_fstat(fd: int) -> os.stat_result:
+        if tracked_fd is not None and fd == tracked_fd:
+            raise OSError("simulated fstat failure")
+        return original_fstat(fd)
+
+    def capture_close(fd: int) -> None:
+        nonlocal closed_fd
+        if tracked_fd is not None and fd == tracked_fd:
+            closed_fd = True
+        original_close(fd)
+
+    monkeypatch.setattr(os, "open", capture_open)
+    monkeypatch.setattr(os, "fstat", flaky_fstat)
+    monkeypatch.setattr(os, "close", capture_close)
+
+    with pytest.raises(OSError, match="simulated fstat failure"), run_lock(run_dir):
+        pass
+    assert closed_fd is True
+
+
+def test_run_lock_closes_fd_when_fstat_runtime_error_raised(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    lock_path = run_dir / ".lock"
+    original_open = os.open
+    original_fstat = os.fstat
+    original_close = os.close
+    tracked_fd: int | None = None
+    closed_fd = False
+
+    def capture_open(path: str | os.PathLike[str], flags: int, mode: int = 0o777) -> int:
+        nonlocal tracked_fd
+        fd = original_open(path, flags, mode)
+        if str(path) == str(lock_path):
+            tracked_fd = fd
+        return fd
+
+    def flaky_fstat(fd: int) -> os.stat_result:
+        if tracked_fd is not None and fd == tracked_fd:
+            raise RuntimeError("simulated fstat runtime failure")
+        return original_fstat(fd)
+
+    def capture_close(fd: int) -> None:
+        nonlocal closed_fd
+        if tracked_fd is not None and fd == tracked_fd:
+            closed_fd = True
+        original_close(fd)
+
+    monkeypatch.setattr(os, "open", capture_open)
+    monkeypatch.setattr(os, "fstat", flaky_fstat)
+    monkeypatch.setattr(os, "close", capture_close)
+
+    with pytest.raises(OSError, match="failed to open lock path"), run_lock(run_dir):
+        pass
+    assert closed_fd is True
+
+
 def test_run_lock_preserves_write_error_when_cleanup_lstat_runtime_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

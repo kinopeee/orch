@@ -45,27 +45,32 @@ def run_lock(
             raise OSError(f"lock path must not be symlink: {lock_path}")
         try:
             acquired_fd = os.open(lock_path, open_flags)
-            stat_result = os.fstat(acquired_fd)
+            stat_result: os.stat_result | None = None
             try:
+                stat_result = os.fstat(acquired_fd)
                 os.write(acquired_fd, str(os.getpid()).encode("utf-8"))
             except (OSError, RuntimeError) as exc:
                 with suppress(OSError, RuntimeError):
                     os.close(acquired_fd)
-                try:
-                    current_lock = lock_path.lstat()
-                except (OSError, RuntimeError):
-                    current_lock = None
-                if (
-                    current_lock is not None
-                    and stat.S_ISREG(current_lock.st_mode)
-                    and current_lock.st_ino == stat_result.st_ino
-                    and current_lock.st_dev == stat_result.st_dev
-                ):
-                    with suppress(OSError, RuntimeError):
-                        lock_path.unlink(missing_ok=True)
+                if stat_result is not None:
+                    try:
+                        current_lock = lock_path.lstat()
+                    except (OSError, RuntimeError):
+                        current_lock = None
+                    if (
+                        current_lock is not None
+                        and stat.S_ISREG(current_lock.st_mode)
+                        and current_lock.st_ino == stat_result.st_ino
+                        and current_lock.st_dev == stat_result.st_dev
+                    ):
+                        with suppress(OSError, RuntimeError):
+                            lock_path.unlink(missing_ok=True)
                 if isinstance(exc, RuntimeError):
+                    if stat_result is None:
+                        raise OSError(f"failed to open lock path: {lock_path}") from exc
                     raise OSError(str(exc)) from exc
                 raise
+            assert stat_result is not None
             fd = acquired_fd
             lock_inode = stat_result.st_ino
             lock_dev = stat_result.st_dev
