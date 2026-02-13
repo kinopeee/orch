@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import glob as globlib
 import os
 import shutil
 from dataclasses import dataclass
@@ -61,7 +62,11 @@ def _copy_artifacts(task: TaskSpec, run_dir: Path, cwd: Path) -> list[str]:
     task_root = run_dir / "artifacts" / task.id
     task_root.mkdir(parents=True, exist_ok=True)
     for pattern in task.outputs:
-        for match in cwd.glob(pattern):
+        if Path(pattern).is_absolute():
+            matches = [Path(p) for p in globlib.glob(pattern, recursive=True)]
+        else:
+            matches = list(cwd.glob(pattern))
+        for match in matches:
             if not match.exists() or match.is_dir():
                 continue
             try:

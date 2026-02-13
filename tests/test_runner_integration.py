@@ -194,6 +194,54 @@ async def test_runner_uses_absolute_task_cwd_without_rebasing(tmp_path: Path) ->
 
 
 @pytest.mark.asyncio
+async def test_runner_collects_artifacts_from_absolute_output_glob(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_abs_output_glob"
+    workdir = tmp_path / "wd"
+    external_dir = tmp_path / "external_artifacts"
+    workdir.mkdir(parents=True)
+    external_dir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    absolute_file = external_dir / "result.txt"
+    write_cmd = [
+        sys.executable,
+        "-c",
+        (
+            "from pathlib import Path; "
+            f"Path({str(absolute_file)!r}).write_text('ok', encoding='utf-8')"
+        ),
+    ]
+    absolute_glob = str(external_dir / "**" / "*.txt")
+    plan = PlanSpec(
+        goal="absolute output glob test",
+        artifacts_dir=None,
+        tasks=[
+            TaskSpec(
+                id="collect_abs",
+                cmd=write_cmd,
+                outputs=[absolute_glob],
+            )
+        ],
+    )
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "SUCCESS"
+    assert state.tasks["collect_abs"].status == "SUCCESS"
+    assert state.tasks["collect_abs"].artifact_paths == ["artifacts/collect_abs/result.txt"]
+    assert (run_dir / "artifacts" / "collect_abs" / "result.txt").read_text(
+        encoding="utf-8"
+    ) == "ok"
+
+
+@pytest.mark.asyncio
 async def test_runner_rejects_non_positive_max_parallel(tmp_path: Path) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run_bad_parallel"
     workdir = tmp_path / "wd"
