@@ -2872,3 +2872,58 @@ def test_cli_logs_tail_limits_output_lines(tmp_path: Path) -> None:
     assert "line4" in out
     assert "line1" not in out
     assert "line2" not in out
+
+
+def test_cli_logs_falls_back_to_unlocked_read_when_lock_conflicted(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_logs_lock_fallback.yaml"
+    home = tmp_path / ".orch_cli"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('from-log')"]
+        """,
+    )
+
+    run_proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--workdir",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert run_proc.returncode == 0
+    run_id = _extract_run_id(run_proc.stdout)
+    run_dir = home / "runs" / run_id
+    (run_dir / ".lock").write_text("other-holder", encoding="utf-8")
+
+    logs_proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "logs",
+            run_id,
+            "--home",
+            str(home),
+            "--task",
+            "t1",
+            "--tail",
+            "5",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert logs_proc.returncode == 0
+    assert "from-log" in logs_proc.stdout

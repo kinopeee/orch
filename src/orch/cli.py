@@ -235,10 +235,17 @@ def logs(
     _validate_home_or_exit(home)
     current_run_dir = run_dir(home, run_id)
     try:
-        state = load_state(current_run_dir)
+        with run_lock(current_run_dir, retries=5, retry_interval=0.1):
+            state = load_state(current_run_dir)
     except (StateError, FileNotFoundError) as exc:
         console.print(f"[red]Failed to load state:[/red] {exc}")
         raise typer.Exit(2) from exc
+    except RunConflictError:
+        try:
+            state = load_state(current_run_dir)
+        except (StateError, FileNotFoundError) as exc:
+            console.print(f"[red]Failed to load state:[/red] {exc}")
+            raise typer.Exit(2) from exc
     task_ids = [task] if task else list(state.tasks.keys())
     missing_task = False
     for task_id in task_ids:
