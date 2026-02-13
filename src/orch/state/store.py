@@ -63,6 +63,10 @@ def _is_non_negative_finite_number_list(value: object) -> bool:
     )
 
 
+def _is_non_blank_str_without_nul(value: object) -> bool:
+    return isinstance(value, str) and bool(value.strip()) and "\x00" not in value
+
+
 def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
     required_str = ("run_id", "status", "plan_relpath", "home", "workdir")
     for key in required_str:
@@ -108,6 +112,7 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
     folded = {task_id.casefold() for task_id in task_ids}
     if len(folded) != len(task_ids):
         raise StateError("invalid state field: tasks")
+    known_task_ids = set(task_ids)
     task_statuses: list[str] = []
 
     for task_id, task_data in tasks.items():
@@ -122,6 +127,46 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
         if not isinstance(task_status, str) or task_status not in TASK_STATUS_VALUES:
             raise StateError("invalid state field: tasks")
         task_statuses.append(task_status)
+        depends_on = task_data.get("depends_on")
+        if not isinstance(depends_on, list) or any(not isinstance(dep, str) for dep in depends_on):
+            raise StateError("invalid state field: tasks")
+        if len(set(depends_on)) != len(depends_on):
+            raise StateError("invalid state field: tasks")
+        if task_id in depends_on or any(dep not in known_task_ids for dep in depends_on):
+            raise StateError("invalid state field: tasks")
+
+        cmd = task_data.get("cmd")
+        if (
+            not isinstance(cmd, list)
+            or not cmd
+            or any(not _is_non_blank_str_without_nul(part) for part in cmd)
+        ):
+            raise StateError("invalid state field: tasks")
+
+        outputs = task_data.get("outputs")
+        if not isinstance(outputs, list) or any(
+            not _is_non_blank_str_without_nul(output) for output in outputs
+        ):
+            raise StateError("invalid state field: tasks")
+        if len(set(outputs)) != len(outputs):
+            raise StateError("invalid state field: tasks")
+
+        cwd = task_data.get("cwd")
+        if cwd is not None and not _is_non_blank_str_without_nul(cwd):
+            raise StateError("invalid state field: tasks")
+
+        env = task_data.get("env")
+        if env is not None:
+            if not isinstance(env, dict):
+                raise StateError("invalid state field: tasks")
+            for env_key, env_value in env.items():
+                if (
+                    not _is_non_blank_str_without_nul(env_key)
+                    or "=" in env_key
+                    or not isinstance(env_value, str)
+                    or "\x00" in env_value
+                ):
+                    raise StateError("invalid state field: tasks")
         attempts = task_data.get("attempts")
         if attempts is not None and not _is_non_negative_int(attempts):
             raise StateError("invalid state field: tasks")
