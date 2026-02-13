@@ -702,7 +702,9 @@ def test_run_lock_rejects_symlink_ancestor_without_run_dir_symlink_check(
     link_parent.symlink_to(real_parent, target_is_directory=True)
     run_dir = link_parent / "run"
     original_is_symlink = Path.is_symlink
+    original_lstat = Path.lstat
     run_dir_symlink_checks = 0
+    run_dir_lstat_calls = 0
 
     def capture_is_symlink(path_obj: Path) -> bool:
         nonlocal run_dir_symlink_checks
@@ -710,11 +712,19 @@ def test_run_lock_rejects_symlink_ancestor_without_run_dir_symlink_check(
             run_dir_symlink_checks += 1
         return original_is_symlink(path_obj)
 
+    def capture_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal run_dir_lstat_calls
+        if path_obj == run_dir:
+            run_dir_lstat_calls += 1
+        return original_lstat(path_obj, *args, **kwargs)
+
     monkeypatch.setattr(Path, "is_symlink", capture_is_symlink)
+    monkeypatch.setattr(Path, "lstat", capture_lstat)
 
     with pytest.raises(OSError, match="path contains symlink component"), run_lock(run_dir):
         pass
     assert run_dir_symlink_checks == 0
+    assert run_dir_lstat_calls == 0
     assert not (real_run_dir / ".lock").exists()
 
 
