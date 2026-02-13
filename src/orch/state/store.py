@@ -263,6 +263,10 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
             and (not isinstance(attempts, int) or attempts < 1)
         ):
             raise StateError("invalid state field: tasks")
+        if task_status == "PENDING" and (
+            bool_values["timed_out"] is None or bool_values["canceled"] is None
+        ):
+            raise StateError("invalid state field: tasks")
         pending_has_runtime_snapshot = (
             started_at is not None
             or ended_at is not None

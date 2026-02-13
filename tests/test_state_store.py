@@ -844,6 +844,31 @@ def test_load_state_rejects_pending_task_with_skip_reason(tmp_path: Path) -> Non
         load_state(run_dir)
 
 
+def test_load_state_rejects_pending_task_with_missing_bool_flags(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_pending_missing_bool_flags"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["status"] = "RUNNING"
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["status"] = "PENDING"
+    task["started_at"] = None
+    task["ended_at"] = None
+    task["duration_sec"] = None
+    task["exit_code"] = None
+    task["timed_out"] = None
+    task["canceled"] = None
+    task["skip_reason"] = None
+    task["attempts"] = 0
+    task["retries"] = 2
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_ready_task_with_attempts_exhausted(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad_ready_attempts_exhausted"
     run_dir.mkdir()
