@@ -277,7 +277,7 @@ def run(
         raise typer.Exit(2) from exc
     try:
         report_path = _write_report(state, current_run_dir)
-    except OSError as exc:
+    except (OSError, RuntimeError) as exc:
         console.print(f"[yellow]Warning:[/yellow] failed to write report: {exc}")
         report_path = current_run_dir / "report" / "final_report.md"
     console.print(f"run_id: [bold]{run_id}[/bold]")
@@ -327,7 +327,7 @@ def resume(
 
     try:
         report_path = _write_report(state, current_run_dir)
-    except OSError as exc:
+    except (OSError, RuntimeError) as exc:
         console.print(f"[yellow]Warning:[/yellow] failed to write report: {exc}")
         report_path = current_run_dir / "report" / "final_report.md"
     console.print(f"run_id: [bold]{run_id}[/bold]")
