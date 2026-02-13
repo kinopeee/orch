@@ -68,6 +68,15 @@ def _artifact_relative_path(match: Path, cwd: Path) -> Path:
         return Path("__external__", *match.parts)
 
 
+def _resolve_artifacts_dir(artifacts_dir: str | None, workdir: Path) -> Path | None:
+    if artifacts_dir is None:
+        return None
+    root = Path(artifacts_dir)
+    if root.is_absolute():
+        return root
+    return workdir / root
+
+
 def _copy_artifacts(task: TaskSpec, run_dir: Path, cwd: Path) -> list[str]:
     copied: list[str] = []
     if not task.outputs:
@@ -88,6 +97,28 @@ def _copy_artifacts(task: TaskSpec, run_dir: Path, cwd: Path) -> list[str]:
             shutil.copy2(match, dest)
             copied.append(str(dest.relative_to(run_dir)))
     return sorted(set(copied))
+
+
+def _copy_to_aggregate_dir(
+    task: TaskSpec,
+    cwd: Path,
+    *,
+    aggregate_root: Path,
+) -> None:
+    task_root = aggregate_root / task.id
+    task_root.mkdir(parents=True, exist_ok=True)
+    for pattern in task.outputs:
+        if Path(pattern).is_absolute():
+            matches = [Path(p) for p in globlib.glob(pattern, recursive=True)]
+        else:
+            matches = list(cwd.glob(pattern))
+        for match in matches:
+            if not match.exists() or match.is_dir():
+                continue
+            rel = _artifact_relative_path(match, cwd)
+            dest = task_root / rel
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(match, dest)
 
 
 def _finalize_run_status(state: RunState) -> None:
@@ -284,6 +315,7 @@ async def run_plan(
 
     dependents, _ = build_adjacency(plan)
     spec_by_id = {task.id: task for task in plan.tasks}
+    aggregate_root = _resolve_artifacts_dir(plan.artifacts_dir, workdir)
 
     if resume:
         (run_dir / "cancel.request").unlink(missing_ok=True)
@@ -426,6 +458,8 @@ async def run_plan(
                 task_state.status = "SUCCESS"
                 cwd = _resolve_task_cwd(task.cwd, workdir)
                 task_state.artifact_paths = _copy_artifacts(task, run_dir, cwd)
+                if aggregate_root is not None:
+                    _copy_to_aggregate_dir(task, cwd, aggregate_root=aggregate_root)
             else:
                 task_state.status = "FAILED"
                 if fail_fast:

@@ -50,6 +50,10 @@ tasks:
     outputs: ["dist/**", "report.json"]
 ```
 
+`artifacts_dir` を指定すると、`outputs` で収集した成果物を run 内 (`runs/<run_id>/artifacts/...`)
+に保存するだけでなく、`artifacts_dir/<task_id>/...` にもコピーします。
+相対パスは `--workdir` 基準で解決されます。
+
 ## 終了コード
 
 - `0`: 全タスク成功
