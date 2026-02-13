@@ -259,6 +259,49 @@ async def test_runner_ignores_copy_failures_and_keeps_success(
 
 
 @pytest.mark.asyncio
+async def test_runner_marks_task_failed_when_run_task_raises(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_internal_exception"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    plan = PlanSpec(
+        goal="runner exception handling",
+        artifacts_dir=None,
+        tasks=[
+            TaskSpec(id="a", cmd=[sys.executable, "-c", "print('a')"]),
+            TaskSpec(id="b", cmd=[sys.executable, "-c", "print('b')"], depends_on=["a"]),
+        ],
+    )
+
+    async def boom(*args: object, **kwargs: object) -> object:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(runner_module, "run_task", boom)
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "FAILED"
+    assert state.tasks["a"].status == "FAILED"
+    assert state.tasks["a"].skip_reason == "runner_exception"
+    assert state.tasks["a"].exit_code == 70
+    assert state.tasks["a"].attempts == 1
+    assert state.tasks["b"].status == "SKIPPED"
+    stderr_log = run_dir / "logs" / "a.err.log"
+    assert "runner exception: boom" in stderr_log.read_text(encoding="utf-8")
+
+
+@pytest.mark.asyncio
 async def test_runner_ignores_artifact_dir_creation_failures_and_keeps_success(
     tmp_path: Path,
 ) -> None:

@@ -514,7 +514,31 @@ async def run_plan(
             del running[task_id]
             task = spec_by_id[task_id]
             task_state = state.tasks[task_id]
-            result = fut.result()
+            try:
+                result = fut.result()
+            except Exception as exc:
+                ended_dt = datetime.now().astimezone()
+                started_iso = task_state.started_at or ended_dt.isoformat(timespec="seconds")
+                try:
+                    started_dt = datetime.fromisoformat(started_iso)
+                    elapsed = duration_sec(started_dt, ended_dt)
+                except ValueError:
+                    elapsed = 0.0
+                if task_state.stderr_path is not None:
+                    _append_text_best_effort(
+                        run_dir / task_state.stderr_path,
+                        f"runner exception: {exc}\n",
+                    )
+                task_state.skip_reason = "runner_exception"
+                result = TaskResult(
+                    exit_code=70,
+                    timed_out=False,
+                    canceled=False,
+                    start_failed=True,
+                    started_at=started_iso,
+                    ended_at=ended_dt.isoformat(timespec="seconds"),
+                    duration_sec=elapsed,
+                )
             task_state.ended_at = result.ended_at
             task_state.duration_sec = result.duration_sec
             task_state.exit_code = result.exit_code
