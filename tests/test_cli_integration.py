@@ -676,6 +676,22 @@ def test_cli_cancel_rejects_absolute_run_id_without_side_effect(tmp_path: Path) 
     assert not (outside_run_dir / "cancel.request").exists()
 
 
+def test_cli_rejects_too_long_run_id_for_all_commands(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    bad_run_id = "a" * 129
+    for command in ("status", "logs", "resume", "cancel"):
+        proc = subprocess.run(
+            [sys.executable, "-m", "orch.cli", command, bad_run_id, "--home", str(home)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        output = proc.stdout + proc.stderr
+        assert proc.returncode == 2, command
+        assert "Invalid run_id" in output, command
+    assert not (home / "runs").exists()
+
+
 def test_cli_logs_unknown_task_returns_two(tmp_path: Path) -> None:
     plan_path = tmp_path / "plan_logs_task.yaml"
     home = tmp_path / ".orch_cli"

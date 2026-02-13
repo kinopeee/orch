@@ -30,6 +30,7 @@ from orch.util.tail import tail_lines
 app = typer.Typer(help="CLI agent task orchestrator")
 console = Console()
 _RUN_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+_RUN_ID_MAX_LEN = 128
 
 
 def _exit_code_for_state(state: RunState) -> int:
@@ -78,7 +79,7 @@ def _validate_home_or_exit(home: Path) -> None:
 
 
 def _validate_run_id_or_exit(run_id: str) -> None:
-    if _RUN_ID_PATTERN.fullmatch(run_id) is None:
+    if len(run_id) > _RUN_ID_MAX_LEN or _RUN_ID_PATTERN.fullmatch(run_id) is None:
         console.print(f"[red]Invalid run_id:[/red] {run_id}")
         raise typer.Exit(2)
 
