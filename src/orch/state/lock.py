@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import errno
 import os
 import time
 from collections.abc import Iterator
@@ -13,10 +14,15 @@ from orch.util.errors import RunConflictError
 def run_lock(
     run_dir: Path, stale_sec: int = 3600, *, retries: int = 0, retry_interval: float = 0.2
 ) -> Iterator[None]:
+    if run_dir.is_symlink():
+        raise OSError(f"run directory must not be symlink: {run_dir}")
     lock_path = run_dir / ".lock"
     fd: int | None = None
     lock_inode: int | None = None
     lock_dev: int | None = None
+    open_flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
+    if hasattr(os, "O_NOFOLLOW"):
+        open_flags |= os.O_NOFOLLOW
 
     def _is_stale() -> bool:
         try:
@@ -28,7 +34,13 @@ def run_lock(
     attempt = 0
     while True:
         try:
-            acquired_fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            lock_path_is_symlink = lock_path.is_symlink()
+        except OSError:
+            lock_path_is_symlink = False
+        if lock_path_is_symlink:
+            raise OSError(f"lock path must not be symlink: {lock_path}")
+        try:
+            acquired_fd = os.open(lock_path, open_flags)
             stat_result = os.fstat(acquired_fd)
             try:
                 os.write(acquired_fd, str(os.getpid()).encode("utf-8"))
@@ -67,6 +79,10 @@ def run_lock(
                 raise RunConflictError(f"run is locked by another process: {lock_path}") from err
             attempt += 1
             time.sleep(retry_interval)
+        except OSError as err:
+            if err.errno == errno.ELOOP:
+                raise OSError(f"lock path must not be symlink: {lock_path}") from err
+            raise
 
     try:
         yield

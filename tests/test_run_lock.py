@@ -205,3 +205,26 @@ def test_run_lock_cleans_up_if_pid_write_fails(
 
     with run_lock(run_dir):
         assert lock_path.exists()
+
+
+def test_run_lock_rejects_symlink_run_directory(tmp_path: Path) -> None:
+    real_run_dir = tmp_path / "real_run"
+    real_run_dir.mkdir()
+    run_dir = tmp_path / "run_link"
+    run_dir.symlink_to(real_run_dir, target_is_directory=True)
+
+    with pytest.raises(OSError, match="run directory must not be symlink"), run_lock(run_dir):
+        pass
+
+
+def test_run_lock_rejects_symlink_lock_path(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    outside = tmp_path / "outside_lock"
+    outside.write_text("outside\n", encoding="utf-8")
+    lock_path = run_dir / ".lock"
+    lock_path.symlink_to(outside)
+
+    with pytest.raises(OSError, match="lock path must not be symlink"), run_lock(run_dir):
+        pass
+    assert outside.read_text(encoding="utf-8") == "outside\n"
