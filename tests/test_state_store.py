@@ -189,6 +189,21 @@ def test_load_state_rejects_log_path_for_different_task_id(tmp_path: Path) -> No
         load_state(run_dir)
 
 
+def test_load_state_rejects_unexpected_log_filename_pattern(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_log_filename"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["stderr_path"] = "logs/t1.custom.log"
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_unsafe_artifact_paths(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad_artifact_path"
     run_dir.mkdir()

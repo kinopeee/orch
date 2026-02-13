@@ -151,7 +151,8 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
             if len(rel_path.parts) != 2:
                 raise StateError("invalid state field: tasks")
             filename = rel_path.parts[1]
-            if not filename.startswith(f"{task_id}.") or not filename.endswith(".log"):
+            expected = f"{task_id}.out.log" if key == "stdout_path" else f"{task_id}.err.log"
+            if filename != expected:
                 raise StateError("invalid state field: tasks")
 
         artifact_paths = task_data.get("artifact_paths")
