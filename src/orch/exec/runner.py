@@ -70,9 +70,9 @@ def _finalize_run_status(state: RunState) -> None:
     statuses = [task.status for task in state.tasks.values()]
     if any(status == "CANCELED" for status in statuses):
         state.status = "CANCELED"
-    elif any(status == "FAILED" for status in statuses):
-        state.status = "FAILED"
-    elif any(status == "SKIPPED" for status in statuses):
+    elif any(status == "FAILED" for status in statuses) or any(
+        status == "SKIPPED" for status in statuses
+    ):
         state.status = "FAILED"
     elif statuses and all(status == "SUCCESS" for status in statuses):
         state.status = "SUCCESS"

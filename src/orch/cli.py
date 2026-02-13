@@ -3,8 +3,9 @@ from __future__ import annotations
 import asyncio
 import json
 import shutil
+from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 import typer
 from rich.console import Console
@@ -51,12 +52,12 @@ def _write_report(state: RunState, current_run_dir: Path) -> Path:
 
 @app.command()
 def run(
-    plan_path: Path = typer.Argument(..., exists=True),
-    max_parallel: int = typer.Option(4, "--max-parallel"),
-    home: Path = typer.Option(Path(".orch"), "--home"),
-    workdir: Path = typer.Option(Path("."), "--workdir"),
-    fail_fast: bool = typer.Option(False, "--fail-fast/--no-fail-fast"),
-    dry_run: bool = typer.Option(False, "--dry-run"),
+    plan_path: Annotated[Path, typer.Argument(exists=True)],
+    max_parallel: Annotated[int, typer.Option("--max-parallel")] = 4,
+    home: Annotated[Path, typer.Option("--home")] = Path(".orch"),
+    workdir: Annotated[Path, typer.Option("--workdir")] = Path("."),
+    fail_fast: Annotated[bool, typer.Option("--fail-fast/--no-fail-fast")] = False,
+    dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
 ) -> None:
     try:
         plan = load_plan(plan_path)
@@ -75,7 +76,7 @@ def run(
         console.print(table)
         raise typer.Exit(0)
 
-    run_id = new_run_id(__import__("datetime").datetime.now().astimezone())
+    run_id = new_run_id(datetime.now().astimezone())
     current_run_dir = run_dir(home, run_id)
     ensure_run_layout(current_run_dir)
     shutil.copy2(plan_path, current_run_dir / "plan.yaml")
@@ -100,12 +101,12 @@ def run(
 
 @app.command()
 def resume(
-    run_id: str = typer.Argument(...),
-    home: Path = typer.Option(Path(".orch"), "--home"),
-    max_parallel: int = typer.Option(4, "--max-parallel"),
-    workdir: Path = typer.Option(Path("."), "--workdir"),
-    fail_fast: bool = typer.Option(False, "--fail-fast/--no-fail-fast"),
-    failed_only: bool = typer.Option(False, "--failed-only"),
+    run_id: Annotated[str, typer.Argument()],
+    home: Annotated[Path, typer.Option("--home")] = Path(".orch"),
+    max_parallel: Annotated[int, typer.Option("--max-parallel")] = 4,
+    workdir: Annotated[Path, typer.Option("--workdir")] = Path("."),
+    fail_fast: Annotated[bool, typer.Option("--fail-fast/--no-fail-fast")] = False,
+    failed_only: Annotated[bool, typer.Option("--failed-only")] = False,
 ) -> None:
     current_run_dir = run_dir(home, run_id)
     try:
@@ -143,9 +144,9 @@ def resume(
 
 @app.command()
 def status(
-    run_id: str = typer.Argument(...),
-    home: Path = typer.Option(Path(".orch"), "--home"),
-    as_json: bool = typer.Option(False, "--json"),
+    run_id: Annotated[str, typer.Argument()],
+    home: Annotated[Path, typer.Option("--home")] = Path(".orch"),
+    as_json: Annotated[bool, typer.Option("--json")] = False,
 ) -> None:
     current_run_dir = run_dir(home, run_id)
     try:
@@ -180,10 +181,10 @@ def status(
 
 @app.command()
 def logs(
-    run_id: str = typer.Argument(...),
-    home: Path = typer.Option(Path(".orch"), "--home"),
-    task: str | None = typer.Option(None, "--task"),
-    tail: int = typer.Option(100, "--tail"),
+    run_id: Annotated[str, typer.Argument()],
+    home: Annotated[Path, typer.Option("--home")] = Path(".orch"),
+    task: Annotated[str | None, typer.Option("--task")] = None,
+    tail: Annotated[int, typer.Option("--tail")] = 100,
 ) -> None:
     current_run_dir = run_dir(home, run_id)
     state = load_state(current_run_dir)
@@ -217,8 +218,8 @@ def logs(
 
 @app.command()
 def cancel(
-    run_id: str = typer.Argument(...),
-    home: Path = typer.Option(Path(".orch"), "--home"),
+    run_id: Annotated[str, typer.Argument()],
+    home: Annotated[Path, typer.Option("--home")] = Path(".orch"),
 ) -> None:
     current_run_dir = run_dir(home, run_id)
     ensure_run_layout(current_run_dir)

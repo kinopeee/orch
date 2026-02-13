@@ -55,7 +55,7 @@ class TaskState:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, object]) -> "TaskState":
+    def from_dict(cls, data: dict[str, object]) -> TaskState:
         return cls(
             status=str(data["status"]),  # type: ignore[arg-type]
             depends_on=list(data.get("depends_on", [])),  # type: ignore[arg-type]
@@ -81,7 +81,9 @@ class TaskState:
             exit_code=int(data["exit_code"]) if isinstance(data.get("exit_code"), int) else None,
             timed_out=bool(data.get("timed_out", False)),
             canceled=bool(data.get("canceled", False)),
-            skip_reason=data.get("skip_reason") if isinstance(data.get("skip_reason"), str) else None,
+            skip_reason=data.get("skip_reason")
+            if isinstance(data.get("skip_reason"), str)
+            else None,
             stdout_path=(
                 data.get("stdout_path") if isinstance(data.get("stdout_path"), str) else None
             ),
@@ -122,7 +124,7 @@ class RunState:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, object]) -> "RunState":
+    def from_dict(cls, data: dict[str, object]) -> RunState:
         raw_tasks = data.get("tasks")
         if not isinstance(raw_tasks, dict):
             raw_tasks = {}

@@ -47,7 +47,6 @@ def _parse_task(raw: Any) -> TaskSpec:
             raise PlanError(f"task '{raw['id']}' timeout_sec must be > 0")
         timeout_sec = float(timeout_sec)
 
-    retry_backoff = _ensure_list_str("_tmp", [])  # placeholder for type narrowing
     raw_backoff = raw.get("retry_backoff_sec", [])
     if not isinstance(raw_backoff, list) or not all(
         isinstance(v, (int, float)) and v >= 0 for v in raw_backoff
@@ -63,11 +62,11 @@ def _parse_task(raw: Any) -> TaskSpec:
         raise PlanError(f"task '{raw['id']}' cwd must be non-empty string")
 
     env = raw.get("env")
-    if env is not None:
-        if not isinstance(env, dict) or not all(
-            isinstance(k, str) and isinstance(v, str) for k, v in env.items()
-        ):
-            raise PlanError(f"task '{raw['id']}' env must be dict[str, str]")
+    if env is not None and (
+        not isinstance(env, dict)
+        or not all(isinstance(k, str) and isinstance(v, str) for k, v in env.items())
+    ):
+        raise PlanError(f"task '{raw['id']}' env must be dict[str, str]")
 
     return TaskSpec(
         id=raw["id"],

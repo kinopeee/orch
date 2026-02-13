@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import os
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
 
 from orch.util.errors import RunConflictError
 
@@ -27,12 +27,12 @@ def run_lock(
             fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
             os.write(fd, str(os.getpid()).encode("utf-8"))
             break
-        except FileExistsError:
+        except FileExistsError as err:
             if _is_stale():
                 lock_path.unlink(missing_ok=True)
                 continue
             if attempt >= retries:
-                raise RunConflictError(f"run is locked by another process: {lock_path}")
+                raise RunConflictError(f"run is locked by another process: {lock_path}") from err
             time.sleep(retry_interval)
 
     try:

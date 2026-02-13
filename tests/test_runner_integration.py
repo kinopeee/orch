@@ -23,7 +23,9 @@ async def test_runner_propagates_skipped_and_retries(tmp_path: Path) -> None:
         artifacts_dir=None,
         tasks=[
             TaskSpec(id="unstable", cmd=fail_cmd, retries=1, retry_backoff_sec=[0.01]),
-            TaskSpec(id="downstream", cmd=[sys.executable, "-c", "print('ok')"], depends_on=["unstable"]),
+            TaskSpec(
+                id="downstream", cmd=[sys.executable, "-c", "print('ok')"], depends_on=["unstable"]
+            ),
         ],
     )
 
