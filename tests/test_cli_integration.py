@@ -398,3 +398,43 @@ def test_cli_dry_run_invalid_plan_returns_two(tmp_path: Path) -> None:
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Plan validation error" in output
+
+
+def test_cli_timeout_with_retry_records_attempts_and_fails(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_timeout_retry.yaml"
+    home = tmp_path / ".orch_cli"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: slow
+            cmd: ["python3", "-c", "import time; time.sleep(1.0)"]
+            timeout_sec: 0.1
+            retries: 1
+            retry_backoff_sec: [0.01]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--workdir",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 3
+    run_id = _extract_run_id(proc.stdout)
+    state = json.loads((home / "runs" / run_id / "state.json").read_text(encoding="utf-8"))
+    assert state["status"] == "FAILED"
+    assert state["tasks"]["slow"]["status"] == "FAILED"
+    assert state["tasks"]["slow"]["attempts"] == 2
+    assert state["tasks"]["slow"]["timed_out"] is True
