@@ -412,7 +412,7 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
         for key in ("stdout_path", "stderr_path"):
             rel = task_data.get(key)
             if rel is None:
-                continue
+                raise StateError("invalid state field: tasks")
             if not isinstance(rel, str) or not rel or "\x00" in rel:
                 raise StateError("invalid state field: tasks")
             rel_path = Path(rel)

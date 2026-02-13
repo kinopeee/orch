@@ -78,6 +78,8 @@ def test_save_and_load_state_atomic(tmp_path: Path) -> None:
                 ended_at="2026-01-01T00:00:01+00:00",
                 duration_sec=1.0,
                 exit_code=0,
+                stdout_path="logs/t1.out.log",
+                stderr_path="logs/t1.err.log",
             )
         },
     )
@@ -212,6 +214,21 @@ def test_load_state_rejects_unsafe_task_log_path(tmp_path: Path) -> None:
     task = tasks["t1"]
     assert isinstance(task, dict)
     task["stdout_path"] = "../escape.log"
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
+def test_load_state_rejects_missing_task_log_path(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_missing_log_path"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["stdout_path"] = None
     (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
 
     with pytest.raises(StateError, match="invalid state field: tasks"):
