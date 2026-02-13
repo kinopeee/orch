@@ -239,15 +239,28 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
             expected = f"{task_id}.out.log" if key == "stdout_path" else f"{task_id}.err.log"
             if filename != expected:
                 raise StateError("invalid state field: tasks")
+        stdout_path = task_data.get("stdout_path")
+        stderr_path = task_data.get("stderr_path")
+        if (
+            isinstance(stdout_path, str)
+            and isinstance(stderr_path, str)
+            and stdout_path == stderr_path
+        ):
+            raise StateError("invalid state field: tasks")
 
         artifact_paths = task_data.get("artifact_paths")
         if artifact_paths is None:
             continue
         if not isinstance(artifact_paths, list):
             raise StateError("invalid state field: tasks")
+        seen_artifacts: set[str] = set()
         for artifact_rel in artifact_paths:
             if not isinstance(artifact_rel, str) or not artifact_rel or "\x00" in artifact_rel:
                 raise StateError("invalid state field: tasks")
+            artifact_key = artifact_rel.casefold()
+            if artifact_key in seen_artifacts:
+                raise StateError("invalid state field: tasks")
+            seen_artifacts.add(artifact_key)
             artifact_path = Path(artifact_rel)
             if (
                 artifact_path.is_absolute()

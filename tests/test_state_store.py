@@ -234,6 +234,37 @@ def test_load_state_rejects_artifact_path_for_different_task_id(tmp_path: Path) 
         load_state(run_dir)
 
 
+def test_load_state_rejects_duplicate_artifact_paths(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_dup_artifacts"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["artifact_paths"] = ["artifacts/t1/out.txt", "artifacts/t1/OUT.txt"]
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
+def test_load_state_rejects_identical_stdout_and_stderr_path(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_same_log_paths"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["stdout_path"] = "logs/t1.out.log"
+    task["stderr_path"] = "logs/t1.out.log"
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_case_insensitive_duplicate_task_ids(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_case_dup_tasks"
     run_dir.mkdir()
