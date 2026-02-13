@@ -595,3 +595,65 @@ def test_cli_resume_invalid_plan_copy_returns_two(tmp_path: Path) -> None:
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Plan validation error" in output
+
+
+def test_cli_logs_tail_limits_output_lines(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_logs_tail.yaml"
+    home = tmp_path / ".orch_cli"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: noisy
+            cmd:
+              [
+                "python3",
+                "-c",
+                "print('line1');print('line2');print('line3');print('line4');print('line5')",
+              ]
+        """,
+    )
+
+    run_proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--workdir",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert run_proc.returncode == 0
+    run_id = _extract_run_id(run_proc.stdout)
+
+    logs_proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "logs",
+            run_id,
+            "--home",
+            str(home),
+            "--task",
+            "noisy",
+            "--tail",
+            "2",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert logs_proc.returncode == 0
+    out = logs_proc.stdout
+    assert "line5" in out
+    assert "line4" in out
+    assert "line1" not in out
+    assert "line2" not in out
