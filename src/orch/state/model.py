@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Literal, cast
 
@@ -30,15 +31,18 @@ def _as_bool(value: object, default: bool = False) -> bool:
 
 
 def _as_int(value: object, default: int = 0) -> int:
-    return value if isinstance(value, int) else default
+    return value if isinstance(value, int) and not isinstance(value, bool) else default
 
 
 def _as_optional_int(value: object) -> int | None:
-    return value if isinstance(value, int) else None
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
 
 
 def _as_optional_float(value: object) -> float | None:
-    return float(value) if isinstance(value, (int, float)) else None
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return None
+    num = float(value)
+    return num if math.isfinite(num) else None
 
 
 def _as_list_str(value: object) -> list[str]:
@@ -50,7 +54,14 @@ def _as_list_str(value: object) -> list[str]:
 def _as_list_float(value: object) -> list[float]:
     if not isinstance(value, list):
         return []
-    return [float(item) for item in value if isinstance(item, (int, float))]
+    out: list[float] = []
+    for item in value:
+        if not isinstance(item, (int, float)) or isinstance(item, bool):
+            continue
+        num = float(item)
+        if math.isfinite(num):
+            out.append(num)
+    return out
 
 
 def _as_env_map(value: object) -> dict[str, str] | None:
