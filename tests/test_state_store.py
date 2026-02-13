@@ -669,3 +669,45 @@ def test_load_state_rejects_pending_run_status(tmp_path: Path) -> None:
 
     with pytest.raises(StateError, match="invalid state field: status"):
         load_state(run_dir)
+
+
+def test_load_state_rejects_failed_run_status_with_canceled_task(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_failed_with_canceled"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["status"] = "FAILED"
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    t1 = tasks["t1"]
+    assert isinstance(t1, dict)
+    t1["status"] = "FAILED"
+    t1["exit_code"] = 1
+    t1["timed_out"] = False
+    t1["canceled"] = False
+    t1["skip_reason"] = None
+    tasks["t2"] = {
+        "status": "CANCELED",
+        "depends_on": [],
+        "cmd": ["echo", "ok"],
+        "cwd": ".",
+        "env": None,
+        "timeout_sec": None,
+        "retries": 0,
+        "retry_backoff_sec": [],
+        "outputs": [],
+        "attempts": 1,
+        "started_at": "2026-01-01T00:00:00+00:00",
+        "ended_at": "2026-01-01T00:00:01+00:00",
+        "duration_sec": 1.0,
+        "exit_code": None,
+        "timed_out": False,
+        "canceled": True,
+        "skip_reason": "run_canceled",
+        "stdout_path": "logs/t2.out.log",
+        "stderr_path": "logs/t2.err.log",
+        "artifact_paths": [],
+    }
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: status"):
+        load_state(run_dir)

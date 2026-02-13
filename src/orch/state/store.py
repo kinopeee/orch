@@ -356,6 +356,8 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
         task_status in {"FAILED", "SKIPPED"} for task_status in task_statuses
     ):
         raise StateError("invalid state field: status")
+    if status == "FAILED" and any(task_status == "CANCELED" for task_status in task_statuses):
+        raise StateError("invalid state field: status")
     terminal_statuses = {"SUCCESS", "FAILED", "SKIPPED", "CANCELED"}
     active_statuses = {"PENDING", "READY", "RUNNING"}
     if status in {"SUCCESS", "FAILED", "CANCELED"} and any(
