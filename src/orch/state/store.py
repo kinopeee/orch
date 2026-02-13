@@ -356,6 +356,7 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
                 or attempts < 1
                 or not isinstance(exit_code, int)
                 or exit_code == 0
+                or duration_sec is None
             )
         ):
             raise StateError("invalid state field: tasks")
