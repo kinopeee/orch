@@ -4,6 +4,8 @@ import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import pytest
+
 from orch.util.ids import new_run_id
 from orch.util.paths import ensure_run_layout, run_dir
 from orch.util.time import duration_sec, now_iso
@@ -35,3 +37,27 @@ def test_run_dir_and_ensure_run_layout_create_expected_paths(tmp_path: Path) -> 
     assert (path / "logs").is_dir()
     assert (path / "artifacts").is_dir()
     assert (path / "report").is_dir()
+
+
+def test_ensure_run_layout_rejects_symlink_run_dir(tmp_path: Path) -> None:
+    runs_dir = tmp_path / "runs"
+    runs_dir.mkdir()
+    target = tmp_path / "external_run"
+    target.mkdir()
+    path = runs_dir / "run_1"
+    path.symlink_to(target, target_is_directory=True)
+
+    with pytest.raises(OSError, match="must not be symlink"):
+        ensure_run_layout(path)
+
+
+def test_ensure_run_layout_rejects_symlink_logs_dir(tmp_path: Path) -> None:
+    path = run_dir(tmp_path, "run_1")
+    path.mkdir(parents=True)
+    external_logs = tmp_path / "external_logs"
+    external_logs.mkdir()
+    (path / "logs").symlink_to(external_logs, target_is_directory=True)
+
+    with pytest.raises(OSError, match="must not be symlink"):
+        ensure_run_layout(path)
+    assert list(external_logs.iterdir()) == []

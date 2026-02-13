@@ -8,8 +8,17 @@ def run_dir(home: Path, run_id: str) -> Path:
     return home / "runs" / run_id
 
 
+def _ensure_directory(path: Path, *, parents: bool = False) -> None:
+    if path.is_symlink():
+        raise OSError(f"path must not be symlink: {path}")
+    path.mkdir(parents=parents, exist_ok=True)
+    if path.is_symlink() or not path.is_dir():
+        raise OSError(f"path must be directory: {path}")
+
+
 def ensure_run_layout(run_dir: Path) -> None:
     """Ensure all directories required by the run layout exist."""
-    (run_dir / "logs").mkdir(parents=True, exist_ok=True)
-    (run_dir / "artifacts").mkdir(parents=True, exist_ok=True)
-    (run_dir / "report").mkdir(parents=True, exist_ok=True)
+    _ensure_directory(run_dir, parents=True)
+    _ensure_directory(run_dir / "logs")
+    _ensure_directory(run_dir / "artifacts")
+    _ensure_directory(run_dir / "report")
