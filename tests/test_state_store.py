@@ -636,6 +636,23 @@ def test_load_state_wraps_read_oserror(tmp_path: Path) -> None:
         load_state(run_dir)
 
 
+def test_load_state_wraps_runtime_open_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_state_runtime_open_error"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    def _raise_runtime(_path: str, _flags: int) -> int:
+        raise RuntimeError("simulated open runtime failure")
+
+    monkeypatch.setattr(os, "open", _raise_runtime)
+
+    with pytest.raises(StateError, match="failed to read state file"):
+        load_state(run_dir)
+
+
 def test_load_state_wraps_runtime_lstat_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -212,13 +212,15 @@ def load_plan(path: Path) -> PlanSpec:
         raise PlanError(f"plan file not found: {path}") from exc
     except UnicodeError as exc:
         raise PlanError(f"failed to decode plan file as utf-8: {path}") from exc
+    except RuntimeError as exc:
+        raise PlanError(f"failed to read plan file: {path}") from exc
     except OSError as exc:
         if exc.errno == errno.ELOOP:
             raise PlanError(f"plan file must not be symlink: {path}") from exc
         raise PlanError(f"failed to read plan file: {path}") from exc
     finally:
         if fd is not None:
-            with suppress(OSError):
+            with suppress(OSError, RuntimeError):
                 os.close(fd)
 
     try:

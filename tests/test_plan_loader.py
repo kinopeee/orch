@@ -181,6 +181,28 @@ def test_load_plan_rejects_non_regular_file_path(tmp_path: Path) -> None:
         load_plan(plan_path)
 
 
+def test_load_plan_wraps_runtime_open_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plan_path = tmp_path / "plan_runtime_open.yaml"
+    plan_path.write_text(
+        """
+tasks:
+  - id: a
+    cmd: ["echo", "x"]
+""".strip(),
+        encoding="utf-8",
+    )
+
+    def _raise_runtime(_path: str, _flags: int) -> int:
+        raise RuntimeError("simulated open runtime failure")
+
+    monkeypatch.setattr(os, "open", _raise_runtime)
+
+    with pytest.raises(PlanError, match="failed to read plan file"):
+        load_plan(plan_path)
+
+
 def test_load_plan_normalizes_open_eloop_as_symlink_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

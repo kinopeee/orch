@@ -622,6 +622,8 @@ def load_state(run_dir: Path) -> RunState:
         raise StateError(f"failed to decode state file as utf-8: {state_path}") from exc
     except json.JSONDecodeError as exc:
         raise StateError(f"invalid state json: {state_path}") from exc
+    except RuntimeError as exc:
+        raise StateError(f"failed to read state file: {state_path}") from exc
     except OSError as exc:
         if exc.errno == errno.ELOOP:
             raise StateError(f"state file must not be symlink: {state_path}") from exc
