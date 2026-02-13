@@ -780,3 +780,63 @@ def test_source_three_arg_os_open_calls_use_write_only_create_modes() -> None:
                     )
 
     assert not violations, "three-arg os.open policy violations found:\n" + "\n".join(violations)
+
+
+def test_source_os_open_flag_variable_has_single_base_assignment() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    violations: list[str] = []
+
+    for file_path in src_root.rglob("*.py"):
+        relative_path = file_path.relative_to(src_root)
+        module = ast.parse(file_path.read_text(encoding="utf-8"))
+
+        for function_node in ast.walk(module):
+            if not isinstance(function_node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+
+            for node in ast.walk(function_node):
+                if not (
+                    isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == "os"
+                    and node.func.attr == "open"
+                    and len(node.args) >= 2
+                    and isinstance(node.args[1], ast.Name)
+                ):
+                    continue
+
+                flag_name = node.args[1].id
+                base_assignments = [
+                    assign
+                    for assign in ast.walk(function_node)
+                    if isinstance(assign, ast.Assign)
+                    and assign.lineno <= node.lineno
+                    and any(
+                        isinstance(target, ast.Name) and target.id == flag_name
+                        for target in assign.targets
+                    )
+                ]
+                if len(base_assignments) != 1:
+                    violations.append(
+                        f"{relative_path}:{node.lineno}: {flag_name} has "
+                        f"{len(base_assignments)} base assignments"
+                    )
+
+                invalid_augassigns = [
+                    aug
+                    for aug in ast.walk(function_node)
+                    if isinstance(aug, ast.AugAssign)
+                    and aug.lineno <= node.lineno
+                    and isinstance(aug.target, ast.Name)
+                    and aug.target.id == flag_name
+                    and not isinstance(aug.op, ast.BitOr)
+                ]
+                if invalid_augassigns:
+                    violations.append(
+                        f"{relative_path}:{node.lineno}: {flag_name} has non-|= augmented assign"
+                    )
+
+    assert not violations, "os.open flag-assignment policy violations found:\n" + "\n".join(
+        violations
+    )
