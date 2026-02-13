@@ -310,10 +310,28 @@ def test_source_wraps_os_fstat_calls_with_oserror_and_runtimeerror_handlers() ->
     assert not violations, "unguarded os.fstat calls found:\n" + "\n".join(violations)
 
 
+def test_source_wraps_os_write_calls_with_oserror_and_runtimeerror_handlers() -> None:
+    violations = _collect_unguarded_calls("write", receiver_name="os")
+
+    assert not violations, "unguarded os.write calls found:\n" + "\n".join(violations)
+
+
+def test_source_wraps_os_fsync_calls_with_oserror_and_runtimeerror_handlers() -> None:
+    violations = _collect_unguarded_calls("fsync", receiver_name="os")
+
+    assert not violations, "unguarded os.fsync calls found:\n" + "\n".join(violations)
+
+
 def test_source_wraps_os_replace_calls_with_oserror_and_runtimeerror_handlers() -> None:
     violations = _collect_unguarded_calls("replace", receiver_name="os")
 
     assert not violations, "unguarded os.replace calls found:\n" + "\n".join(violations)
+
+
+def test_source_wraps_shutil_copy2_calls_with_oserror_and_runtimeerror_handlers() -> None:
+    violations = _collect_unguarded_calls("copy2", receiver_name="shutil")
+
+    assert not violations, "unguarded shutil.copy2 calls found:\n" + "\n".join(violations)
 
 
 def test_source_guards_unlink_calls_with_try_or_suppress() -> None:
