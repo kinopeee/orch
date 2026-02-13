@@ -1339,3 +1339,145 @@ def test_source_cancel_helpers_check_ancestor_guard_before_run_dir_lstat() -> No
     assert not violations, "cancel helper ancestor-before-run_dir violations found:\n" + "\n".join(
         violations
     )
+
+
+def test_source_run_lock_checks_full_guard_sequence_before_open() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    lock_module = ast.parse((src_root / "state/lock.py").read_text(encoding="utf-8"))
+    function_node = next(
+        (
+            node
+            for node in ast.walk(lock_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "run_lock"
+        ),
+        None,
+    )
+    assert function_node is not None
+
+    ancestor_guard_lines = [
+        node.lineno
+        for node in ast.walk(function_node)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "has_symlink_ancestor"
+    ]
+    run_dir_symlink_guard_lines = [
+        node.lineno
+        for node in ast.walk(function_node)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "is_symlink_path"
+        and node.args
+        and isinstance(node.args[0], ast.Name)
+        and node.args[0].id == "run_dir"
+    ]
+    run_dir_lstat_lines = [
+        node.lineno
+        for node in ast.walk(function_node)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "run_dir"
+        and node.func.attr == "lstat"
+    ]
+    lock_path_symlink_guard_lines = [
+        node.lineno
+        for node in ast.walk(function_node)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "is_symlink_path"
+        and node.args
+        and isinstance(node.args[0], ast.Name)
+        and node.args[0].id == "lock_path"
+    ]
+    open_lines = [
+        node.lineno
+        for node in ast.walk(function_node)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "os"
+        and node.func.attr == "open"
+    ]
+
+    assert ancestor_guard_lines
+    assert run_dir_symlink_guard_lines
+    assert run_dir_lstat_lines
+    assert lock_path_symlink_guard_lines
+    assert open_lines
+
+    assert min(ancestor_guard_lines) < min(run_dir_symlink_guard_lines)
+    assert min(run_dir_symlink_guard_lines) < min(run_dir_lstat_lines)
+    assert min(run_dir_lstat_lines) < min(lock_path_symlink_guard_lines)
+    assert min(lock_path_symlink_guard_lines) < min(open_lines)
+
+
+def test_source_write_cancel_request_checks_full_guard_sequence_before_open() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cancel_module = ast.parse((src_root / "exec/cancel.py").read_text(encoding="utf-8"))
+    function_node = next(
+        (
+            node
+            for node in ast.walk(cancel_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "write_cancel_request"
+        ),
+        None,
+    )
+    assert function_node is not None
+
+    ancestor_guard_lines = [
+        node.lineno
+        for node in ast.walk(function_node)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "has_symlink_ancestor"
+    ]
+    run_dir_lstat_lines = [
+        node.lineno
+        for node in ast.walk(function_node)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "run_dir"
+        and node.func.attr == "lstat"
+    ]
+    path_symlink_guard_lines = [
+        node.lineno
+        for node in ast.walk(function_node)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "is_symlink_path"
+        and node.args
+        and isinstance(node.args[0], ast.Name)
+        and node.args[0].id == "path"
+    ]
+    path_lstat_lines = [
+        node.lineno
+        for node in ast.walk(function_node)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "path"
+        and node.func.attr == "lstat"
+    ]
+    open_lines = [
+        node.lineno
+        for node in ast.walk(function_node)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "os"
+        and node.func.attr == "open"
+    ]
+
+    assert ancestor_guard_lines
+    assert run_dir_lstat_lines
+    assert path_symlink_guard_lines
+    assert path_lstat_lines
+    assert open_lines
+
+    assert min(ancestor_guard_lines) < min(run_dir_lstat_lines)
+    assert min(run_dir_lstat_lines) < min(path_symlink_guard_lines)
+    assert min(path_symlink_guard_lines) < min(path_lstat_lines)
+    assert min(path_lstat_lines) < min(open_lines)
