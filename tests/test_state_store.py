@@ -109,6 +109,29 @@ def test_save_state_atomic_cleans_tmp_when_replace_fails(
     assert not (run_dir / "state.json.tmp").exists()
 
 
+def test_save_state_atomic_cleans_tmp_when_write_fsync_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_write_fsync_fail"
+    run_dir.mkdir()
+    state = RunState.from_dict(_minimal_state_payload(run_id=run_dir.name))
+    original_fsync = os.fsync
+    failed_once = False
+
+    def flaky_fsync(fd: int) -> None:
+        nonlocal failed_once
+        if not failed_once:
+            failed_once = True
+            raise OSError("simulated write fsync failure")
+        original_fsync(fd)
+
+    monkeypatch.setattr(os, "fsync", flaky_fsync)
+
+    with pytest.raises(OSError, match="simulated write fsync failure"):
+        save_state_atomic(run_dir, state)
+    assert not (run_dir / "state.json.tmp").exists()
+
+
 def test_load_state_rejects_invalid_json(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad"
     run_dir.mkdir()

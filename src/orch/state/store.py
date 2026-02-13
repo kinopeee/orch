@@ -527,10 +527,15 @@ def save_state_atomic(run_dir: Path, state: RunState) -> None:
     state_path = run_dir / "state.json"
     tmp_path = run_dir / "state.json.tmp"
     payload = json.dumps(state.to_dict(), ensure_ascii=False, indent=2, sort_keys=True)
-    with tmp_path.open("w", encoding="utf-8") as f:
-        f.write(payload + "\n")
-        f.flush()
-        os.fsync(f.fileno())
+    try:
+        with tmp_path.open("w", encoding="utf-8") as f:
+            f.write(payload + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+    except OSError:
+        with suppress(OSError):
+            tmp_path.unlink(missing_ok=True)
+        raise
     try:
         os.replace(tmp_path, state_path)
     except OSError:
