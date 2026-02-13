@@ -289,7 +289,11 @@ def cancel(
     if not _run_exists(current_run_dir):
         console.print(f"[red]Run not found:[/red] {run_id}")
         raise typer.Exit(2)
-    write_cancel_request(current_run_dir)
+    try:
+        write_cancel_request(current_run_dir)
+    except OSError as exc:
+        console.print(f"[red]Failed to request cancel:[/red] {exc}")
+        raise typer.Exit(2) from exc
     console.print(f"cancel requested: [bold]{run_id}[/bold]")
 
 
