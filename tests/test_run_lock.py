@@ -738,6 +738,41 @@ def test_run_lock_normalizes_run_dir_lstat_oserror(
     assert not (run_dir / ".lock").exists()
 
 
+def test_run_lock_normalizes_run_dir_lstat_oserror_without_open_side_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    original_lstat = Path.lstat
+    original_is_symlink = Path.is_symlink
+    open_called = False
+    original_open = os.open
+
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        if path_obj == run_dir:
+            raise PermissionError("simulated run_dir lstat failure")
+        return original_lstat(path_obj, *args, **kwargs)
+
+    def fake_is_symlink(path_obj: Path) -> bool:
+        if path_obj == run_dir:
+            return False
+        return original_is_symlink(path_obj)
+
+    def capture_open(path: str | os.PathLike[str], flags: int, mode: int = 0o777) -> int:
+        nonlocal open_called
+        open_called = True
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(Path, "is_symlink", fake_is_symlink)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
+    monkeypatch.setattr(os, "open", capture_open)
+
+    with pytest.raises(OSError, match="failed to access run directory"), run_lock(run_dir):
+        pass
+    assert open_called is False
+    assert not (run_dir / ".lock").exists()
+
+
 def test_run_lock_normalizes_run_dir_lstat_runtime_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -761,6 +796,41 @@ def test_run_lock_normalizes_run_dir_lstat_runtime_error(
 
     with pytest.raises(OSError, match="failed to access run directory"), run_lock(run_dir):
         pass
+    assert not (run_dir / ".lock").exists()
+
+
+def test_run_lock_normalizes_run_dir_lstat_runtime_error_without_open_side_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    original_lstat = Path.lstat
+    original_is_symlink = Path.is_symlink
+    open_called = False
+    original_open = os.open
+
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        if path_obj == run_dir:
+            raise RuntimeError("simulated run_dir lstat runtime failure")
+        return original_lstat(path_obj, *args, **kwargs)
+
+    def fake_is_symlink(path_obj: Path) -> bool:
+        if path_obj == run_dir:
+            return False
+        return original_is_symlink(path_obj)
+
+    def capture_open(path: str | os.PathLike[str], flags: int, mode: int = 0o777) -> int:
+        nonlocal open_called
+        open_called = True
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(Path, "is_symlink", fake_is_symlink)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
+    monkeypatch.setattr(os, "open", capture_open)
+
+    with pytest.raises(OSError, match="failed to access run directory"), run_lock(run_dir):
+        pass
+    assert open_called is False
     assert not (run_dir / ".lock").exists()
 
 
