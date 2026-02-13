@@ -412,3 +412,40 @@ def test_source_guards_os_close_calls_with_try_or_suppress() -> None:
     violations = _collect_unguarded_calls("close", receiver_name="os", allow_suppress_guard=True)
 
     assert not violations, "unguarded os.close calls found:\n" + "\n".join(violations)
+
+
+def test_source_oserror_handlers_also_cover_runtimeerror() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    violations: list[str] = []
+
+    def _covers(name: str, handler_type: ast.expr | None) -> bool:
+        if handler_type is None:
+            return True
+        if isinstance(handler_type, ast.Name):
+            return handler_type.id in {name, "Exception", "BaseException"}
+        if isinstance(handler_type, ast.Attribute):
+            return handler_type.attr in {name, "Exception", "BaseException"}
+        if isinstance(handler_type, ast.Tuple):
+            return any(_covers(name, elem) for elem in handler_type.elts)
+        return False
+
+    class HandlerVisitor(ast.NodeVisitor):
+        def __init__(self, relative_path: Path) -> None:
+            self.relative_path = relative_path
+
+        def visit_Try(self, node: ast.Try) -> None:
+            handles_oserror = any(_covers("OSError", handler.type) for handler in node.handlers)
+            if handles_oserror:
+                handles_runtime = any(
+                    _covers("RuntimeError", handler.type) for handler in node.handlers
+                )
+                if not handles_runtime:
+                    violations.append(f"{self.relative_path}:{node.lineno}")
+            self.generic_visit(node)
+
+    for file_path in src_root.rglob("*.py"):
+        relative_path = file_path.relative_to(src_root)
+        module = ast.parse(file_path.read_text(encoding="utf-8"))
+        HandlerVisitor(relative_path).visit(module)
+
+    assert not violations, "try blocks with OSError-only handling found:\n" + "\n".join(violations)
