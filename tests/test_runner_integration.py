@@ -780,6 +780,28 @@ def test_runner_append_text_best_effort_ignores_fstat_runtime_errors(
     assert log_path.read_text(encoding="utf-8") == ""
 
 
+def test_runner_append_text_best_effort_uses_nonblock_and_nofollow_open_flags(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    log_path = tmp_path / "logs" / "task.err.log"
+    captured_flags: dict[str, int] = {}
+    original_open = os.open
+
+    def capture_open(path: str, flags: int, mode: int = 0o777) -> int:
+        if path == str(log_path):
+            captured_flags["flags"] = flags
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", capture_open)
+    runner_module._append_text_best_effort(log_path, "new-line\n")
+
+    assert "flags" in captured_flags
+    if hasattr(os, "O_NONBLOCK"):
+        assert captured_flags["flags"] & os.O_NONBLOCK
+    if hasattr(os, "O_NOFOLLOW"):
+        assert captured_flags["flags"] & os.O_NOFOLLOW
+
+
 def test_runner_append_text_best_effort_closes_fd_when_target_not_regular(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

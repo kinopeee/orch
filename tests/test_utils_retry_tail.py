@@ -98,6 +98,29 @@ def test_tail_lines_returns_empty_when_fstat_runtime_error(
     assert tail_lines(file_path, 10) == []
 
 
+def test_tail_lines_uses_nonblock_and_nofollow_open_flags(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    file_path = tmp_path / "log.txt"
+    file_path.write_text("a\nb\n", encoding="utf-8")
+    captured_flags: dict[str, int] = {}
+    original_open = os.open
+
+    def capture_open(path: str, flags: int, mode: int = 0o777) -> int:
+        if path == str(file_path):
+            captured_flags["flags"] = flags
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", capture_open)
+    assert tail_lines(file_path, 10) == ["a", "b"]
+
+    assert "flags" in captured_flags
+    if hasattr(os, "O_NONBLOCK"):
+        assert captured_flags["flags"] & os.O_NONBLOCK
+    if hasattr(os, "O_NOFOLLOW"):
+        assert captured_flags["flags"] & os.O_NOFOLLOW
+
+
 def test_tail_lines_returns_empty_when_symlink_check_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

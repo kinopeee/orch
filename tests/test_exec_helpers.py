@@ -229,6 +229,31 @@ async def test_stream_to_file_uses_nonblock_open_flag(
 
 
 @pytest.mark.asyncio
+async def test_stream_to_file_uses_nofollow_open_flag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    file_path = tmp_path / "capture.log"
+    captured_flags: dict[str, int] = {}
+    original_open = os.open
+
+    def capture_open(path: str, flags: int, mode: int = 0o777) -> int:
+        if path == str(file_path):
+            captured_flags["flags"] = flags
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", capture_open)
+
+    stream = asyncio.StreamReader()
+    stream.feed_data(b"line-a\n")
+    stream.feed_eof()
+    await stream_to_file(stream, file_path)
+
+    assert "flags" in captured_flags
+    if hasattr(os, "O_NOFOLLOW"):
+        assert captured_flags["flags"] & os.O_NOFOLLOW
+
+
+@pytest.mark.asyncio
 async def test_stream_to_file_ignores_when_symlink_check_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
