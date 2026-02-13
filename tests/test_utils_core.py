@@ -13,6 +13,32 @@ from orch.util.paths import ensure_run_layout, run_dir
 from orch.util.time import duration_sec, now_iso
 
 
+def _collect_direct_attribute_calls(
+    method_names: set[str], *, excluded_relative_paths: set[Path] | None = None
+) -> list[str]:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    excluded = excluded_relative_paths or set()
+    violations: list[str] = []
+
+    class DirectCallVisitor(ast.NodeVisitor):
+        def __init__(self, relative_path: Path) -> None:
+            self.relative_path = relative_path
+
+        def visit_Call(self, node: ast.Call) -> None:
+            if isinstance(node.func, ast.Attribute) and node.func.attr in method_names:
+                violations.append(f"{self.relative_path}:{node.lineno}: {node.func.attr}()")
+            self.generic_visit(node)
+
+    for file_path in src_root.rglob("*.py"):
+        relative_path = file_path.relative_to(src_root)
+        if relative_path in excluded:
+            continue
+        module = ast.parse(file_path.read_text(encoding="utf-8"))
+        DirectCallVisitor(relative_path).visit(module)
+
+    return violations
+
+
 def test_new_run_id_format_includes_timestamp_and_suffix() -> None:
     now = datetime(2026, 2, 13, 12, 34, 56, tzinfo=UTC)
     run_id = new_run_id(now)
@@ -162,36 +188,16 @@ def test_ensure_run_layout_normalizes_lstat_runtime_errors(
 
 
 def test_source_does_not_use_direct_exists_is_file_is_dir_predicates() -> None:
-    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
-    predicate_patterns = (".exists(", ".is_file(", ".is_dir(")
-    violations: list[str] = []
-
-    for file_path in src_root.rglob("*.py"):
-        relative_path = file_path.relative_to(src_root)
-        for line_number, line in enumerate(file_path.read_text(encoding="utf-8").splitlines(), 1):
-            stripped = line.strip()
-            if stripped.startswith("#"):
-                continue
-            if any(pattern in line for pattern in predicate_patterns):
-                violations.append(f"{relative_path}:{line_number}: {stripped}")
+    violations = _collect_direct_attribute_calls({"exists", "is_file", "is_dir"})
 
     assert not violations, "direct Path predicate usage found:\n" + "\n".join(violations)
 
 
 def test_source_uses_path_guard_for_is_symlink_checks() -> None:
-    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
-    violations: list[str] = []
-
-    for file_path in src_root.rglob("*.py"):
-        relative_path = file_path.relative_to(src_root)
-        if relative_path == Path("util/path_guard.py"):
-            continue
-        for line_number, line in enumerate(file_path.read_text(encoding="utf-8").splitlines(), 1):
-            stripped = line.strip()
-            if stripped.startswith("#"):
-                continue
-            if ".is_symlink(" in line:
-                violations.append(f"{relative_path}:{line_number}: {stripped}")
+    violations = _collect_direct_attribute_calls(
+        {"is_symlink"},
+        excluded_relative_paths={Path("util/path_guard.py")},
+    )
 
     assert not violations, "direct is_symlink usage found outside path_guard:\n" + "\n".join(
         violations
