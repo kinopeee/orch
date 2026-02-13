@@ -34,6 +34,10 @@ def _minimal_state_payload(*, run_id: str) -> dict[str, object]:
                 retry_backoff_sec=[],
                 outputs=[],
                 attempts=1,
+                started_at="2026-01-01T00:00:00+00:00",
+                ended_at="2026-01-01T00:00:01+00:00",
+                duration_sec=1.0,
+                exit_code=0,
                 stdout_path="logs/t1.out.log",
                 stderr_path="logs/t1.err.log",
                 artifact_paths=["artifacts/t1/out.txt"],
@@ -69,6 +73,10 @@ def test_save_and_load_state_atomic(tmp_path: Path) -> None:
                 retry_backoff_sec=[],
                 outputs=[],
                 attempts=1,
+                started_at="2026-01-01T00:00:00+00:00",
+                ended_at="2026-01-01T00:00:01+00:00",
+                duration_sec=1.0,
+                exit_code=0,
             )
         },
     )
@@ -341,6 +349,22 @@ def test_load_state_rejects_non_finite_backoff_in_task(tmp_path: Path) -> None:
     task = tasks["t1"]
     assert isinstance(task, dict)
     task["retry_backoff_sec"] = [0.1, float("inf")]
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
+def test_load_state_rejects_success_task_missing_timestamps(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_success_timestamps"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["started_at"] = None
+    task["ended_at"] = None
     (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
 
     with pytest.raises(StateError, match="invalid state field: tasks"):

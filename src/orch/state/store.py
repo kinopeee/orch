@@ -192,6 +192,10 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
             end_dt = datetime.fromisoformat(ended_at)
             if end_dt < start_dt:
                 raise StateError("invalid state field: tasks")
+        if task_status in {"SUCCESS", "FAILED", "SKIPPED", "CANCELED"} and ended_at is None:
+            raise StateError("invalid state field: tasks")
+        if task_status == "SUCCESS" and started_at is None:
+            raise StateError("invalid state field: tasks")
         duration_sec = task_data.get("duration_sec")
         if duration_sec is not None and not (
             isinstance(duration_sec, (int, float))
@@ -218,6 +222,13 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
         if bool_values["canceled"] is True and task_status != "CANCELED":
             raise StateError("invalid state field: tasks")
         if task_status == "CANCELED" and bool_values["canceled"] is not True:
+            raise StateError("invalid state field: tasks")
+        skip_reason = task_data.get("skip_reason")
+        if skip_reason is not None and not _is_non_blank_str_without_nul(skip_reason):
+            raise StateError("invalid state field: tasks")
+        if task_status in {"SKIPPED", "CANCELED"} and not _is_non_blank_str_without_nul(
+            skip_reason
+        ):
             raise StateError("invalid state field: tasks")
         for key in ("stdout_path", "stderr_path"):
             rel = task_data.get(key)
