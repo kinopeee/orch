@@ -49,3 +49,53 @@ async def test_cancel_request_stops_run(tmp_path: Path) -> None:
     assert state.status == "CANCELED"
     assert state.tasks["long"].status in {"CANCELED", "FAILED"}
     assert state.tasks["downstream"].status == "CANCELED"
+
+
+@pytest.mark.asyncio
+async def test_resume_after_cancel_ignores_stale_cancel_request(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_cancel_resume"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    plan = PlanSpec(
+        goal="cancel then resume",
+        artifacts_dir=None,
+        tasks=[
+            TaskSpec(id="long", cmd=[sys.executable, "-c", "import time; time.sleep(1.0)"]),
+            TaskSpec(
+                id="downstream", cmd=[sys.executable, "-c", "print('ok')"], depends_on=["long"]
+            ),
+        ],
+    )
+
+    first_future = asyncio.create_task(
+        run_plan(
+            plan,
+            run_dir,
+            max_parallel=1,
+            fail_fast=False,
+            workdir=workdir,
+            resume=False,
+            failed_only=False,
+        )
+    )
+    await asyncio.sleep(0.2)
+    write_cancel_request(run_dir)
+    first_state = await first_future
+    assert first_state.status == "CANCELED"
+    assert (run_dir / "cancel.request").exists()
+
+    resumed = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=True,
+        failed_only=False,
+    )
+    assert resumed.status == "SUCCESS"
+    assert resumed.tasks["long"].status == "SUCCESS"
+    assert resumed.tasks["downstream"].status == "SUCCESS"
+    assert not (run_dir / "cancel.request").exists()

@@ -268,6 +268,7 @@ async def run_plan(
     spec_by_id = {task.id: task for task in plan.tasks}
 
     if resume:
+        (run_dir / "cancel.request").unlink(missing_ok=True)
         state = load_state(run_dir)
         _prepare_resume_state(state)
         state.status = "RUNNING"
