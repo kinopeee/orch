@@ -55,11 +55,17 @@ _ALLOWED_TASK_KEYS = {
 
 
 def _fsync_directory(path: Path) -> None:
+    flags = os.O_RDONLY
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
     try:
-        fd = os.open(str(path), os.O_RDONLY)
+        fd = os.open(str(path), flags)
     except OSError:
         return
     try:
+        opened_meta = os.fstat(fd)
+        if not stat.S_ISDIR(opened_meta.st_mode):
+            return
         os.fsync(fd)
     except OSError:
         pass

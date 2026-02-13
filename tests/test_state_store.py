@@ -285,6 +285,29 @@ def test_save_state_atomic_ignores_directory_close_error(
     assert loaded.run_id == run_dir.name
 
 
+def test_save_state_atomic_uses_nofollow_for_directory_fsync(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_nofollow_open"
+    run_dir.mkdir()
+    state = RunState.from_dict(_minimal_state_payload(run_id=run_dir.name))
+    state.status = "SUCCESS"
+    captured_flags: dict[str, int] = {}
+    original_open = os.open
+
+    def capture_open(path: str | os.PathLike[str], flags: int, mode: int = 0o777) -> int:
+        if str(path) == str(run_dir):
+            captured_flags["flags"] = flags
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", capture_open)
+
+    save_state_atomic(run_dir, state)
+    assert "flags" in captured_flags
+    if hasattr(os, "O_NOFOLLOW"):
+        assert captured_flags["flags"] & os.O_NOFOLLOW
+
+
 def test_load_state_rejects_invalid_json(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad"
     run_dir.mkdir()
