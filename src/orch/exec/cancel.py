@@ -28,6 +28,14 @@ def write_cancel_request(run_dir: Path) -> None:
     path = run_dir / "cancel.request"
     if has_symlink_ancestor(path):
         raise OSError("cancel request path contains symlink component")
+    try:
+        run_meta = run_dir.lstat()
+    except FileNotFoundError as exc:
+        raise OSError("cancel request run directory not found") from exc
+    except (OSError, RuntimeError) as exc:
+        raise OSError("failed to access cancel request run directory") from exc
+    if not stat.S_ISDIR(run_meta.st_mode):
+        raise OSError("cancel request run directory must be directory")
     if is_symlink_path(path):
         raise OSError("cancel request path must not be symlink")
     try:
@@ -59,6 +67,10 @@ def write_cancel_request(run_dir: Path) -> None:
         is_symlink = is_symlink_path(path)
         if is_symlink or exc.errno == errno.ELOOP:
             raise OSError("cancel request path must not be symlink") from exc
+        if isinstance(exc, FileNotFoundError) or exc.errno == errno.ENOENT:
+            raise OSError("cancel request run directory not found") from exc
+        if isinstance(exc, NotADirectoryError) or exc.errno == errno.ENOTDIR:
+            raise OSError("cancel request run directory must be directory") from exc
         if exc.errno == errno.ENXIO:
             raise OSError("cancel request path must be regular file") from exc
         raise

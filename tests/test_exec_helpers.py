@@ -385,6 +385,46 @@ def test_write_cancel_request_rejects_symlink_without_overwriting_target(tmp_pat
     assert target.read_text(encoding="utf-8") == "keep me\n"
 
 
+def test_write_cancel_request_rejects_missing_run_dir_without_open_side_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "missing_run"
+    open_called = False
+    original_open = os.open
+
+    def capture_open(path: os.PathLike[str] | str, flags: int, mode: int = 0o777) -> int:
+        nonlocal open_called
+        open_called = True
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", capture_open)
+
+    with pytest.raises(OSError, match="run directory not found"):
+        write_cancel_request(run_dir)
+    assert open_called is False
+    assert not (run_dir / "cancel.request").exists()
+
+
+def test_write_cancel_request_rejects_non_directory_run_path_without_open_side_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_as_file"
+    run_dir.write_text("not a directory", encoding="utf-8")
+    open_called = False
+    original_open = os.open
+
+    def capture_open(path: os.PathLike[str] | str, flags: int, mode: int = 0o777) -> int:
+        nonlocal open_called
+        open_called = True
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", capture_open)
+
+    with pytest.raises(OSError, match="run directory must be directory"):
+        write_cancel_request(run_dir)
+    assert open_called is False
+
+
 def test_write_cancel_request_rejects_symlink_without_open_side_effect(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -437,6 +477,44 @@ def test_write_cancel_request_normalizes_enxio_as_regular_file_error(
     monkeypatch.setattr(os, "open", _raise_enxio)
 
     with pytest.raises(OSError, match="must be regular file"):
+        write_cancel_request(run_dir)
+
+
+def test_write_cancel_request_normalizes_open_enoent_as_missing_run_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_cancel_enoent"
+    run_dir.mkdir()
+    cancel_path = run_dir / "cancel.request"
+    original_open = os.open
+
+    def flaky_open(path: os.PathLike[str] | str, flags: int, mode: int = 0o777) -> int:
+        if str(path) == str(cancel_path):
+            raise FileNotFoundError("simulated missing run directory")
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", flaky_open)
+
+    with pytest.raises(OSError, match="run directory not found"):
+        write_cancel_request(run_dir)
+
+
+def test_write_cancel_request_normalizes_open_enotdir_as_non_directory_run_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_cancel_enotdir"
+    run_dir.mkdir()
+    cancel_path = run_dir / "cancel.request"
+    original_open = os.open
+
+    def flaky_open(path: os.PathLike[str] | str, flags: int, mode: int = 0o777) -> int:
+        if str(path) == str(cancel_path):
+            raise OSError(errno.ENOTDIR, "simulated non-directory run path")
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", flaky_open)
+
+    with pytest.raises(OSError, match="run directory must be directory"):
         write_cancel_request(run_dir)
 
 
