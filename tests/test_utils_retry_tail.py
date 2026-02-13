@@ -31,3 +31,9 @@ def test_tail_lines_handles_nonexistent_or_nonpositive_requests(tmp_path: Path) 
     existing = tmp_path / "log.txt"
     existing.write_text("x\ny\n", encoding="utf-8")
     assert tail_lines(existing, 0) == []
+
+
+def test_tail_lines_returns_empty_for_directory_path(tmp_path: Path) -> None:
+    directory = tmp_path / "logs_dir"
+    directory.mkdir()
+    assert tail_lines(directory, 10) == []

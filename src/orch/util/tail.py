@@ -8,5 +8,8 @@ def tail_lines(path: Path, n: int) -> list[str]:
     """Read last N lines without loading the full file in memory."""
     if n <= 0 or not path.exists():
         return []
-    with path.open("r", encoding="utf-8", errors="replace") as f:
-        return [line.rstrip("\n") for line in deque(f, maxlen=n)]
+    try:
+        with path.open("r", encoding="utf-8", errors="replace") as f:
+            return [line.rstrip("\n") for line in deque(f, maxlen=n)]
+    except OSError:
+        return []
