@@ -444,7 +444,7 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
 
         artifact_paths = task_data.get("artifact_paths")
         if artifact_paths is None:
-            continue
+            raise StateError("invalid state field: tasks")
         if not isinstance(artifact_paths, list):
             raise StateError("invalid state field: tasks")
         seen_artifacts: set[str] = set()
