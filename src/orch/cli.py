@@ -50,6 +50,10 @@ def _write_report(state: RunState, current_run_dir: Path) -> Path:
     return report_path
 
 
+def _run_exists(current_run_dir: Path) -> bool:
+    return current_run_dir.is_dir() and (current_run_dir / "state.json").exists()
+
+
 @app.command()
 def run(
     plan_path: Annotated[Path, typer.Argument(exists=True)],
@@ -156,7 +160,11 @@ def status(
         console.print(f"[red]Failed to load state:[/red] {exc}")
         raise typer.Exit(2) from exc
     except RunConflictError:
-        state = load_state(current_run_dir)
+        try:
+            state = load_state(current_run_dir)
+        except (StateError, FileNotFoundError) as exc:
+            console.print(f"[red]Failed to load state:[/red] {exc}")
+            raise typer.Exit(2) from exc
 
     if as_json:
         typer.echo(json.dumps(_state_to_jsonable(state), ensure_ascii=False, indent=2))
@@ -187,7 +195,11 @@ def logs(
     tail: Annotated[int, typer.Option("--tail")] = 100,
 ) -> None:
     current_run_dir = run_dir(home, run_id)
-    state = load_state(current_run_dir)
+    try:
+        state = load_state(current_run_dir)
+    except (StateError, FileNotFoundError) as exc:
+        console.print(f"[red]Failed to load state:[/red] {exc}")
+        raise typer.Exit(2) from exc
     task_ids = [task] if task else list(state.tasks.keys())
     for task_id in task_ids:
         if task_id not in state.tasks:
@@ -222,7 +234,9 @@ def cancel(
     home: Annotated[Path, typer.Option("--home")] = Path(".orch"),
 ) -> None:
     current_run_dir = run_dir(home, run_id)
-    ensure_run_layout(current_run_dir)
+    if not _run_exists(current_run_dir):
+        console.print(f"[red]Run not found:[/red] {run_id}")
+        raise typer.Exit(2)
     write_cancel_request(current_run_dir)
     console.print(f"cancel requested: [bold]{run_id}[/bold]")
 

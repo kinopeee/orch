@@ -207,3 +207,29 @@ def test_cli_resume_failed_only_does_not_rerun_success(tmp_path: Path) -> None:
     assert state["tasks"]["root"]["attempts"] == 1
     assert state["tasks"]["flaky"]["status"] == "SUCCESS"
     assert state["tasks"]["flaky"]["attempts"] == 2
+
+
+def test_cli_logs_missing_run_returns_two(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "logs", "missing_run", "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "Failed to load state" in proc.stdout
+
+
+def test_cli_cancel_missing_run_returns_two_without_creating_run_dir(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    run_dir = home / "runs" / "missing_run"
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "cancel", "missing_run", "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "Run not found" in proc.stdout
+    assert not run_dir.exists()
