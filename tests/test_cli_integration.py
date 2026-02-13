@@ -154,8 +154,11 @@ def test_cli_status_succeeds_with_case_only_duplicate_artifact_names(tmp_path: P
     assert isinstance(publish, dict)
     artifact_paths = publish["artifact_paths"]
     assert isinstance(artifact_paths, list)
-    assert len(artifact_paths) == 1
-    assert artifact_paths[0].casefold() == "artifacts/publish/out/a.txt"
+    assert len(artifact_paths) == 2
+    keys = {artifact.casefold() for artifact in artifact_paths}
+    assert len(keys) == 2
+    assert "artifacts/publish/out/a.txt" in keys
+    assert any("__case2" in artifact for artifact in artifact_paths)
 
 
 def test_cli_run_rejects_file_home_path(tmp_path: Path) -> None:

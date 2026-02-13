@@ -369,6 +369,45 @@ async def test_runner_copies_declared_output_artifacts(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_runner_preserves_case_only_colliding_artifacts_with_suffix(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_artifacts_case_collision"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    create_outputs_cmd = [
+        sys.executable,
+        "-c",
+        "from pathlib import Path; Path('out').mkdir(exist_ok=True); "
+        "Path('out/a.txt').write_text('a', encoding='utf-8'); "
+        "Path('out/A.txt').write_text('A', encoding='utf-8')",
+    ]
+    plan = PlanSpec(
+        goal="artifact case-collision preservation",
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="publish", cmd=create_outputs_cmd, outputs=["out/*.txt"])],
+    )
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "SUCCESS"
+    paths = state.tasks["publish"].artifact_paths
+    assert len(paths) == 2
+    assert len({path.casefold() for path in paths}) == 2
+    copied_root = run_dir / "artifacts" / "publish" / "out"
+    copied_contents = sorted(path.read_text(encoding="utf-8") for path in copied_root.iterdir())
+    assert copied_contents == ["A", "a"]
+    assert any("__case2" in path for path in paths)
+
+
+@pytest.mark.asyncio
 async def test_runner_ignores_copy_failures_and_keeps_success(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

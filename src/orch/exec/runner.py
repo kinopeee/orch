@@ -127,9 +127,20 @@ def _iter_output_matches(pattern: str, cwd: Path) -> list[Path]:
         return []
 
 
+def _disambiguate_case_collision(rel: Path, seen_rel_keys: set[str]) -> Path:
+    parent = rel.parent
+    index = 2
+    while True:
+        candidate = parent / f"{rel.name}__case{index}"
+        if str(candidate).casefold() not in seen_rel_keys:
+            return candidate
+        index += 1
+
+
 def _iter_unique_artifact_sources(task: TaskSpec, cwd: Path) -> list[tuple[Path, Path]]:
     selected: list[tuple[Path, Path]] = []
-    seen_rel_keys: set[str] = set()
+    seen_source_rels: set[str] = set()
+    seen_dest_rel_keys: set[str] = set()
     for pattern in task.outputs:
         matches = sorted(
             _iter_output_matches(pattern, cwd),
@@ -139,10 +150,13 @@ def _iter_unique_artifact_sources(task: TaskSpec, cwd: Path) -> list[tuple[Path,
             if not match.exists() or match.is_dir():
                 continue
             rel = _artifact_relative_path(match, cwd)
-            rel_key = str(rel).casefold()
-            if rel_key in seen_rel_keys:
+            source_rel = str(rel)
+            if source_rel in seen_source_rels:
                 continue
-            seen_rel_keys.add(rel_key)
+            seen_source_rels.add(source_rel)
+            if source_rel.casefold() in seen_dest_rel_keys:
+                rel = _disambiguate_case_collision(rel, seen_dest_rel_keys)
+            seen_dest_rel_keys.add(str(rel).casefold())
             selected.append((match, rel))
     return selected
 
