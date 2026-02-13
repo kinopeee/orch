@@ -39,8 +39,8 @@ goal: "文字列（任意だが推奨）"
 artifacts_dir: ".orch/artifacts"
 tasks:
   - id: "inspect"
-    cmd: ["python", "tools/fake_agent.py", "inspect"]
-    # cmd: "python tools/fake_agent.py inspect"
+    cmd: ["python3", "tools/fake_agent.py", "inspect"]
+    # cmd: "python3 tools/fake_agent.py inspect"
     depends_on: ["other_task_id"]
     cwd: "."
     env: {"KEY": "VALUE"}
@@ -62,5 +62,6 @@ tasks:
 ```bash
 ruff format --check .
 ruff check .
+mypy src
 pytest
 ```
