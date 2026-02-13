@@ -294,6 +294,20 @@ def test_load_plan_rejects_malformed_cmd_string(tmp_path: Path) -> None:
         load_plan(plan)
 
 
+def test_load_plan_rejects_null_byte_in_cmd(tmp_path: Path) -> None:
+    plan = tmp_path / "plan_cmd_nul.yaml"
+    _write(
+        plan,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "\0bad"]
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan)
+
+
 def test_load_plan_rejects_empty_cwd(tmp_path: Path) -> None:
     plan = tmp_path / "plan.yaml"
     _write(
@@ -348,6 +362,19 @@ def test_load_plan_rejects_non_string_env_entries(tmp_path: Path) -> None:
     )
     with pytest.raises(PlanError):
         load_plan(blank_key)
+
+    nul_value = tmp_path / "plan_nul_env_value.yaml"
+    _write(
+        nul_value,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('x')"]
+            env: {"OK": "\0bad"}
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(nul_value)
 
 
 def test_load_plan_rejects_non_list_depends_on_and_outputs(tmp_path: Path) -> None:

@@ -21,7 +21,11 @@ def _is_real_number(value: object) -> bool:
 
 
 def _is_non_blank_str(value: object) -> bool:
-    return isinstance(value, str) and bool(value.strip())
+    return isinstance(value, str) and bool(value.strip()) and "\x00" not in value
+
+
+def _is_str_without_nul(value: object) -> bool:
+    return isinstance(value, str) and "\x00" not in value
 
 
 def _is_safe_id(value: object) -> bool:
@@ -36,6 +40,8 @@ def normalize_cmd(cmd: str | list[str]) -> list[str]:
             raise PlanError(f"invalid cmd string: {exc}") from exc
         if not parts:
             raise PlanError("cmd string must not be empty")
+        if any("\x00" in part for part in parts):
+            raise PlanError("cmd must not contain null bytes")
         return parts
     if isinstance(cmd, list) and cmd and all(_is_non_blank_str(p) for p in cmd):
         return cmd
@@ -91,7 +97,7 @@ def _parse_task(raw: Any) -> TaskSpec:
     env = raw.get("env")
     if env is not None and (
         not isinstance(env, dict)
-        or not all(_is_non_blank_str(k) and isinstance(v, str) for k, v in env.items())
+        or not all(_is_non_blank_str(k) and _is_str_without_nul(v) for k, v in env.items())
     ):
         raise PlanError(f"task '{raw['id']}' env must be dict[str, str]")
 
