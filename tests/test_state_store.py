@@ -55,7 +55,7 @@ def test_save_and_load_state_atomic(tmp_path: Path) -> None:
         run_id="run1",
         created_at="2026-01-01T00:00:00+00:00",
         updated_at="2026-01-01T00:00:00+00:00",
-        status="RUNNING",
+        status="SUCCESS",
         goal="demo",
         plan_relpath="plan.yaml",
         home=str(home),
@@ -533,6 +533,33 @@ def test_load_state_rejects_canceled_status_without_canceled_tasks(tmp_path: Pat
     run_dir.mkdir()
     payload = _minimal_state_payload(run_id=run_dir.name)
     payload["status"] = "CANCELED"
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: status"):
+        load_state(run_dir)
+
+
+def test_load_state_rejects_terminal_run_status_with_running_task(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_failed_with_running"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["status"] = "FAILED"
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["status"] = "RUNNING"
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: status"):
+        load_state(run_dir)
+
+
+def test_load_state_rejects_running_status_when_all_tasks_terminal(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_running_all_terminal"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["status"] = "RUNNING"
     (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
 
     with pytest.raises(StateError, match="invalid state field: status"):
