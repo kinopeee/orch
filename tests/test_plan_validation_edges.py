@@ -106,6 +106,20 @@ def test_load_plan_rejects_unsafe_task_id_for_paths(tmp_path: Path) -> None:
         load_plan(plan_escape)
 
 
+def test_load_plan_rejects_too_long_task_id(tmp_path: Path) -> None:
+    plan = tmp_path / "plan_long_id.yaml"
+    _write(
+        plan,
+        f"""
+        tasks:
+          - id: "{"a" * 129}"
+            cmd: ["python3", "-c", "print('x')"]
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan)
+
+
 def test_load_plan_rejects_non_str_or_list_cmd(tmp_path: Path) -> None:
     plan = tmp_path / "plan.yaml"
     _write(

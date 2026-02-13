@@ -13,6 +13,7 @@ from orch.dag.validate import assert_acyclic
 from orch.util.errors import PlanError
 
 _SAFE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+_TASK_ID_MAX_LEN = 128
 
 
 def _is_real_number(value: object) -> bool:
@@ -53,6 +54,8 @@ def _parse_task(raw: Any) -> TaskSpec:
         raise PlanError("task must be mapping")
     if "id" not in raw or not _is_non_blank_str(raw["id"]):
         raise PlanError("task.id is required and must be non-empty string")
+    if len(raw["id"]) > _TASK_ID_MAX_LEN:
+        raise PlanError(f"task.id must be <= {_TASK_ID_MAX_LEN} characters")
     if not _is_safe_id(raw["id"]):
         raise PlanError("task.id must match ^[A-Za-z0-9][A-Za-z0-9._-]*$")
     if "cmd" not in raw:
