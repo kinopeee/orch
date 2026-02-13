@@ -517,3 +517,35 @@ def test_cli_dry_run_cycle_plan_returns_two(tmp_path: Path) -> None:
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Plan validation error" in output
+
+
+def test_cli_resume_missing_run_returns_two(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "resume", "missing_run", "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Run not found or broken" in output
+
+
+def test_cli_resume_invalid_plan_copy_returns_two(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    run_id = "20260101_000000_abcdef"
+    run_dir = home / "runs" / run_id
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").write_text("{}", encoding="utf-8")
+    (run_dir / "plan.yaml").write_text("tasks: [", encoding="utf-8")
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "resume", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Plan validation error" in output
