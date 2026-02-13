@@ -251,6 +251,34 @@ def test_write_cancel_request_normalizes_enxio_as_regular_file_error(
         write_cancel_request(run_dir)
 
 
+def test_write_cancel_request_fails_closed_when_symlink_check_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_cancel_symlink_check_error"
+    run_dir.mkdir()
+    cancel_path = run_dir / "cancel.request"
+    original_is_symlink = Path.is_symlink
+    calls = 0
+
+    def flaky_is_symlink(path_obj: Path) -> bool:
+        nonlocal calls
+        if path_obj == cancel_path:
+            calls += 1
+            if calls >= 2:
+                raise PermissionError("simulated lstat failure")
+        return original_is_symlink(path_obj)
+
+    def _raise_eio(_path: os.PathLike[str] | str, _flags: int, _mode: int) -> int:
+        raise OSError(errno.EIO, "simulated open failure")
+
+    monkeypatch.setattr(Path, "is_symlink", flaky_is_symlink)
+    monkeypatch.setattr(os, "open", _raise_eio)
+
+    with pytest.raises(OSError, match="must not be symlink"):
+        write_cancel_request(run_dir)
+    assert not cancel_path.exists()
+
+
 def test_write_cancel_request_rejects_non_regular_opened_target(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

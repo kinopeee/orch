@@ -44,8 +44,10 @@ def write_cancel_request(run_dir: Path) -> None:
     except OSError as exc:
         try:
             is_symlink = path.is_symlink()
-        except OSError:
+        except FileNotFoundError:
             is_symlink = False
+        except OSError:
+            is_symlink = True
         if is_symlink or exc.errno == errno.ELOOP:
             raise OSError("cancel request path must not be symlink") from exc
         if exc.errno == errno.ENXIO:
