@@ -122,3 +122,20 @@ def test_ensure_run_layout_normalizes_lstat_runtime_errors(
 
     with pytest.raises(OSError, match="path must be directory"):
         ensure_run_layout(path)
+
+
+def test_source_does_not_use_direct_exists_is_file_is_dir_predicates() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    predicate_patterns = (".exists(", ".is_file(", ".is_dir(")
+    violations: list[str] = []
+
+    for file_path in src_root.rglob("*.py"):
+        relative_path = file_path.relative_to(src_root)
+        for line_number, line in enumerate(file_path.read_text(encoding="utf-8").splitlines(), 1):
+            stripped = line.strip()
+            if stripped.startswith("#"):
+                continue
+            if any(pattern in line for pattern in predicate_patterns):
+                violations.append(f"{relative_path}:{line_number}: {stripped}")
+
+    assert not violations, "direct Path predicate usage found:\n" + "\n".join(violations)
