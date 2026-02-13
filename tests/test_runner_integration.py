@@ -802,6 +802,43 @@ async def test_runner_ignores_invalid_output_glob_patterns(tmp_path: Path) -> No
 
 
 @pytest.mark.asyncio
+async def test_runner_skips_non_regular_output_artifacts(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_non_regular_outputs"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    create_outputs_cmd = [
+        sys.executable,
+        "-c",
+        "import os; "
+        "from pathlib import Path; "
+        "Path('out').mkdir(exist_ok=True); "
+        "fifo = Path('out') / 'queue.pipe'; "
+        "fifo.unlink(missing_ok=True); "
+        "os.mkfifo(fifo)",
+    ]
+    plan = PlanSpec(
+        goal="skip non-regular outputs",
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="publish", cmd=create_outputs_cmd, outputs=["out/*"])],
+    )
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "SUCCESS"
+    assert state.tasks["publish"].status == "SUCCESS"
+    assert state.tasks["publish"].artifact_paths == []
+
+
+@pytest.mark.asyncio
 async def test_runner_copies_artifacts_to_plan_artifacts_dir(tmp_path: Path) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run_artifacts_dir"
     workdir = tmp_path / "wd"

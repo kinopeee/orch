@@ -190,7 +190,7 @@ def _iter_unique_artifact_sources(task: TaskSpec, cwd: Path) -> list[tuple[Path,
             key=lambda path: (str(path).casefold(), str(path)),
         )
         for match in matches:
-            if not match.exists() or match.is_dir() or match.is_symlink():
+            if not match.exists() or not match.is_file() or match.is_dir() or match.is_symlink():
                 continue
             rel = _artifact_relative_path(match, cwd)
             source_rel = str(rel)
@@ -233,7 +233,7 @@ def _copy_artifacts(task: TaskSpec, run_dir: Path, cwd: Path) -> list[str]:
             if dest.parent.is_symlink() or dest.is_symlink():
                 continue
             shutil.copy2(match, dest)
-        except OSError:
+        except (OSError, shutil.Error):
             continue
         copied.append(str(dest.relative_to(run_dir)))
     return sorted(copied, key=lambda rel: rel.casefold())
@@ -269,7 +269,7 @@ def _copy_to_aggregate_dir(
             if dest.parent.is_symlink() or dest.is_symlink():
                 continue
             shutil.copy2(match, dest)
-        except OSError:
+        except (OSError, shutil.Error):
             continue
 
 
@@ -281,7 +281,7 @@ def _copy_to_aggregate_dir_best_effort(
 ) -> None:
     try:
         _copy_to_aggregate_dir(task, cwd, aggregate_root=aggregate_root)
-    except OSError:
+    except (OSError, shutil.Error):
         return
 
 
