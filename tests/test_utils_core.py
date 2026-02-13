@@ -840,3 +840,33 @@ def test_source_os_open_flag_variable_has_single_base_assignment() -> None:
     assert not violations, "os.open flag-assignment policy violations found:\n" + "\n".join(
         violations
     )
+
+
+def test_source_os_open_calls_use_supported_positional_signature() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    violations: list[str] = []
+
+    for file_path in src_root.rglob("*.py"):
+        relative_path = file_path.relative_to(src_root)
+        module = ast.parse(file_path.read_text(encoding="utf-8"))
+
+        for node in ast.walk(module):
+            if not (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "os"
+                and node.func.attr == "open"
+            ):
+                continue
+            if node.keywords:
+                keyword_names = ",".join(keyword.arg or "<**kwargs>" for keyword in node.keywords)
+                violations.append(
+                    f"{relative_path}:{node.lineno}: os.open uses keyword args ({keyword_names})"
+                )
+            if len(node.args) not in {2, 3}:
+                violations.append(
+                    f"{relative_path}:{node.lineno}: unsupported os.open arg count {len(node.args)}"
+                )
+
+    assert not violations, "os.open signature policy violations found:\n" + "\n".join(violations)
