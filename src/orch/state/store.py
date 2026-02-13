@@ -85,6 +85,9 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
         or plan_rel.name != "plan.yaml"
     ):
         raise StateError("invalid state field: plan_relpath")
+    goal = raw.get("goal")
+    if goal is not None and not _is_non_blank_str_without_nul(goal):
+        raise StateError("invalid state field: goal")
 
     for key in ("created_at", "updated_at"):
         if not _is_iso_datetime(raw.get(key)):

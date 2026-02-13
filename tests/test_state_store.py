@@ -140,6 +140,17 @@ def test_load_state_rejects_unsafe_plan_relpath(tmp_path: Path) -> None:
         load_state(run_dir)
 
 
+def test_load_state_rejects_non_string_goal(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_goal"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["goal"] = ["invalid"]
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: goal"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_non_absolute_home_and_workdir(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad_paths"
     run_dir.mkdir()
