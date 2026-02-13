@@ -669,6 +669,11 @@ def save_state_atomic(run_dir: Path, state: RunState) -> None:
         tmp_ino = opened_meta.st_ino
         if not stat.S_ISREG(opened_meta.st_mode):
             raise OSError(f"temporary state path must be regular file: {tmp_path}")
+    except RuntimeError as exc:
+        if fd is not None:
+            with suppress(OSError, RuntimeError):
+                os.close(fd)
+        raise OSError(f"failed to open temporary state path: {tmp_path}") from exc
     except OSError as exc:
         if fd is not None:
             with suppress(OSError, RuntimeError):
@@ -685,7 +690,7 @@ def save_state_atomic(run_dir: Path, state: RunState) -> None:
             f.write(payload + "\n")
             f.flush()
             os.fsync(f.fileno())
-    except OSError:
+    except (OSError, RuntimeError):
         with suppress(OSError, RuntimeError):
             tmp_path.unlink(missing_ok=True)
         if fd is not None:
@@ -708,7 +713,7 @@ def save_state_atomic(run_dir: Path, state: RunState) -> None:
         raise
     try:
         os.replace(tmp_path, state_path)
-    except OSError:
+    except (OSError, RuntimeError):
         with suppress(OSError, RuntimeError):
             tmp_path.unlink(missing_ok=True)
         raise

@@ -110,6 +110,23 @@ def test_save_state_atomic_cleans_tmp_when_replace_fails(
     assert not (run_dir / "state.json.tmp").exists()
 
 
+def test_save_state_atomic_cleans_tmp_when_replace_runtime_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_replace_runtime_fail"
+    run_dir.mkdir()
+    state = RunState.from_dict(_minimal_state_payload(run_id=run_dir.name))
+
+    def failing_replace(_src: str | Path, _dst: str | Path) -> None:
+        raise RuntimeError("simulated replace runtime failure")
+
+    monkeypatch.setattr(os, "replace", failing_replace)
+
+    with pytest.raises(RuntimeError, match="simulated replace runtime failure"):
+        save_state_atomic(run_dir, state)
+    assert not (run_dir / "state.json.tmp").exists()
+
+
 def test_save_state_atomic_cleans_tmp_when_write_fsync_fails(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -129,6 +146,29 @@ def test_save_state_atomic_cleans_tmp_when_write_fsync_fails(
     monkeypatch.setattr(os, "fsync", flaky_fsync)
 
     with pytest.raises(OSError, match="simulated write fsync failure"):
+        save_state_atomic(run_dir, state)
+    assert not (run_dir / "state.json.tmp").exists()
+
+
+def test_save_state_atomic_cleans_tmp_when_write_fsync_runtime_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_write_fsync_runtime_fail"
+    run_dir.mkdir()
+    state = RunState.from_dict(_minimal_state_payload(run_id=run_dir.name))
+    original_fsync = os.fsync
+    failed_once = False
+
+    def flaky_fsync(fd: int) -> None:
+        nonlocal failed_once
+        if not failed_once:
+            failed_once = True
+            raise RuntimeError("simulated write fsync runtime failure")
+        original_fsync(fd)
+
+    monkeypatch.setattr(os, "fsync", flaky_fsync)
+
+    with pytest.raises(RuntimeError, match="simulated write fsync runtime failure"):
         save_state_atomic(run_dir, state)
     assert not (run_dir / "state.json.tmp").exists()
 
@@ -262,6 +302,22 @@ def test_save_state_atomic_normalizes_open_enxio_as_regular_file_error(
     monkeypatch.setattr(os, "open", _raise_enxio)
 
     with pytest.raises(OSError, match="temporary state path must be regular file"):
+        save_state_atomic(run_dir, state)
+
+
+def test_save_state_atomic_wraps_runtime_open_error_for_tmp_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_tmp_open_runtime_error"
+    run_dir.mkdir()
+    state = RunState.from_dict(_minimal_state_payload(run_id=run_dir.name))
+
+    def _raise_runtime(_path: str, _flags: int, _mode: int = 0o777) -> int:
+        raise RuntimeError("simulated tmp open runtime failure")
+
+    monkeypatch.setattr(os, "open", _raise_runtime)
+
+    with pytest.raises(OSError, match="failed to open temporary state path"):
         save_state_atomic(run_dir, state)
 
 

@@ -48,7 +48,7 @@ def run_lock(
             stat_result = os.fstat(acquired_fd)
             try:
                 os.write(acquired_fd, str(os.getpid()).encode("utf-8"))
-            except OSError:
+            except (OSError, RuntimeError) as exc:
                 with suppress(OSError, RuntimeError):
                     os.close(acquired_fd)
                 try:
@@ -63,6 +63,8 @@ def run_lock(
                 ):
                     with suppress(OSError, RuntimeError):
                         lock_path.unlink(missing_ok=True)
+                if isinstance(exc, RuntimeError):
+                    raise OSError(str(exc)) from exc
                 raise
             fd = acquired_fd
             lock_inode = stat_result.st_ino
@@ -88,6 +90,8 @@ def run_lock(
             if err.errno == errno.ELOOP:
                 raise OSError(f"lock path must not be symlink: {lock_path}") from err
             raise
+        except RuntimeError as err:
+            raise OSError(f"failed to open lock path: {lock_path}") from err
 
     try:
         yield

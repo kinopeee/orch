@@ -259,6 +259,33 @@ def test_run_lock_cleans_up_if_pid_write_fails(
         assert lock_path.exists()
 
 
+def test_run_lock_cleans_up_if_pid_write_runtime_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    lock_path = run_dir / ".lock"
+    original_write = os.write
+    failed_once = False
+
+    def flaky_write(fd: int, data: bytes) -> int:
+        nonlocal failed_once
+        if not failed_once:
+            failed_once = True
+            raise RuntimeError("simulated write runtime failure")
+        return original_write(fd, data)
+
+    monkeypatch.setattr(os, "write", flaky_write)
+
+    with pytest.raises(OSError, match="simulated write runtime failure"), run_lock(run_dir):
+        pass
+
+    assert not lock_path.exists()
+
+    with run_lock(run_dir):
+        assert lock_path.exists()
+
+
 def test_run_lock_preserves_write_error_when_cleanup_close_runtime_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -290,6 +317,24 @@ def test_run_lock_preserves_write_error_when_cleanup_close_runtime_errors(
     with pytest.raises(OSError, match="simulated write failure"), run_lock(run_dir):
         pass
     assert lock_path.exists() is False
+
+
+def test_run_lock_wraps_runtime_open_error_as_oserror(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    original_open = os.open
+
+    def flaky_open(path: str | os.PathLike[str], flags: int, mode: int = 0o777) -> int:
+        if str(path) == str(run_dir / ".lock"):
+            raise RuntimeError("simulated open runtime failure")
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", flaky_open)
+
+    with pytest.raises(OSError, match="failed to open lock path"), run_lock(run_dir):
+        pass
 
 
 def test_run_lock_preserves_write_error_when_cleanup_lstat_runtime_errors(
