@@ -468,6 +468,58 @@ def test_load_state_rejects_running_task_with_terminal_fields(tmp_path: Path) ->
         load_state(run_dir)
 
 
+def test_load_state_accepts_ready_task_after_timeout_attempt(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_ready_after_timeout"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["status"] = "RUNNING"
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["status"] = "READY"
+    task["started_at"] = "2026-01-01T00:00:00+00:00"
+    task["ended_at"] = "2026-01-01T00:00:01+00:00"
+    task["duration_sec"] = 1.0
+    task["exit_code"] = None
+    task["timed_out"] = True
+    task["canceled"] = False
+    task["skip_reason"] = None
+    task["attempts"] = 1
+    task["retries"] = 2
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    loaded = load_state(run_dir)
+    assert loaded.status == "RUNNING"
+    assert loaded.tasks["t1"].status == "READY"
+    assert loaded.tasks["t1"].timed_out is True
+
+
+def test_load_state_rejects_ready_task_with_success_exit_code(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_ready_success_exit"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["status"] = "RUNNING"
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["status"] = "READY"
+    task["started_at"] = "2026-01-01T00:00:00+00:00"
+    task["ended_at"] = "2026-01-01T00:00:01+00:00"
+    task["duration_sec"] = 1.0
+    task["exit_code"] = 0
+    task["timed_out"] = False
+    task["canceled"] = False
+    task["skip_reason"] = None
+    task["attempts"] = 1
+    task["retries"] = 2
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_inconsistent_task_exit_and_flags(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad_task_flags"
     run_dir.mkdir()

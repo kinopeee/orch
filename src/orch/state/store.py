@@ -251,7 +251,7 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
             bool_values[bool_field] = bval if isinstance(bval, bool) else None
         if isinstance(exit_code, int) and task_status == "SUCCESS" and exit_code != 0:
             raise StateError("invalid state field: tasks")
-        if bool_values["timed_out"] is True and task_status != "FAILED":
+        if bool_values["timed_out"] is True and task_status not in {"FAILED", "READY"}:
             raise StateError("invalid state field: tasks")
         if bool_values["canceled"] is True and task_status != "CANCELED":
             raise StateError("invalid state field: tasks")
@@ -275,6 +275,18 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
                 or bool_values["timed_out"] is True
                 or bool_values["canceled"] is True
             ):
+                raise StateError("invalid state field: tasks")
+        if task_status == "READY":
+            if not isinstance(started_at, str) or not isinstance(ended_at, str):
+                raise StateError("invalid state field: tasks")
+            if not isinstance(attempts, int) or attempts < 1:
+                raise StateError("invalid state field: tasks")
+            if _is_non_blank_str_without_nul(skip_reason):
+                raise StateError("invalid state field: tasks")
+            if bool_values["timed_out"] is True:
+                if exit_code is not None:
+                    raise StateError("invalid state field: tasks")
+            elif not isinstance(exit_code, int) or exit_code == 0:
                 raise StateError("invalid state field: tasks")
         if task_status == "SUCCESS":
             if _is_non_blank_str_without_nul(skip_reason):
