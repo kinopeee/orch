@@ -38,7 +38,7 @@ orch cancel <run_id>
 goal: "文字列（任意だが推奨）"
 artifacts_dir: ".orch/artifacts"
 tasks:
-  - id: "inspect"
+  - id: "inspect"  # 英数字で開始し [A-Za-z0-9._-] のみ使用可
     cmd: ["python3", "tools/fake_agent.py", "inspect"]
     # cmd: "python3 tools/fake_agent.py inspect"
     depends_on: ["other_task_id"]

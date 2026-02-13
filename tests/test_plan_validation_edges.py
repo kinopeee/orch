@@ -80,6 +80,32 @@ def test_load_plan_rejects_whitespace_only_task_id_and_cmd_entry(tmp_path: Path)
         load_plan(plan_cmd)
 
 
+def test_load_plan_rejects_unsafe_task_id_for_paths(tmp_path: Path) -> None:
+    plan_slash = tmp_path / "plan_id_slash.yaml"
+    _write(
+        plan_slash,
+        """
+        tasks:
+          - id: "a/b"
+            cmd: ["python3", "-c", "print('x')"]
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan_slash)
+
+    plan_escape = tmp_path / "plan_id_escape.yaml"
+    _write(
+        plan_escape,
+        """
+        tasks:
+          - id: "../escape"
+            cmd: ["python3", "-c", "print('x')"]
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan_escape)
+
+
 def test_load_plan_rejects_non_str_or_list_cmd(tmp_path: Path) -> None:
     plan = tmp_path / "plan.yaml"
     _write(

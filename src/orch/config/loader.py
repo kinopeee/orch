@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import shlex
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,8 @@ from orch.dag.build import build_adjacency
 from orch.dag.validate import assert_acyclic
 from orch.util.errors import PlanError
 
+_SAFE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+
 
 def _is_real_number(value: object) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
@@ -18,6 +21,10 @@ def _is_real_number(value: object) -> bool:
 
 def _is_non_blank_str(value: object) -> bool:
     return isinstance(value, str) and bool(value.strip())
+
+
+def _is_safe_id(value: object) -> bool:
+    return isinstance(value, str) and _SAFE_ID_PATTERN.fullmatch(value) is not None
 
 
 def normalize_cmd(cmd: str | list[str]) -> list[str]:
@@ -46,6 +53,8 @@ def _parse_task(raw: Any) -> TaskSpec:
         raise PlanError("task must be mapping")
     if "id" not in raw or not _is_non_blank_str(raw["id"]):
         raise PlanError("task.id is required and must be non-empty string")
+    if not _is_safe_id(raw["id"]):
+        raise PlanError("task.id must match ^[A-Za-z0-9][A-Za-z0-9._-]*$")
     if "cmd" not in raw:
         raise PlanError(f"task '{raw['id']}' missing cmd")
 
