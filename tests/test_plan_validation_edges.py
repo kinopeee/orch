@@ -114,3 +114,33 @@ def test_load_plan_rejects_bool_for_timeout_and_backoff(tmp_path: Path) -> None:
     )
     with pytest.raises(PlanError):
         load_plan(plan)
+
+
+def test_load_plan_rejects_non_string_goal(tmp_path: Path) -> None:
+    plan = tmp_path / "plan.yaml"
+    _write(
+        plan,
+        """
+        goal: 123
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('x')"]
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan)
+
+
+def test_load_plan_rejects_non_string_artifacts_dir(tmp_path: Path) -> None:
+    plan = tmp_path / "plan.yaml"
+    _write(
+        plan,
+        """
+        artifacts_dir: [1,2,3]
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('x')"]
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan)

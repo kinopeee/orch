@@ -115,10 +115,18 @@ def load_plan(path: Path) -> PlanSpec:
     if not isinstance(raw_tasks, list):
         raise PlanError("plan.tasks must be a list")
 
+    goal = raw.get("goal")
+    if goal is not None and not isinstance(goal, str):
+        raise PlanError("plan.goal must be string when provided")
+
+    artifacts_dir = raw.get("artifacts_dir")
+    if artifacts_dir is not None and not isinstance(artifacts_dir, str):
+        raise PlanError("plan.artifacts_dir must be string when provided")
+
     tasks = [_parse_task(task) for task in raw_tasks]
     plan = PlanSpec(
-        goal=raw.get("goal"),
-        artifacts_dir=raw.get("artifacts_dir"),
+        goal=goal,
+        artifacts_dir=artifacts_dir,
         tasks=tasks,
     )
     validate_plan(plan)
