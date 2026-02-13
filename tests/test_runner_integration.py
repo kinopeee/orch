@@ -72,6 +72,44 @@ async def test_runner_timeout_marks_task_failed(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_runner_collects_declared_outputs_even_when_task_fails(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_fail_artifacts"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    fail_with_output_cmd = [
+        sys.executable,
+        "-c",
+        "from pathlib import Path; Path('out').mkdir(exist_ok=True); "
+        "Path('out/fail.txt').write_text('FAIL', encoding='utf-8'); "
+        "raise SystemExit(1)",
+    ]
+    plan = PlanSpec(
+        goal="failed artifact collection",
+        artifacts_dir="collected",
+        tasks=[TaskSpec(id="publish", cmd=fail_with_output_cmd, outputs=["out/*.txt"])],
+    )
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "FAILED"
+    assert state.tasks["publish"].status == "FAILED"
+    assert state.tasks["publish"].artifact_paths == ["artifacts/publish/out/fail.txt"]
+    run_copy = run_dir / "artifacts" / "publish" / "out" / "fail.txt"
+    aggregated_copy = workdir / "collected" / "publish" / "out" / "fail.txt"
+    assert run_copy.read_text(encoding="utf-8") == "FAIL"
+    assert aggregated_copy.read_text(encoding="utf-8") == "FAIL"
+
+
+@pytest.mark.asyncio
 async def test_runner_copies_declared_output_artifacts(tmp_path: Path) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run_artifacts"
     workdir = tmp_path / "wd"

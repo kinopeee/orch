@@ -492,6 +492,7 @@ async def run_plan(
             task_state.exit_code = result.exit_code
             task_state.timed_out = result.timed_out
             task_state.canceled = result.canceled
+            task_cwd = _resolve_task_cwd(task.cwd, workdir)
 
             if _should_retry(task, result, task_state.attempts):
                 delay = backoff_for_attempt(task_state.attempts - 1, task.retry_backoff_sec)
@@ -507,16 +508,20 @@ async def run_plan(
                 task_state.status = "CANCELED"
                 task_state.skip_reason = "run_canceled"
                 cancel_mode = True
-            elif result.exit_code == 0 and not result.timed_out:
-                task_state.status = "SUCCESS"
-                cwd = _resolve_task_cwd(task.cwd, workdir)
-                task_state.artifact_paths = _copy_artifacts(task, run_dir, cwd)
-                if aggregate_root is not None:
-                    _copy_to_aggregate_dir_best_effort(task, cwd, aggregate_root=aggregate_root)
             else:
-                task_state.status = "FAILED"
-                if fail_fast:
-                    fail_fast_mode = True
+                task_state.artifact_paths = _copy_artifacts(task, run_dir, task_cwd)
+                if aggregate_root is not None:
+                    _copy_to_aggregate_dir_best_effort(
+                        task,
+                        task_cwd,
+                        aggregate_root=aggregate_root,
+                    )
+                if result.exit_code == 0 and not result.timed_out:
+                    task_state.status = "SUCCESS"
+                else:
+                    task_state.status = "FAILED"
+                    if fail_fast:
+                        fail_fast_mode = True
 
             if task_id in active:
                 active.remove(task_id)
