@@ -16,6 +16,7 @@ from orch.exec.capture import stream_to_file
 from orch.exec.retry import backoff_for_attempt
 from orch.state.model import RunState, TaskState
 from orch.state.store import load_state, save_state_atomic
+from orch.util.errors import StateError
 from orch.util.time import duration_sec, now_iso
 
 
@@ -294,6 +295,17 @@ def _reset_for_rerun(task_state: TaskState) -> None:
     task_state.artifact_paths = []
 
 
+def _validate_resume_state_matches_plan(plan: PlanSpec, state: RunState) -> None:
+    plan_ids = {task.id for task in plan.tasks}
+    state_ids = set(state.tasks.keys())
+    missing = sorted(plan_ids - state_ids)
+    if missing:
+        raise StateError(f"missing task state entries: {missing}")
+    unknown = sorted(state_ids - plan_ids)
+    if unknown:
+        raise StateError(f"unknown task state entries: {unknown}")
+
+
 async def run_task(
     task: TaskSpec,
     run_dir: Path,
@@ -401,6 +413,7 @@ async def run_plan(
     if resume:
         (run_dir / "cancel.request").unlink(missing_ok=True)
         state = load_state(run_dir)
+        _validate_resume_state_matches_plan(plan, state)
         _prepare_resume_state(state)
         state.status = "RUNNING"
         state.max_parallel = max_parallel
