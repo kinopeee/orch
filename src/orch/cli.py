@@ -59,7 +59,7 @@ def _run_exists(current_run_dir: Path) -> bool:
 @app.command()
 def run(
     plan_path: Annotated[Path, typer.Argument(exists=True)],
-    max_parallel: Annotated[int, typer.Option("--max-parallel")] = 4,
+    max_parallel: Annotated[int, typer.Option("--max-parallel", min=1)] = 4,
     home: Annotated[Path, typer.Option("--home")] = Path(".orch"),
     workdir: Annotated[Path, typer.Option("--workdir")] = Path("."),
     fail_fast: Annotated[bool, typer.Option("--fail-fast/--no-fail-fast")] = False,
@@ -109,7 +109,7 @@ def run(
 def resume(
     run_id: Annotated[str, typer.Argument()],
     home: Annotated[Path, typer.Option("--home")] = Path(".orch"),
-    max_parallel: Annotated[int, typer.Option("--max-parallel")] = 4,
+    max_parallel: Annotated[int, typer.Option("--max-parallel", min=1)] = 4,
     workdir: Annotated[Path, typer.Option("--workdir")] = Path("."),
     fail_fast: Annotated[bool, typer.Option("--fail-fast/--no-fail-fast")] = False,
     failed_only: Annotated[bool, typer.Option("--failed-only")] = False,

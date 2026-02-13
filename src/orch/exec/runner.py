@@ -264,6 +264,9 @@ async def run_plan(
     resume: bool,
     failed_only: bool,
 ) -> RunState:
+    if max_parallel < 1:
+        raise ValueError("max_parallel must be >= 1")
+
     dependents, _ = build_adjacency(plan)
     spec_by_id = {task.id: task for task in plan.tasks}
 

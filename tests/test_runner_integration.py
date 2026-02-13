@@ -191,3 +191,28 @@ async def test_runner_uses_absolute_task_cwd_without_rebasing(tmp_path: Path) ->
     assert state.tasks["write_abs"].status == "SUCCESS"
     assert (absolute_cwd / "abs_marker.txt").read_text(encoding="utf-8") == "abs"
     assert state.tasks["write_abs"].artifact_paths == ["artifacts/write_abs/abs_marker.txt"]
+
+
+@pytest.mark.asyncio
+async def test_runner_rejects_non_positive_max_parallel(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_bad_parallel"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    plan = PlanSpec(
+        goal="invalid parallelism",
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="t1", cmd=[sys.executable, "-c", "print('ok')"])],
+    )
+
+    with pytest.raises(ValueError, match="max_parallel must be >= 1"):
+        await run_plan(
+            plan,
+            run_dir,
+            max_parallel=0,
+            fail_fast=False,
+            workdir=workdir,
+            resume=False,
+            failed_only=False,
+        )

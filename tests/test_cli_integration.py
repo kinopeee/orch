@@ -55,6 +55,56 @@ def test_cli_run_dry_run_returns_zero(tmp_path: Path) -> None:
     assert not (home / "runs").exists()
 
 
+def test_cli_run_rejects_non_positive_max_parallel(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--max-parallel",
+            "0",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = (proc.stdout + proc.stderr).lower()
+    assert proc.returncode == 2
+    assert "max-parallel" in output
+
+
+def test_cli_resume_rejects_non_positive_max_parallel(tmp_path: Path) -> None:
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "resume",
+            "dummy_run",
+            "--max-parallel",
+            "0",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = (proc.stdout + proc.stderr).lower()
+    assert proc.returncode == 2
+    assert "max-parallel" in output
+
+
 def test_cli_run_failure_returns_three_and_writes_state(tmp_path: Path) -> None:
     plan_path = tmp_path / "plan_fail.yaml"
     home = tmp_path / ".orch_cli"
