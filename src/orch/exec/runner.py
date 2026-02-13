@@ -306,7 +306,10 @@ def _initial_state(
 ) -> RunState:
     ts = now_iso()
     run_id = run_dir.name
-    resolved_home = run_dir.parent.parent.resolve()
+    try:
+        resolved_home = run_dir.parent.parent.resolve()
+    except (OSError, RuntimeError) as exc:
+        raise OSError(f"failed to resolve home path: {run_dir.parent.parent}") from exc
     tasks = {
         task.id: TaskState(
             status="PENDING",
@@ -494,7 +497,10 @@ async def run_plan(
 ) -> RunState:
     if max_parallel < 1:
         raise ValueError("max_parallel must be >= 1")
-    resolved_workdir = workdir.resolve()
+    try:
+        resolved_workdir = workdir.resolve()
+    except (OSError, RuntimeError) as exc:
+        raise OSError(f"failed to resolve workdir: {workdir}") from exc
 
     dependents, _ = build_adjacency(plan)
     spec_by_id = {task.id: task for task in plan.tasks}

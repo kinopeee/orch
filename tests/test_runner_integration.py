@@ -46,6 +46,75 @@ async def test_runner_persists_absolute_home_and_workdir_for_relative_inputs(
 
 
 @pytest.mark.asyncio
+async def test_run_plan_normalizes_workdir_resolve_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_workdir_resolve_error"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+    plan = PlanSpec(
+        goal="workdir resolve error normalization",
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="t1", cmd=[sys.executable, "-c", "print('ok')"])],
+    )
+    original_resolve = Path.resolve
+
+    def flaky_resolve(path_obj: Path, *args: object, **kwargs: object) -> Path:
+        if path_obj == workdir:
+            raise RuntimeError("simulated workdir resolve failure")
+        return original_resolve(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", flaky_resolve)
+
+    with pytest.raises(OSError, match="failed to resolve workdir"):
+        await run_plan(
+            plan,
+            run_dir,
+            max_parallel=1,
+            fail_fast=False,
+            workdir=workdir,
+            resume=False,
+            failed_only=False,
+        )
+
+
+@pytest.mark.asyncio
+async def test_run_plan_normalizes_home_resolve_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_home_resolve_error"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+    home_dir = run_dir.parent.parent
+    plan = PlanSpec(
+        goal="home resolve error normalization",
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="t1", cmd=[sys.executable, "-c", "print('ok')"])],
+    )
+    original_resolve = Path.resolve
+
+    def flaky_resolve(path_obj: Path, *args: object, **kwargs: object) -> Path:
+        if path_obj == home_dir:
+            raise RuntimeError("simulated home resolve failure")
+        return original_resolve(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", flaky_resolve)
+
+    with pytest.raises(OSError, match="failed to resolve home path"):
+        await run_plan(
+            plan,
+            run_dir,
+            max_parallel=1,
+            fail_fast=False,
+            workdir=workdir,
+            resume=False,
+            failed_only=False,
+        )
+
+
+@pytest.mark.asyncio
 async def test_runner_propagates_skipped_and_retries(tmp_path: Path) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run_retry"
     workdir = tmp_path / "wd"
