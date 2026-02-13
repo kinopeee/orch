@@ -170,6 +170,8 @@ def _write_report(state: RunState, current_run_dir: Path) -> Path:
 
 
 def _run_exists(current_run_dir: Path) -> bool:
+    if _has_symlink_ancestor(current_run_dir):
+        return False
     try:
         run_meta = current_run_dir.lstat()
     except OSError:

@@ -1051,7 +1051,7 @@ def test_cli_cancel_rejects_run_with_symlink_ancestor_home(tmp_path: Path) -> No
         check=False,
     )
     assert proc.returncode == 2
-    assert "Failed to request cancel" in proc.stdout
+    assert "Run not found" in proc.stdout
     assert not (real_run_dir / "cancel.request").exists()
 
 
