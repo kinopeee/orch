@@ -302,6 +302,42 @@ async def test_runner_marks_task_failed_when_run_task_raises(
 
 
 @pytest.mark.asyncio
+async def test_runner_does_not_retry_when_run_task_raises(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_internal_exception_no_retry"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    plan = PlanSpec(
+        goal="runner exception no retry",
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="a", cmd=[sys.executable, "-c", "print('a')"], retries=5)],
+    )
+
+    async def boom(*args: object, **kwargs: object) -> object:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(runner_module, "run_task", boom)
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "FAILED"
+    assert state.tasks["a"].status == "FAILED"
+    assert state.tasks["a"].skip_reason == "runner_exception"
+    assert state.tasks["a"].attempts == 1
+
+
+@pytest.mark.asyncio
 async def test_runner_ignores_artifact_dir_creation_failures_and_keeps_success(
     tmp_path: Path,
 ) -> None:
