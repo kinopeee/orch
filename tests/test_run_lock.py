@@ -83,18 +83,18 @@ def test_run_lock_handles_stat_race_during_stale_check(
     lock_path = run_dir / ".lock"
     lock_path.write_text("holder", encoding="utf-8")
 
-    original_stat = Path.stat
+    original_lstat = Path.lstat
     called = False
 
-    def flaky_stat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
         nonlocal called
         if path_obj == lock_path and not called:
             called = True
             lock_path.unlink(missing_ok=True)
             raise FileNotFoundError("simulated race")
-        return original_stat(path_obj, *args, **kwargs)
+        return original_lstat(path_obj, *args, **kwargs)
 
-    monkeypatch.setattr(Path, "stat", flaky_stat)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
 
     with run_lock(run_dir, retries=1, retry_interval=0.01):
         assert lock_path.exists()

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import errno
 import os
+import stat
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager, suppress
@@ -29,9 +30,12 @@ def run_lock(
 
     def _is_stale() -> bool:
         try:
-            age = time.time() - lock_path.stat().st_mtime
+            lock_meta = lock_path.lstat()
         except OSError:
             return False
+        if stat.S_ISLNK(lock_meta.st_mode) or not stat.S_ISREG(lock_meta.st_mode):
+            return False
+        age = time.time() - lock_meta.st_mtime
         return age > stale_sec
 
     attempt = 0
@@ -48,11 +52,12 @@ def run_lock(
                 with suppress(OSError):
                     os.close(acquired_fd)
                 try:
-                    current_lock = lock_path.stat()
+                    current_lock = lock_path.lstat()
                 except OSError:
                     current_lock = None
                 if (
                     current_lock is not None
+                    and stat.S_ISREG(current_lock.st_mode)
                     and current_lock.st_ino == stat_result.st_ino
                     and current_lock.st_dev == stat_result.st_dev
                 ):
@@ -93,9 +98,14 @@ def run_lock(
         if lock_inode is not None and lock_dev is not None:
             current: os.stat_result | None
             try:
-                current = lock_path.stat()
+                current = lock_path.lstat()
             except OSError:
                 current = None
-            if current is not None and current.st_ino == lock_inode and current.st_dev == lock_dev:
+            if (
+                current is not None
+                and stat.S_ISREG(current.st_mode)
+                and current.st_ino == lock_inode
+                and current.st_dev == lock_dev
+            ):
                 with suppress(OSError):
                     lock_path.unlink(missing_ok=True)
