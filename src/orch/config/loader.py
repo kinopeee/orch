@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import errno
 import math
+import os
 import re
 import shlex
 import stat
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -187,14 +190,33 @@ def load_plan(path: Path) -> PlanSpec:
             raise PlanError(f"plan file must not be symlink: {path}")
         if not stat.S_ISREG(meta.st_mode):
             raise PlanError(f"failed to read plan file: {path}")
+
+    open_flags = os.O_RDONLY
+    if hasattr(os, "O_NONBLOCK"):
+        open_flags |= os.O_NONBLOCK
+    if hasattr(os, "O_NOFOLLOW"):
+        open_flags |= os.O_NOFOLLOW
+    fd: int | None = None
     try:
-        content = path.read_text(encoding="utf-8")
+        fd = os.open(str(path), open_flags)
+        opened_meta = os.fstat(fd)
+        if not stat.S_ISREG(opened_meta.st_mode):
+            raise PlanError(f"failed to read plan file: {path}")
+        with os.fdopen(fd, "r", encoding="utf-8") as f:
+            fd = None
+            content = f.read()
     except FileNotFoundError as exc:
         raise PlanError(f"plan file not found: {path}") from exc
     except UnicodeError as exc:
         raise PlanError(f"failed to decode plan file as utf-8: {path}") from exc
     except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise PlanError(f"plan file must not be symlink: {path}") from exc
         raise PlanError(f"failed to read plan file: {path}") from exc
+    finally:
+        if fd is not None:
+            with suppress(OSError):
+                os.close(fd)
 
     try:
         raw = yaml.safe_load(content)

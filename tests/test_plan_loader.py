@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import errno
 import os
 from pathlib import Path
 
@@ -108,4 +109,26 @@ def test_load_plan_rejects_non_regular_file_path(tmp_path: Path) -> None:
     os.mkfifo(plan_path)
 
     with pytest.raises(PlanError, match="failed to read plan file"):
+        load_plan(plan_path)
+
+
+def test_load_plan_normalizes_open_eloop_as_symlink_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    plan_path.write_text(
+        """
+tasks:
+  - id: a
+    cmd: ["echo", "x"]
+""".strip(),
+        encoding="utf-8",
+    )
+
+    def _raise_eloop(_path: str, _flags: int) -> int:
+        raise OSError(errno.ELOOP, "Too many symbolic links")
+
+    monkeypatch.setattr(os, "open", _raise_eloop)
+
+    with pytest.raises(PlanError, match="plan file must not be symlink"):
         load_plan(plan_path)

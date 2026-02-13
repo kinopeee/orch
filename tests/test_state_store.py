@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import errno
 import json
 import os
 from pathlib import Path
@@ -346,6 +347,25 @@ def test_load_state_rejects_non_regular_state_file(tmp_path: Path) -> None:
     os.mkfifo(run_dir / "state.json")
 
     with pytest.raises(StateError, match="failed to read state file"):
+        load_state(run_dir)
+
+
+def test_load_state_normalizes_open_eloop_as_symlink_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_state_eloop"
+    run_dir.mkdir()
+    (run_dir / "state.json").write_text(
+        json.dumps(_minimal_state_payload(run_id=run_dir.name)),
+        encoding="utf-8",
+    )
+
+    def _raise_eloop(_path: str, _flags: int) -> int:
+        raise OSError(errno.ELOOP, "Too many symbolic links")
+
+    monkeypatch.setattr(os, "open", _raise_eloop)
+
+    with pytest.raises(StateError, match="state file must not be symlink"):
         load_state(run_dir)
 
 

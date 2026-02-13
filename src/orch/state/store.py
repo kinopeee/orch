@@ -582,16 +582,34 @@ def load_state(run_dir: Path) -> RunState:
             raise StateError(f"state file must not be symlink: {state_path}")
         if not stat.S_ISREG(meta.st_mode):
             raise StateError(f"failed to read state file: {state_path}")
+    open_flags = os.O_RDONLY
+    if hasattr(os, "O_NONBLOCK"):
+        open_flags |= os.O_NONBLOCK
+    if hasattr(os, "O_NOFOLLOW"):
+        open_flags |= os.O_NOFOLLOW
+    fd: int | None = None
     try:
-        raw = json.loads(state_path.read_text(encoding="utf-8"))
+        fd = os.open(str(state_path), open_flags)
+        opened_meta = os.fstat(fd)
+        if not stat.S_ISREG(opened_meta.st_mode):
+            raise StateError(f"failed to read state file: {state_path}")
+        with os.fdopen(fd, "r", encoding="utf-8") as f:
+            fd = None
+            raw = json.loads(f.read())
     except FileNotFoundError as exc:
         raise StateError(f"state file not found: {state_path}") from exc
     except UnicodeError as exc:
         raise StateError(f"failed to decode state file as utf-8: {state_path}") from exc
-    except OSError as exc:
-        raise StateError(f"failed to read state file: {state_path}") from exc
     except json.JSONDecodeError as exc:
         raise StateError(f"invalid state json: {state_path}") from exc
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise StateError(f"state file must not be symlink: {state_path}") from exc
+        raise StateError(f"failed to read state file: {state_path}") from exc
+    finally:
+        if fd is not None:
+            with suppress(OSError):
+                os.close(fd)
     if not isinstance(raw, dict):
         raise StateError("state root must be object")
     _validate_state_shape(raw, run_dir)
