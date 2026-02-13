@@ -152,3 +152,42 @@ def test_write_cancel_request_normalizes_eloop_as_symlink_error(
 
     with pytest.raises(OSError, match="must not be symlink"):
         write_cancel_request(run_dir)
+
+
+def test_write_cancel_request_rejects_non_regular_opened_target(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_cancel_non_regular_open"
+    run_dir.mkdir()
+    cancel_path = run_dir / "cancel.request"
+    original_open = os.open
+
+    def redirect_open(path: os.PathLike[str] | str, flags: int, mode: int = 0o777) -> int:
+        if str(path) == str(cancel_path):
+            return original_open("/dev/null", os.O_WRONLY)
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", redirect_open)
+
+    with pytest.raises(OSError, match="must be regular file"):
+        write_cancel_request(run_dir)
+    assert not cancel_path.exists()
+
+
+def test_write_cancel_request_uses_nonblock_open_flag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_cancel_nonblock_flag"
+    run_dir.mkdir()
+    captured_flags: dict[str, int] = {}
+    original_open = os.open
+
+    def capture_open(path: os.PathLike[str] | str, flags: int, mode: int = 0o777) -> int:
+        captured_flags["flags"] = flags
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", capture_open)
+    write_cancel_request(run_dir)
+
+    if hasattr(os, "O_NONBLOCK"):
+        assert captured_flags["flags"] & os.O_NONBLOCK

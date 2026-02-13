@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import errno
 import os
+import stat
+from contextlib import suppress
 from pathlib import Path
 
 
@@ -20,16 +22,31 @@ def write_cancel_request(run_dir: Path) -> None:
     if path.exists() and not path.is_file():
         raise OSError("cancel request path must be regular file")
     flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    if hasattr(os, "O_NONBLOCK"):
+        flags |= os.O_NONBLOCK
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
+    fd: int | None = None
     try:
         fd = os.open(path, flags, 0o600)
+        opened_meta = os.fstat(fd)
+        if not stat.S_ISREG(opened_meta.st_mode):
+            raise OSError("cancel request path must be regular file")
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            fd = None
+            f.write("cancel requested\n")
     except OSError as exc:
-        if path.is_symlink() or exc.errno == errno.ELOOP:
+        try:
+            is_symlink = path.is_symlink()
+        except OSError:
+            is_symlink = False
+        if is_symlink or exc.errno == errno.ELOOP:
             raise OSError("cancel request path must not be symlink") from exc
         raise
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        f.write("cancel requested\n")
+    finally:
+        if fd is not None:
+            with suppress(OSError):
+                os.close(fd)
 
 
 def clear_cancel_request(run_dir: Path) -> None:
