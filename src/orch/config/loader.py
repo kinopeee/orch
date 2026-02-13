@@ -121,6 +121,9 @@ def validate_plan(plan: PlanSpec) -> None:
     ids = [task.id for task in plan.tasks]
     if len(set(ids)) != len(ids):
         raise PlanError("task.id must be unique")
+    folded_ids = [task_id.casefold() for task_id in ids]
+    if len(set(folded_ids)) != len(folded_ids):
+        raise PlanError("task.id must be unique (case-insensitive)")
 
     known = set(ids)
     for task in plan.tasks:

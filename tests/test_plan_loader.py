@@ -41,6 +41,23 @@ tasks:
         load_plan(plan_path)
 
 
+def test_load_plan_rejects_case_insensitive_duplicate_task_ids(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_case_dup.yaml"
+    plan_path.write_text(
+        """
+tasks:
+  - id: Build
+    cmd: ["echo", "x"]
+  - id: build
+    cmd: ["echo", "y"]
+""".strip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(PlanError):
+        load_plan(plan_path)
+
+
 def test_load_plan_rejects_unreadable_path_like_directory(tmp_path: Path) -> None:
     plan_dir = tmp_path / "plan_dir"
     plan_dir.mkdir()
