@@ -56,16 +56,41 @@ def _resolve_task_cwd(task_cwd: str | None, default_cwd: Path) -> Path:
 
 
 def _artifact_relative_path(match: Path, cwd: Path) -> Path:
+    def _sanitize_parts(path: Path) -> list[str]:
+        anchor = path.anchor
+        cleaned: list[str] = []
+        for part in path.parts:
+            if not part or part == anchor or part == ".":
+                continue
+            if part == "..":
+                cleaned.append("__up__")
+            else:
+                cleaned.append(part.replace(":", "_"))
+        return cleaned
+
     try:
-        return match.relative_to(cwd)
+        rel = match.relative_to(cwd)
     except ValueError:
         if match.is_absolute():
-            anchor = match.anchor
-            parts = [part.replace(":", "_") for part in match.parts if part and part != anchor]
+            parts = _sanitize_parts(match)
             if not parts:
                 return Path("__abs__", "root")
             return Path("__abs__", *parts)
-        return Path("__external__", *match.parts)
+        parts = _sanitize_parts(match)
+        if not parts:
+            return Path("__external__", "root")
+        return Path("__external__", *parts)
+
+    if any(part == ".." for part in rel.parts):
+        parts = _sanitize_parts(match)
+        if match.is_absolute():
+            return Path("__abs__", *(parts or ["root"]))
+        return Path("__external__", *(parts or ["root"]))
+
+    sanitized = _sanitize_parts(rel)
+    if not sanitized:
+        return Path("root")
+    return Path(*sanitized)
 
 
 def _resolve_artifacts_dir(artifacts_dir: str | None, workdir: Path) -> Path | None:

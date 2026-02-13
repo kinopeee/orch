@@ -162,6 +162,49 @@ async def test_runner_ignores_copy_failures_and_keeps_success(
 
 
 @pytest.mark.asyncio
+async def test_runner_sanitizes_parent_segments_in_outputs_patterns(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_outputs_parent_pattern"
+    workdir = tmp_path / "wd"
+    outside = tmp_path / "outside"
+    workdir.mkdir(parents=True)
+    outside.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    create_outputs_cmd = [
+        sys.executable,
+        "-c",
+        (
+            "from pathlib import Path; "
+            "Path('../outside').mkdir(exist_ok=True); "
+            "Path('../outside/secret.txt').write_text('secret', encoding='utf-8')"
+        ),
+    ]
+    plan = PlanSpec(
+        goal="sanitize parent outputs",
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="publish", cmd=create_outputs_cmd, outputs=["../outside/*.txt"])],
+    )
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "SUCCESS"
+    assert state.tasks["publish"].status == "SUCCESS"
+
+    paths = state.tasks["publish"].artifact_paths
+    assert len(paths) == 1
+    assert ".." not in paths[0]
+    assert "__abs__" in paths[0] or "__external__" in paths[0]
+    assert not (run_dir / "artifacts" / "outside" / "secret.txt").exists()
+
+
+@pytest.mark.asyncio
 async def test_runner_copies_artifacts_to_plan_artifacts_dir(tmp_path: Path) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run_artifacts_dir"
     workdir = tmp_path / "wd"
