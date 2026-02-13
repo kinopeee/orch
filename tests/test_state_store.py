@@ -150,6 +150,40 @@ def test_save_state_atomic_rejects_symlink_tmp_without_overwriting_target(
     assert target.read_text(encoding="utf-8") == "do-not-touch\n"
 
 
+def test_save_state_atomic_rejects_symlink_state_target_without_overwriting(
+    tmp_path: Path,
+) -> None:
+    run_dir = tmp_path / "run_symlink_state_target"
+    run_dir.mkdir()
+    state = RunState.from_dict(_minimal_state_payload(run_id=run_dir.name))
+    target = tmp_path / "outside_state.json"
+    target.write_text("keep-target\n", encoding="utf-8")
+    state_symlink = run_dir / "state.json"
+    state_symlink.symlink_to(target)
+
+    with pytest.raises(OSError, match="state file path must not be symlink"):
+        save_state_atomic(run_dir, state)
+    assert state_symlink.is_symlink()
+    assert target.read_text(encoding="utf-8") == "keep-target\n"
+    assert not (run_dir / "state.json.tmp").exists()
+
+
+def test_save_state_atomic_rejects_state_path_with_symlink_ancestor(tmp_path: Path) -> None:
+    real_parent = tmp_path / "real_parent"
+    real_parent.mkdir()
+    run_real = real_parent / "run_linked"
+    run_real.mkdir()
+    linked_parent = tmp_path / "parent_link"
+    linked_parent.symlink_to(real_parent, target_is_directory=True)
+    run_dir = linked_parent / "run_linked"
+    state = RunState.from_dict(_minimal_state_payload(run_id=run_dir.name))
+
+    with pytest.raises(OSError, match="contains symlink component"):
+        save_state_atomic(run_dir, state)
+    assert not (run_real / "state.json").exists()
+    assert not (run_real / "state.json.tmp").exists()
+
+
 def test_save_state_atomic_rejects_non_regular_tmp_path(tmp_path: Path) -> None:
     if not hasattr(os, "mkfifo"):
         pytest.skip("mkfifo is not supported on this platform")

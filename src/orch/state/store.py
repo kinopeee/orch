@@ -638,6 +638,16 @@ def load_state(run_dir: Path) -> RunState:
 def save_state_atomic(run_dir: Path, state: RunState) -> None:
     state_path = run_dir / "state.json"
     tmp_path = run_dir / "state.json.tmp"
+    if _has_symlink_ancestor(state_path) or _has_symlink_ancestor(tmp_path):
+        raise OSError(f"state file path contains symlink component: {state_path}")
+    if state_path.is_symlink():
+        raise OSError(f"state file path must not be symlink: {state_path}")
+    try:
+        state_meta = state_path.lstat()
+    except FileNotFoundError:
+        state_meta = None
+    if state_meta is not None and not stat.S_ISREG(state_meta.st_mode):
+        raise OSError(f"state file path must be regular file: {state_path}")
     payload = json.dumps(state.to_dict(), ensure_ascii=False, indent=2, sort_keys=True)
     flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
     if hasattr(os, "O_NONBLOCK"):
