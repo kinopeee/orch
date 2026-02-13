@@ -802,6 +802,8 @@ def test_runner_append_text_best_effort_uses_nonblock_and_nofollow_open_flags(
     assert captured_flags["flags"] & os.O_CREAT
     assert captured_flags["flags"] & os.O_APPEND
     assert captured_mode.get("mode") == 0o600
+    if hasattr(os, "O_TRUNC"):
+        assert not (captured_flags["flags"] & os.O_TRUNC)
     if hasattr(os, "O_NONBLOCK"):
         assert captured_flags["flags"] & os.O_NONBLOCK
     if hasattr(os, "O_NOFOLLOW"):

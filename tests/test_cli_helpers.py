@@ -174,6 +174,8 @@ def test_write_plan_snapshot_uses_nonblock_and_nofollow_open_flags(
     assert captured_flags["flags"] & os.O_CREAT
     assert captured_flags["flags"] & os.O_TRUNC
     assert captured_mode.get("mode") == 0o600
+    if hasattr(os, "O_APPEND"):
+        assert not (captured_flags["flags"] & os.O_APPEND)
     if hasattr(os, "O_NONBLOCK"):
         assert captured_flags["flags"] & os.O_NONBLOCK
     if hasattr(os, "O_NOFOLLOW"):
@@ -310,6 +312,8 @@ def test_write_report_uses_nonblock_and_nofollow_open_flags(
     assert captured_flags["flags"] & os.O_CREAT
     assert captured_flags["flags"] & os.O_TRUNC
     assert captured_mode.get("mode") == 0o600
+    if hasattr(os, "O_APPEND"):
+        assert not (captured_flags["flags"] & os.O_APPEND)
     if hasattr(os, "O_NONBLOCK"):
         assert captured_flags["flags"] & os.O_NONBLOCK
     if hasattr(os, "O_NOFOLLOW"):

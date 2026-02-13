@@ -107,6 +107,8 @@ def test_run_lock_uses_create_exclusive_write_open_flags(
     assert captured_flags["flags"] & os.O_WRONLY
     if hasattr(os, "O_TRUNC"):
         assert not (captured_flags["flags"] & os.O_TRUNC)
+    if hasattr(os, "O_APPEND"):
+        assert not (captured_flags["flags"] & os.O_APPEND)
 
 
 def test_run_lock_uses_secure_mode_when_creating_lock_file(
