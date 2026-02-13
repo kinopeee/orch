@@ -435,6 +435,10 @@ def test_save_state_atomic_uses_nofollow_for_directory_fsync(
 
     save_state_atomic(run_dir, state)
     assert "flags" in captured_flags
+    if hasattr(os, "O_ACCMODE"):
+        assert captured_flags["flags"] & os.O_ACCMODE == os.O_RDONLY
+    if hasattr(os, "O_CREAT"):
+        assert not (captured_flags["flags"] & os.O_CREAT)
     if hasattr(os, "O_NOFOLLOW"):
         assert captured_flags["flags"] & os.O_NOFOLLOW
 
@@ -496,6 +500,8 @@ def test_load_state_uses_nonblock_and_nofollow_open_flags(
     assert "flags" in captured_flags
     if hasattr(os, "O_ACCMODE"):
         assert captured_flags["flags"] & os.O_ACCMODE == os.O_RDONLY
+    if hasattr(os, "O_CREAT"):
+        assert not (captured_flags["flags"] & os.O_CREAT)
     if hasattr(os, "O_NONBLOCK"):
         assert captured_flags["flags"] & os.O_NONBLOCK
     if hasattr(os, "O_NOFOLLOW"):
