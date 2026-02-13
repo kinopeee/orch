@@ -74,7 +74,7 @@ def _parse_task(raw: Any) -> TaskSpec:
     env = raw.get("env")
     if env is not None and (
         not isinstance(env, dict)
-        or not all(isinstance(k, str) and isinstance(v, str) for k, v in env.items())
+        or not all(_is_non_blank_str(k) and isinstance(v, str) for k, v in env.items())
     ):
         raise PlanError(f"task '{raw['id']}' env must be dict[str, str]")
 
@@ -122,12 +122,12 @@ def load_plan(path: Path) -> PlanSpec:
         raise PlanError("plan.tasks must be a list")
 
     goal = raw.get("goal")
-    if goal is not None and not isinstance(goal, str):
-        raise PlanError("plan.goal must be string when provided")
+    if goal is not None and not _is_non_blank_str(goal):
+        raise PlanError("plan.goal must be non-empty string when provided")
 
     artifacts_dir = raw.get("artifacts_dir")
-    if artifacts_dir is not None and not isinstance(artifacts_dir, str):
-        raise PlanError("plan.artifacts_dir must be string when provided")
+    if artifacts_dir is not None and not _is_non_blank_str(artifacts_dir):
+        raise PlanError("plan.artifacts_dir must be non-empty string when provided")
 
     tasks = [_parse_task(task) for task in raw_tasks]
     plan = PlanSpec(

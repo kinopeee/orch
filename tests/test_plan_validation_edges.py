@@ -184,6 +184,19 @@ def test_load_plan_rejects_non_string_goal(tmp_path: Path) -> None:
     with pytest.raises(PlanError):
         load_plan(plan)
 
+    blank = tmp_path / "plan_blank_goal.yaml"
+    _write(
+        blank,
+        """
+        goal: "   "
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('x')"]
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(blank)
+
 
 def test_load_plan_rejects_non_string_artifacts_dir(tmp_path: Path) -> None:
     plan = tmp_path / "plan.yaml"
@@ -198,6 +211,19 @@ def test_load_plan_rejects_non_string_artifacts_dir(tmp_path: Path) -> None:
     )
     with pytest.raises(PlanError):
         load_plan(plan)
+
+    blank = tmp_path / "plan_blank_artifacts.yaml"
+    _write(
+        blank,
+        """
+        artifacts_dir: "   "
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('x')"]
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(blank)
 
 
 def test_load_plan_rejects_empty_string_cmd(tmp_path: Path) -> None:
@@ -255,6 +281,19 @@ def test_load_plan_rejects_non_string_env_entries(tmp_path: Path) -> None:
     )
     with pytest.raises(PlanError):
         load_plan(plan)
+
+    blank_key = tmp_path / "plan_blank_env_key.yaml"
+    _write(
+        blank_key,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('x')"]
+            env: {"   ": "1"}
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(blank_key)
 
 
 def test_load_plan_rejects_non_list_depends_on_and_outputs(tmp_path: Path) -> None:
@@ -324,3 +363,16 @@ def test_load_plan_rejects_empty_string_items_in_depends_on_and_outputs(tmp_path
     )
     with pytest.raises(PlanError):
         load_plan(plan_dep_ws)
+
+    plan_out_ws = tmp_path / "plan_out_ws.yaml"
+    _write(
+        plan_out_ws,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('x')"]
+            outputs: ["   "]
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan_out_ws)
