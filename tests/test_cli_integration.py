@@ -1172,6 +1172,64 @@ def test_cli_status_rejects_canceled_task_without_start_with_runtime_fields(
     assert "Failed to load state" in proc.stdout
 
 
+def test_cli_status_rejects_started_canceled_task_with_zero_attempts(
+    tmp_path: Path,
+) -> None:
+    home = tmp_path / ".orch_cli"
+    run_id = "20260101_000000_abcdef"
+    run_dir = home / "runs" / run_id
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").write_text(
+        json.dumps(
+            {
+                "run_id": run_id,
+                "created_at": "2026-01-01T00:00:00+00:00",
+                "updated_at": "2026-01-01T00:00:01+00:00",
+                "status": "CANCELED",
+                "goal": None,
+                "plan_relpath": "plan.yaml",
+                "home": str(home),
+                "workdir": str(tmp_path),
+                "max_parallel": 1,
+                "fail_fast": False,
+                "tasks": {
+                    "t1": {
+                        "status": "CANCELED",
+                        "depends_on": [],
+                        "cmd": ["python3", "-c", "print('ok')"],
+                        "cwd": None,
+                        "env": None,
+                        "timeout_sec": None,
+                        "retries": 0,
+                        "retry_backoff_sec": [],
+                        "outputs": [],
+                        "attempts": 0,
+                        "started_at": "2026-01-01T00:00:00+00:00",
+                        "ended_at": "2026-01-01T00:00:01+00:00",
+                        "duration_sec": 1.0,
+                        "exit_code": 130,
+                        "timed_out": False,
+                        "canceled": True,
+                        "skip_reason": "run_canceled",
+                        "stdout_path": "logs/t1.out.log",
+                        "stderr_path": "logs/t1.err.log",
+                        "artifact_paths": [],
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "status", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "Failed to load state" in proc.stdout
+
+
 def test_cli_status_rejects_running_state_with_terminal_result_fields(tmp_path: Path) -> None:
     home = tmp_path / ".orch_cli"
     run_id = "20260101_000000_abcdef"
