@@ -25,11 +25,13 @@ def normalize_cmd(cmd: str | list[str]) -> list[str]:
     raise PlanError("cmd must be str or non-empty list[str]")
 
 
-def _ensure_list_str(name: str, value: Any) -> list[str]:
+def _ensure_list_str(name: str, value: Any, *, non_empty_items: bool = False) -> list[str]:
     if value is None:
         return []
     if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
         raise PlanError(f"{name} must be list[str]")
+    if non_empty_items and any(not v for v in value):
+        raise PlanError(f"{name} must not contain empty strings")
     return value
 
 
@@ -58,8 +60,8 @@ def _parse_task(raw: Any) -> TaskSpec:
         raise PlanError(f"task '{raw['id']}' retry_backoff_sec must be list[number>=0]")
     retry_backoff = [float(v) for v in raw_backoff]
 
-    depends_on = _ensure_list_str("depends_on", raw.get("depends_on", []))
-    outputs = _ensure_list_str("outputs", raw.get("outputs", []))
+    depends_on = _ensure_list_str("depends_on", raw.get("depends_on", []), non_empty_items=True)
+    outputs = _ensure_list_str("outputs", raw.get("outputs", []), non_empty_items=True)
 
     cwd = raw.get("cwd")
     if cwd is not None and (not isinstance(cwd, str) or not cwd):
