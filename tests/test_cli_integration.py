@@ -314,6 +314,23 @@ def test_cli_cancel_missing_run_returns_two_without_creating_run_dir(tmp_path: P
     assert not run_dir.exists()
 
 
+def test_cli_cancel_accepts_existing_run_dir_with_plan_copy(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    run_id = "20260101_000000_abcdef"
+    run_dir = home / "runs" / run_id
+    run_dir.mkdir(parents=True)
+    (run_dir / "plan.yaml").write_text("tasks: []\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "cancel", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0
+    assert (run_dir / "cancel.request").exists()
+
+
 def test_cli_status_missing_run_returns_two(tmp_path: Path) -> None:
     home = tmp_path / ".orch_cli"
     proc = subprocess.run(

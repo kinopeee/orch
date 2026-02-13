@@ -51,7 +51,9 @@ def _write_report(state: RunState, current_run_dir: Path) -> Path:
 
 
 def _run_exists(current_run_dir: Path) -> bool:
-    return current_run_dir.is_dir() and (current_run_dir / "state.json").exists()
+    return current_run_dir.is_dir() and (
+        (current_run_dir / "state.json").exists() or (current_run_dir / "plan.yaml").exists()
+    )
 
 
 @app.command()
