@@ -139,3 +139,23 @@ def test_source_does_not_use_direct_exists_is_file_is_dir_predicates() -> None:
                 violations.append(f"{relative_path}:{line_number}: {stripped}")
 
     assert not violations, "direct Path predicate usage found:\n" + "\n".join(violations)
+
+
+def test_source_uses_path_guard_for_is_symlink_checks() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    violations: list[str] = []
+
+    for file_path in src_root.rglob("*.py"):
+        relative_path = file_path.relative_to(src_root)
+        if relative_path == Path("util/path_guard.py"):
+            continue
+        for line_number, line in enumerate(file_path.read_text(encoding="utf-8").splitlines(), 1):
+            stripped = line.strip()
+            if stripped.startswith("#"):
+                continue
+            if ".is_symlink(" in line:
+                violations.append(f"{relative_path}:{line_number}: {stripped}")
+
+    assert not violations, "direct is_symlink usage found outside path_guard:\n" + "\n".join(
+        violations
+    )
