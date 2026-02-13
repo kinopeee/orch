@@ -44,7 +44,7 @@ def run_lock(
         if lock_path_is_symlink:
             raise OSError(f"lock path must not be symlink: {lock_path}")
         try:
-            acquired_fd = os.open(lock_path, open_flags)
+            acquired_fd = os.open(lock_path, open_flags, 0o600)
             stat_result: os.stat_result | None = None
             try:
                 stat_result = os.fstat(acquired_fd)

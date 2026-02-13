@@ -107,6 +107,27 @@ def test_run_lock_uses_create_exclusive_write_open_flags(
     assert captured_flags["flags"] & os.O_WRONLY
 
 
+def test_run_lock_uses_secure_mode_when_creating_lock_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_mode_flags"
+    run_dir.mkdir()
+    lock_path = run_dir / ".lock"
+    captured_mode: dict[str, int] = {}
+    original_open = os.open
+
+    def capture_open(path: str | os.PathLike[str], flags: int, mode: int = 0o777) -> int:
+        if str(path) == str(lock_path):
+            captured_mode["mode"] = mode
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", capture_open)
+    with run_lock(run_dir):
+        pass
+
+    assert captured_mode.get("mode") == 0o600
+
+
 def test_run_lock_can_acquire_after_retry_when_lock_disappears(tmp_path: Path) -> None:
     run_dir = tmp_path / "run"
     run_dir.mkdir()
