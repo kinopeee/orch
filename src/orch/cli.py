@@ -65,7 +65,12 @@ def _resolve_workdir_or_exit(workdir: Path) -> Path:
 
 
 def _validate_home_or_exit(home: Path) -> None:
-    if home.exists() and not home.is_dir():
+    to_check = [home, *home.parents]
+    for candidate in to_check:
+        if not candidate.exists():
+            continue
+        if candidate.is_dir():
+            break
         console.print(f"[red]Invalid home:[/red] {home}")
         raise typer.Exit(2)
 
