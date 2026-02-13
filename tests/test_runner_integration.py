@@ -202,16 +202,20 @@ async def test_runner_collects_artifacts_from_absolute_output_glob(tmp_path: Pat
     external_dir.mkdir(parents=True)
     ensure_run_layout(run_dir)
 
-    absolute_file = external_dir / "result.txt"
+    absolute_file_a = external_dir / "a" / "result.txt"
+    absolute_file_b = external_dir / "b" / "result.txt"
     write_cmd = [
         sys.executable,
         "-c",
         (
             "from pathlib import Path; "
-            f"Path({str(absolute_file)!r}).write_text('ok', encoding='utf-8')"
+            f"Path({str(absolute_file_a.parent)!r}).mkdir(parents=True, exist_ok=True); "
+            f"Path({str(absolute_file_b.parent)!r}).mkdir(parents=True, exist_ok=True); "
+            f"Path({str(absolute_file_a)!r}).write_text('A', encoding='utf-8'); "
+            f"Path({str(absolute_file_b)!r}).write_text('B', encoding='utf-8')"
         ),
     ]
-    absolute_glob = str(external_dir / "**" / "*.txt")
+    absolute_glob = str(external_dir / "**" / "result.txt")
     plan = PlanSpec(
         goal="absolute output glob test",
         artifacts_dir=None,
@@ -235,10 +239,17 @@ async def test_runner_collects_artifacts_from_absolute_output_glob(tmp_path: Pat
     )
     assert state.status == "SUCCESS"
     assert state.tasks["collect_abs"].status == "SUCCESS"
-    assert state.tasks["collect_abs"].artifact_paths == ["artifacts/collect_abs/result.txt"]
-    assert (run_dir / "artifacts" / "collect_abs" / "result.txt").read_text(
-        encoding="utf-8"
-    ) == "ok"
+    rel_a = Path("__abs__", *absolute_file_a.parts[1:])
+    rel_b = Path("__abs__", *absolute_file_b.parts[1:])
+    expected = {
+        str(Path("artifacts") / "collect_abs" / rel_a),
+        str(Path("artifacts") / "collect_abs" / rel_b),
+    }
+    assert set(state.tasks["collect_abs"].artifact_paths) == expected
+    copied_a = run_dir / "artifacts" / "collect_abs" / rel_a
+    copied_b = run_dir / "artifacts" / "collect_abs" / rel_b
+    assert copied_a.read_text(encoding="utf-8") == "A"
+    assert copied_b.read_text(encoding="utf-8") == "B"
 
 
 @pytest.mark.asyncio

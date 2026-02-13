@@ -55,6 +55,19 @@ def _resolve_task_cwd(task_cwd: str | None, default_cwd: Path) -> Path:
     return default_cwd / cwd
 
 
+def _artifact_relative_path(match: Path, cwd: Path) -> Path:
+    try:
+        return match.relative_to(cwd)
+    except ValueError:
+        if match.is_absolute():
+            anchor = match.anchor
+            parts = [part.replace(":", "_") for part in match.parts if part and part != anchor]
+            if not parts:
+                return Path("__abs__", "root")
+            return Path("__abs__", *parts)
+        return Path("__external__", *match.parts)
+
+
 def _copy_artifacts(task: TaskSpec, run_dir: Path, cwd: Path) -> list[str]:
     copied: list[str] = []
     if not task.outputs:
@@ -69,10 +82,7 @@ def _copy_artifacts(task: TaskSpec, run_dir: Path, cwd: Path) -> list[str]:
         for match in matches:
             if not match.exists() or match.is_dir():
                 continue
-            try:
-                rel = match.relative_to(cwd)
-            except ValueError:
-                rel = Path(match.name)
+            rel = _artifact_relative_path(match, cwd)
             dest = task_root / rel
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(match, dest)
