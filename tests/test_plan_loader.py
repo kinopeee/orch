@@ -101,6 +101,25 @@ tasks:
         load_plan(symlink_plan)
 
 
+def test_load_plan_rejects_path_with_symlink_ancestor(tmp_path: Path) -> None:
+    real_parent = tmp_path / "real_parent"
+    real_parent.mkdir()
+    plan_path = real_parent / "plan.yaml"
+    plan_path.write_text(
+        """
+tasks:
+  - id: a
+    cmd: ["echo", "x"]
+""".strip(),
+        encoding="utf-8",
+    )
+    symlink_parent = tmp_path / "link_parent"
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+
+    with pytest.raises(PlanError, match="contains symlink component"):
+        load_plan(symlink_parent / "plan.yaml")
+
+
 def test_load_plan_rejects_non_regular_file_path(tmp_path: Path) -> None:
     if not hasattr(os, "mkfifo"):
         pytest.skip("mkfifo is not supported on this platform")

@@ -397,6 +397,18 @@ def test_load_state_rejects_symlink_state_file(tmp_path: Path) -> None:
         load_state(run_dir)
 
 
+def test_load_state_rejects_state_path_with_symlink_ancestor(tmp_path: Path) -> None:
+    real_run_dir = tmp_path / "real_run"
+    real_run_dir.mkdir()
+    symlink_run_dir = tmp_path / "run_link"
+    symlink_run_dir.symlink_to(real_run_dir, target_is_directory=True)
+    payload = _minimal_state_payload(run_id=symlink_run_dir.name)
+    (real_run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="contains symlink component"):
+        load_state(symlink_run_dir)
+
+
 def test_load_state_rejects_unsafe_task_log_path(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad_log_path"
     run_dir.mkdir()

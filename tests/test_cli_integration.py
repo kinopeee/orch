@@ -3685,6 +3685,67 @@ def test_cli_status_rejects_symlink_state_file(tmp_path: Path) -> None:
     assert "Failed to load state" in proc.stdout
 
 
+def test_cli_status_rejects_state_path_with_symlink_ancestor(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    run_id = "20260101_000000_abcdef"
+    runs_dir = home / "runs"
+    runs_dir.mkdir(parents=True)
+    real_run_dir = tmp_path / "real_run"
+    real_run_dir.mkdir()
+    symlink_run_dir = runs_dir / run_id
+    symlink_run_dir.symlink_to(real_run_dir, target_is_directory=True)
+    (real_run_dir / "state.json").write_text(
+        json.dumps(
+            {
+                "run_id": run_id,
+                "created_at": "2026-01-01T00:00:00+00:00",
+                "updated_at": "2026-01-01T00:00:00+00:00",
+                "status": "RUNNING",
+                "goal": None,
+                "plan_relpath": "plan.yaml",
+                "home": str(home),
+                "workdir": str(tmp_path),
+                "max_parallel": 1,
+                "fail_fast": False,
+                "tasks": {
+                    "t1": {
+                        "status": "PENDING",
+                        "depends_on": [],
+                        "cmd": ["python3", "-c", "print('ok')"],
+                        "cwd": None,
+                        "env": None,
+                        "timeout_sec": None,
+                        "retries": 0,
+                        "retry_backoff_sec": [],
+                        "outputs": [],
+                        "attempts": 0,
+                        "started_at": None,
+                        "ended_at": None,
+                        "duration_sec": None,
+                        "exit_code": None,
+                        "timed_out": False,
+                        "canceled": False,
+                        "skip_reason": None,
+                        "stdout_path": "logs/t1.out.log",
+                        "stderr_path": "logs/t1.err.log",
+                        "artifact_paths": [],
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "status", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "Failed to load state" in proc.stdout
+
+
 def test_cli_status_rejects_non_regular_state_file(tmp_path: Path) -> None:
     if not hasattr(os, "mkfifo"):
         return
@@ -5374,6 +5435,32 @@ def test_cli_dry_run_rejects_symlink_plan_path(tmp_path: Path) -> None:
 
     proc = subprocess.run(
         [sys.executable, "-m", "orch.cli", "run", str(symlink_plan), "--dry-run"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Plan validation error" in output
+
+
+def test_cli_dry_run_rejects_plan_path_with_symlink_ancestor(tmp_path: Path) -> None:
+    real_parent = tmp_path / "real_parent"
+    real_parent.mkdir()
+    real_plan = real_parent / "plan.yaml"
+    _write_plan(
+        real_plan,
+        """
+        tasks:
+          - id: a
+            cmd: ["python3", "-c", "print('a')"]
+        """,
+    )
+    symlink_parent = tmp_path / "plan_parent_link"
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "run", str(symlink_parent / "plan.yaml"), "--dry-run"],
         capture_output=True,
         text=True,
         check=False,

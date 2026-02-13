@@ -53,6 +53,23 @@ _ALLOWED_TASK_KEYS = {
 }
 
 
+def _has_symlink_ancestor(path: Path) -> bool:
+    current = path.parent
+    while True:
+        try:
+            meta = current.lstat()
+        except FileNotFoundError:
+            pass
+        except OSError:
+            return False
+        else:
+            if stat.S_ISLNK(meta.st_mode):
+                return True
+        if current == current.parent:
+            return False
+        current = current.parent
+
+
 def _fsync_directory(path: Path) -> None:
     try:
         fd = os.open(str(path), os.O_RDONLY)
@@ -570,6 +587,8 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
 
 def load_state(run_dir: Path) -> RunState:
     state_path = run_dir / "state.json"
+    if _has_symlink_ancestor(state_path):
+        raise StateError(f"state file path contains symlink component: {state_path}")
     try:
         meta = state_path.lstat()
     except FileNotFoundError:

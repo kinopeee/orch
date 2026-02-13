@@ -33,6 +33,23 @@ _ALLOWED_TASK_KEYS = {
 }
 
 
+def _has_symlink_ancestor(path: Path) -> bool:
+    current = path.parent
+    while True:
+        try:
+            meta = current.lstat()
+        except FileNotFoundError:
+            pass
+        except OSError:
+            return False
+        else:
+            if stat.S_ISLNK(meta.st_mode):
+                return True
+        if current == current.parent:
+            return False
+        current = current.parent
+
+
 def _is_real_number(value: object) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
@@ -178,6 +195,8 @@ def validate_plan(plan: PlanSpec) -> None:
 
 
 def load_plan(path: Path) -> PlanSpec:
+    if _has_symlink_ancestor(path):
+        raise PlanError(f"plan file path contains symlink component: {path}")
     try:
         meta = path.lstat()
     except FileNotFoundError:
