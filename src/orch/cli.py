@@ -108,9 +108,11 @@ def _write_plan_snapshot(plan: PlanSpec, destination: Path) -> None:
         if exc.errno == errno.ENXIO:
             raise OSError(f"plan snapshot path must be regular file: {destination}") from exc
         raise
+    except RuntimeError as exc:
+        raise OSError(f"failed to write plan snapshot: {destination}") from exc
     finally:
         if fd is not None:
-            with suppress(OSError):
+            with suppress(OSError, RuntimeError):
                 os.close(fd)
 
 
@@ -150,9 +152,11 @@ def _write_report(state: RunState, current_run_dir: Path) -> Path:
         if exc.errno == errno.ENXIO:
             raise OSError(f"report path must be regular file: {report_path}") from exc
         raise
+    except RuntimeError as exc:
+        raise OSError(f"failed to write report: {report_path}") from exc
     finally:
         if fd is not None:
-            with suppress(OSError):
+            with suppress(OSError, RuntimeError):
                 os.close(fd)
     return report_path
 

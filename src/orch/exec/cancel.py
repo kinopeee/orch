@@ -53,9 +53,13 @@ def write_cancel_request(run_dir: Path) -> None:
         if exc.errno == errno.ENXIO:
             raise OSError("cancel request path must be regular file") from exc
         raise
+    except RuntimeError as exc:
+        if is_symlink_path(path):
+            raise OSError("cancel request path must not be symlink") from exc
+        raise OSError("failed to write cancel request") from exc
     finally:
         if fd is not None:
-            with suppress(OSError):
+            with suppress(OSError, RuntimeError):
                 os.close(fd)
 
 
@@ -71,5 +75,5 @@ def clear_cancel_request(run_dir: Path) -> None:
         return
     if stat.S_ISDIR(meta.st_mode):
         return
-    with suppress(OSError):
+    with suppress(OSError, RuntimeError):
         path.unlink(missing_ok=True)

@@ -126,6 +126,25 @@ def test_write_plan_snapshot_wraps_runtime_lstat_error(
         _write_plan_snapshot(plan, snapshot_path)
 
 
+def test_write_plan_snapshot_wraps_runtime_open_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plan = PlanSpec(
+        goal=None,
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="only", cmd=["python3", "-c", "print('ok')"])],
+    )
+    snapshot_path = tmp_path / "plan_runtime_close.yaml"
+
+    def _raise_runtime(_path: str, _flags: int, _mode: int = 0o777) -> int:
+        raise RuntimeError("simulated open runtime failure")
+
+    monkeypatch.setattr(os, "open", _raise_runtime)
+
+    with pytest.raises(OSError, match="failed to write plan snapshot"):
+        _write_plan_snapshot(plan, snapshot_path)
+
+
 def test_write_report_rejects_symlink_ancestor_path(tmp_path: Path) -> None:
     real_parent = tmp_path / "real_parent"
     real_run_dir = real_parent / "run"
@@ -188,6 +207,34 @@ def test_write_report_wraps_runtime_lstat_error(
     monkeypatch.setattr(Path, "lstat", flaky_lstat)
 
     with pytest.raises(OSError, match="failed to prepare report path"):
+        _write_report(state, run_dir)
+
+
+def test_write_report_wraps_runtime_open_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    (run_dir / "report").mkdir(parents=True)
+    state = RunState(
+        run_id="run",
+        created_at="2026-01-01T00:00:00+00:00",
+        updated_at="2026-01-01T00:00:01+00:00",
+        status="SUCCESS",
+        goal=None,
+        plan_relpath="plan.yaml",
+        home=str(tmp_path),
+        workdir=str(tmp_path),
+        max_parallel=1,
+        fail_fast=False,
+        tasks={},
+    )
+
+    def _raise_runtime(_path: str, _flags: int, _mode: int = 0o777) -> int:
+        raise RuntimeError("simulated open runtime failure")
+
+    monkeypatch.setattr(os, "open", _raise_runtime)
+
+    with pytest.raises(OSError, match="failed to write report"):
         _write_report(state, run_dir)
 
 

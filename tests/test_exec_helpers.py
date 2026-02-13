@@ -267,6 +267,26 @@ def test_clear_cancel_request_removes_non_regular_path(tmp_path: Path) -> None:
     assert not cancel_path.exists()
 
 
+def test_clear_cancel_request_ignores_unlink_runtime_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_cancel_unlink_runtime_error"
+    run_dir.mkdir()
+    cancel_path = run_dir / "cancel.request"
+    cancel_path.write_text("cancel requested\n", encoding="utf-8")
+    original_unlink = Path.unlink
+
+    def flaky_unlink(path_obj: Path, *args: object, **kwargs: object) -> None:
+        if path_obj == cancel_path:
+            raise RuntimeError("simulated unlink runtime failure")
+        original_unlink(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", flaky_unlink)
+
+    clear_cancel_request(run_dir)
+    assert cancel_path.exists()
+
+
 def test_cancel_requested_ignores_symlink_and_clear_removes_it(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_dir_cancel_symlink"
     run_dir.mkdir()
@@ -411,6 +431,21 @@ def test_write_cancel_request_rejects_non_regular_opened_target(
     with pytest.raises(OSError, match="must be regular file"):
         write_cancel_request(run_dir)
     assert not cancel_path.exists()
+
+
+def test_write_cancel_request_normalizes_runtime_open_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_cancel_close_runtime_error"
+    run_dir.mkdir()
+
+    def _raise_runtime(_path: os.PathLike[str] | str, _flags: int, _mode: int = 0o777) -> int:
+        raise RuntimeError("simulated open runtime failure")
+
+    monkeypatch.setattr(os, "open", _raise_runtime)
+
+    with pytest.raises(OSError, match="failed to write cancel request"):
+        write_cancel_request(run_dir)
 
 
 def test_write_cancel_request_uses_nonblock_open_flag(
