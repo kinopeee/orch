@@ -4,6 +4,15 @@ import stat
 from pathlib import Path
 
 
+def is_symlink_path(path: Path, *, fail_closed: bool = True) -> bool:
+    try:
+        return path.is_symlink()
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return fail_closed
+
+
 def has_symlink_ancestor(path: Path) -> bool:
     current = path.parent
     while True:

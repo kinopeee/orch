@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+import pytest
+
 from orch.exec.retry import backoff_for_attempt
 from orch.util.tail import tail_lines
 
@@ -67,3 +69,20 @@ def test_tail_lines_returns_empty_for_non_regular_file(tmp_path: Path) -> None:
     fifo = tmp_path / "log.pipe"
     os.mkfifo(fifo)
     assert tail_lines(fifo, 10) == []
+
+
+def test_tail_lines_returns_empty_when_symlink_check_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = tmp_path / "log.txt"
+    target.write_text("a\nb\n", encoding="utf-8")
+    original_is_symlink = Path.is_symlink
+
+    def flaky_is_symlink(path_obj: Path) -> bool:
+        if path_obj == target:
+            raise PermissionError("simulated lstat failure")
+        return original_is_symlink(path_obj)
+
+    monkeypatch.setattr(Path, "is_symlink", flaky_is_symlink)
+
+    assert tail_lines(target, 10) == []
