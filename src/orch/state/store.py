@@ -205,10 +205,20 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
             not isinstance(exit_code, int) or isinstance(exit_code, bool)
         ):
             raise StateError("invalid state field: tasks")
+        bool_values: dict[str, bool | None] = {}
         for bool_field in ("timed_out", "canceled"):
             bval = task_data.get(bool_field)
             if bval is not None and not isinstance(bval, bool):
                 raise StateError("invalid state field: tasks")
+            bool_values[bool_field] = bval if isinstance(bval, bool) else None
+        if isinstance(exit_code, int) and task_status == "SUCCESS" and exit_code != 0:
+            raise StateError("invalid state field: tasks")
+        if bool_values["timed_out"] is True and task_status != "FAILED":
+            raise StateError("invalid state field: tasks")
+        if bool_values["canceled"] is True and task_status != "CANCELED":
+            raise StateError("invalid state field: tasks")
+        if task_status == "CANCELED" and bool_values["canceled"] is not True:
+            raise StateError("invalid state field: tasks")
         for key in ("stdout_path", "stderr_path"):
             rel = task_data.get(key)
             if rel is None:
