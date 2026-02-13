@@ -45,6 +45,15 @@ def _append_attempt_header(log_path: Path, attempt: int, max_attempts: int) -> N
         f.write(f"\n===== attempt {attempt} / {max_attempts} =====\n")
 
 
+def _resolve_task_cwd(task_cwd: str | None, default_cwd: Path) -> Path:
+    if task_cwd is None:
+        return default_cwd
+    cwd = Path(task_cwd)
+    if cwd.is_absolute():
+        return cwd
+    return default_cwd / cwd
+
+
 def _copy_artifacts(task: TaskSpec, run_dir: Path, cwd: Path) -> list[str]:
     copied: list[str] = []
     if not task.outputs:
@@ -190,7 +199,7 @@ async def run_task(
     merged_env = os.environ.copy()
     if task.env:
         merged_env.update(task.env)
-    cwd = Path(task.cwd) if task.cwd else default_cwd
+    cwd = _resolve_task_cwd(task.cwd, default_cwd)
     proc = await asyncio.create_subprocess_exec(
         *task.cmd,
         cwd=str(cwd),
@@ -396,7 +405,7 @@ async def run_plan(
                 cancel_mode = True
             elif result.exit_code == 0 and not result.timed_out:
                 task_state.status = "SUCCESS"
-                cwd = Path(task.cwd) if task.cwd else workdir
+                cwd = _resolve_task_cwd(task.cwd, workdir)
                 task_state.artifact_paths = _copy_artifacts(task, run_dir, cwd)
             else:
                 task_state.status = "FAILED"

@@ -109,3 +109,43 @@ async def test_runner_copies_declared_output_artifacts(tmp_path: Path) -> None:
     assert (run_dir / "artifacts" / "publish" / "out" / "sub" / "a.txt").read_text(
         encoding="utf-8"
     ) == "A"
+
+
+@pytest.mark.asyncio
+async def test_runner_resolves_relative_task_cwd_against_workdir(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_cwd_relative"
+    workdir = tmp_path / "wd"
+    (workdir / "subdir").mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    write_cmd = [
+        sys.executable,
+        "-c",
+        "from pathlib import Path; Path('marker.txt').write_text('ok', encoding='utf-8')",
+    ]
+    plan = PlanSpec(
+        goal="relative cwd test",
+        artifacts_dir=None,
+        tasks=[
+            TaskSpec(
+                id="write",
+                cmd=write_cmd,
+                cwd="subdir",
+                outputs=["marker.txt"],
+            )
+        ],
+    )
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "SUCCESS"
+    assert state.tasks["write"].status == "SUCCESS"
+    assert (workdir / "subdir" / "marker.txt").read_text(encoding="utf-8") == "ok"
+    assert state.tasks["write"].artifact_paths == ["artifacts/write/marker.txt"]
