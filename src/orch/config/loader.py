@@ -7,6 +7,8 @@ from typing import Any
 import yaml
 
 from orch.config.schema import PlanSpec, TaskSpec
+from orch.dag.build import build_adjacency
+from orch.dag.validate import assert_acyclic
 from orch.util.errors import PlanError
 
 
@@ -104,6 +106,9 @@ def validate_plan(plan: PlanSpec) -> None:
         unknown = [dep for dep in task.depends_on if dep not in known]
         if unknown:
             raise PlanError(f"task '{task.id}' has unknown dependencies: {unknown}")
+
+    dependents, in_degree = build_adjacency(plan)
+    assert_acyclic(ids, dependents, in_degree)
 
 
 def load_plan(path: Path) -> PlanSpec:

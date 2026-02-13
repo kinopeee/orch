@@ -324,6 +324,24 @@ def test_load_plan_rejects_non_list_depends_on_and_outputs(tmp_path: Path) -> No
         load_plan(plan_out)
 
 
+def test_load_plan_rejects_dependency_cycle(tmp_path: Path) -> None:
+    plan = tmp_path / "plan_cycle.yaml"
+    _write(
+        plan,
+        """
+        tasks:
+          - id: a
+            cmd: ["python3", "-c", "print('a')"]
+            depends_on: ["b"]
+          - id: b
+            cmd: ["python3", "-c", "print('b')"]
+            depends_on: ["a"]
+        """,
+    )
+    with pytest.raises(PlanError, match="cycle"):
+        load_plan(plan)
+
+
 def test_load_plan_rejects_empty_string_items_in_depends_on_and_outputs(tmp_path: Path) -> None:
     plan_dep = tmp_path / "plan_dep.yaml"
     _write(
