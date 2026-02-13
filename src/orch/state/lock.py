@@ -17,9 +17,10 @@ def run_lock(
     fd: int | None = None
 
     def _is_stale() -> bool:
-        if not lock_path.exists():
+        try:
+            age = time.time() - lock_path.stat().st_mtime
+        except OSError:
             return False
-        age = time.time() - lock_path.stat().st_mtime
         return age > stale_sec
 
     attempt = 0
