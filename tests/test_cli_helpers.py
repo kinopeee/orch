@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import os
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
 import typer
 
+import orch.cli as cli_module
 from orch.cli import (
     _resolve_workdir_or_exit,
     _validate_home_or_exit,
@@ -358,4 +360,157 @@ def test_resolve_workdir_or_exit_rejects_when_is_dir_errors(
 
     with pytest.raises(typer.Exit) as exc_info:
         _resolve_workdir_or_exit(workdir)
+    assert exc_info.value.exit_code == 2
+
+
+def test_cli_run_normalizes_runtime_initialize_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    plan_path.write_text(
+        """
+tasks:
+  - id: t1
+    cmd: ["python3", "-c", "print('ok')"]
+""".strip(),
+        encoding="utf-8",
+    )
+    home = tmp_path / ".orch"
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+
+    def boom_initialize(_run_dir: Path) -> None:
+        raise RuntimeError("simulated initialize runtime failure")
+
+    monkeypatch.setattr(cli_module, "ensure_run_layout", boom_initialize)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.run(
+            plan_path,
+            max_parallel=1,
+            home=home,
+            workdir=workdir,
+            fail_fast=False,
+            dry_run=False,
+        )
+    assert exc_info.value.exit_code == 2
+
+
+def test_cli_run_normalizes_runtime_execution_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    plan_path.write_text(
+        """
+tasks:
+  - id: t1
+    cmd: ["python3", "-c", "print('ok')"]
+""".strip(),
+        encoding="utf-8",
+    )
+    home = tmp_path / ".orch"
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+
+    async def boom_run_plan(*args: object, **kwargs: object) -> object:
+        raise RuntimeError("simulated run execution runtime failure")
+
+    monkeypatch.setattr(cli_module, "run_plan", boom_run_plan)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.run(
+            plan_path,
+            max_parallel=1,
+            home=home,
+            workdir=workdir,
+            fail_fast=False,
+            dry_run=False,
+        )
+    assert exc_info.value.exit_code == 2
+
+
+def test_cli_resume_normalizes_runtime_lock_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+
+    @contextmanager
+    def boom_lock(*args: object, **kwargs: object) -> object:
+        raise RuntimeError("simulated lock runtime failure")
+        yield
+
+    monkeypatch.setattr(cli_module, "run_lock", boom_lock)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.resume(
+            "run1",
+            home=home,
+            max_parallel=1,
+            workdir=workdir,
+            fail_fast=False,
+            failed_only=False,
+        )
+    assert exc_info.value.exit_code == 2
+
+
+def test_cli_status_normalizes_runtime_load_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        yield
+
+    def boom_load_state(_run_dir: Path) -> object:
+        raise RuntimeError("simulated state runtime failure")
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_state", boom_load_state)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.status("run1", home=home, as_json=False)
+    assert exc_info.value.exit_code == 2
+
+
+def test_cli_logs_normalizes_runtime_load_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        yield
+
+    def boom_load_state(_run_dir: Path) -> object:
+        raise RuntimeError("simulated state runtime failure")
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_state", boom_load_state)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.logs("run1", home=home, task=None, tail=10)
+    assert exc_info.value.exit_code == 2
+
+
+def test_cli_cancel_normalizes_runtime_write_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / ".orch"
+    run_dir = home / "runs" / "run1"
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").write_text("{}", encoding="utf-8")
+
+    def boom_write_cancel(_run_dir: Path) -> None:
+        raise RuntimeError("simulated cancel runtime failure")
+
+    monkeypatch.setattr(cli_module, "write_cancel_request", boom_write_cancel)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.cancel("run1", home=home)
     assert exc_info.value.exit_code == 2
