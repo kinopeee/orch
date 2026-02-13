@@ -75,7 +75,12 @@ def clear_cancel_request(run_dir: Path) -> None:
     if _has_symlink_ancestor(path):
         return
     try:
-        if path.is_symlink() or path.is_file():
-            path.unlink(missing_ok=True)
+        meta = path.lstat()
+    except FileNotFoundError:
+        return
     except OSError:
         return
+    if stat.S_ISDIR(meta.st_mode):
+        return
+    with suppress(OSError):
+        path.unlink(missing_ok=True)

@@ -180,6 +180,20 @@ def test_cancel_requested_ignores_directory_and_clear_is_safe(tmp_path: Path) ->
     assert cancel_path.is_dir()
 
 
+def test_clear_cancel_request_removes_non_regular_path(tmp_path: Path) -> None:
+    if not hasattr(os, "mkfifo"):
+        return
+
+    run_dir = tmp_path / "run_dir_cancel_fifo"
+    run_dir.mkdir()
+    cancel_path = run_dir / "cancel.request"
+    os.mkfifo(cancel_path)
+    assert cancel_requested(run_dir) is False
+
+    clear_cancel_request(run_dir)
+    assert not cancel_path.exists()
+
+
 def test_cancel_requested_ignores_symlink_and_clear_removes_it(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_dir_cancel_symlink"
     run_dir.mkdir()
