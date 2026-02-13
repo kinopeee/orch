@@ -616,6 +616,41 @@ def test_run_lock_rejects_symlink_run_directory_without_open_side_effect(
     assert not (real_run_dir / ".lock").exists()
 
 
+def test_run_lock_rejects_symlink_run_directory_without_run_dir_lstat(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_run_dir = tmp_path / "real_run"
+    real_run_dir.mkdir()
+    run_dir = tmp_path / "run_link"
+    run_dir.symlink_to(real_run_dir, target_is_directory=True)
+    original_lstat = Path.lstat
+    original_is_symlink = Path.is_symlink
+    run_dir_lstat_calls = 0
+    run_dir_symlink_checks = 0
+
+    def capture_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal run_dir_lstat_calls
+        if path_obj == run_dir:
+            run_dir_lstat_calls += 1
+        return original_lstat(path_obj, *args, **kwargs)
+
+    def fake_is_symlink(path_obj: Path) -> bool:
+        nonlocal run_dir_symlink_checks
+        if path_obj == run_dir:
+            run_dir_symlink_checks += 1
+            return True
+        return original_is_symlink(path_obj)
+
+    monkeypatch.setattr(Path, "is_symlink", fake_is_symlink)
+    monkeypatch.setattr(Path, "lstat", capture_lstat)
+
+    with pytest.raises(OSError, match="run directory must not be symlink"), run_lock(run_dir):
+        pass
+    assert run_dir_symlink_checks >= 1
+    assert run_dir_lstat_calls == 0
+    assert not (real_run_dir / ".lock").exists()
+
+
 def test_run_lock_rejects_path_with_symlink_ancestor(tmp_path: Path) -> None:
     real_parent = tmp_path / "real_parent"
     real_parent.mkdir()
@@ -653,6 +688,33 @@ def test_run_lock_rejects_path_with_symlink_ancestor_without_open_side_effect(
     with pytest.raises(OSError, match="path contains symlink component"), run_lock(run_dir):
         pass
     assert open_called is False
+    assert not (real_run_dir / ".lock").exists()
+
+
+def test_run_lock_rejects_symlink_ancestor_without_run_dir_symlink_check(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_parent = tmp_path / "real_parent"
+    real_parent.mkdir()
+    real_run_dir = real_parent / "run"
+    real_run_dir.mkdir()
+    link_parent = tmp_path / "link_parent"
+    link_parent.symlink_to(real_parent, target_is_directory=True)
+    run_dir = link_parent / "run"
+    original_is_symlink = Path.is_symlink
+    run_dir_symlink_checks = 0
+
+    def capture_is_symlink(path_obj: Path) -> bool:
+        nonlocal run_dir_symlink_checks
+        if path_obj == run_dir:
+            run_dir_symlink_checks += 1
+        return original_is_symlink(path_obj)
+
+    monkeypatch.setattr(Path, "is_symlink", capture_is_symlink)
+
+    with pytest.raises(OSError, match="path contains symlink component"), run_lock(run_dir):
+        pass
+    assert run_dir_symlink_checks == 0
     assert not (real_run_dir / ".lock").exists()
 
 
