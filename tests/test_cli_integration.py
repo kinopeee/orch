@@ -712,6 +712,64 @@ def test_cli_resume_uses_copied_plan_not_modified_source(tmp_path: Path) -> None
     assert state["tasks"]["flaky"]["attempts"] == 2
 
 
+def test_cli_resume_continues_when_report_write_fails(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_resume_report_fail.yaml"
+    home = tmp_path / ".orch_cli"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    first = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--workdir",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert first.returncode == 0
+    run_id = _extract_run_id(first.stdout)
+    report_path = home / "runs" / run_id / "report" / "final_report.md"
+    report_path.unlink()
+    report_path.mkdir()
+
+    resumed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "resume",
+            run_id,
+            "--home",
+            str(home),
+            "--workdir",
+            str(tmp_path),
+            "--failed-only",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = resumed.stdout + resumed.stderr
+    assert resumed.returncode == 0
+    assert "failed to write report" in output
+    state = json.loads((home / "runs" / run_id / "state.json").read_text(encoding="utf-8"))
+    assert state["status"] == "SUCCESS"
+
+
 def test_cli_logs_missing_run_returns_two(tmp_path: Path) -> None:
     home = tmp_path / ".orch_cli"
     proc = subprocess.run(
