@@ -53,38 +53,9 @@ def run_lock(
         lock_path_is_symlink = is_symlink_path(lock_path)
         if lock_path_is_symlink:
             raise OSError(f"lock path must not be symlink: {lock_path}")
+        acquired_fd: int
         try:
             acquired_fd = os.open(lock_path, open_flags, 0o600)
-            stat_result: os.stat_result | None = None
-            try:
-                stat_result = os.fstat(acquired_fd)
-                os.write(acquired_fd, str(os.getpid()).encode("utf-8"))
-            except (OSError, RuntimeError) as exc:
-                with suppress(OSError, RuntimeError):
-                    os.close(acquired_fd)
-                if stat_result is not None:
-                    try:
-                        current_lock = lock_path.lstat()
-                    except (OSError, RuntimeError):
-                        current_lock = None
-                    if (
-                        current_lock is not None
-                        and stat.S_ISREG(current_lock.st_mode)
-                        and current_lock.st_ino == stat_result.st_ino
-                        and current_lock.st_dev == stat_result.st_dev
-                    ):
-                        with suppress(OSError, RuntimeError):
-                            lock_path.unlink(missing_ok=True)
-                if isinstance(exc, RuntimeError):
-                    if stat_result is None:
-                        raise OSError(f"failed to open lock path: {lock_path}") from exc
-                    raise OSError(str(exc)) from exc
-                raise
-            assert stat_result is not None
-            fd = acquired_fd
-            lock_inode = stat_result.st_ino
-            lock_dev = stat_result.st_dev
-            break
         except FileExistsError as err:
             if _is_stale():
                 try:
@@ -101,6 +72,7 @@ def run_lock(
                 raise RunConflictError(f"run is locked by another process: {lock_path}") from err
             attempt += 1
             time.sleep(retry_interval)
+            continue
         except OSError as err:
             if err.errno == errno.ELOOP:
                 raise OSError(f"lock path must not be symlink: {lock_path}") from err
@@ -108,9 +80,39 @@ def run_lock(
                 raise OSError(f"run directory not found: {run_dir}") from err
             if isinstance(err, NotADirectoryError) or err.errno == errno.ENOTDIR:
                 raise OSError(f"run directory must be directory: {run_dir}") from err
-            raise
+            raise OSError(f"failed to open lock path: {lock_path}") from err
         except RuntimeError as err:
             raise OSError(f"failed to open lock path: {lock_path}") from err
+        stat_result: os.stat_result | None = None
+        try:
+            stat_result = os.fstat(acquired_fd)
+            os.write(acquired_fd, str(os.getpid()).encode("utf-8"))
+        except (OSError, RuntimeError) as exc:
+            with suppress(OSError, RuntimeError):
+                os.close(acquired_fd)
+            if stat_result is not None:
+                try:
+                    current_lock = lock_path.lstat()
+                except (OSError, RuntimeError):
+                    current_lock = None
+                if (
+                    current_lock is not None
+                    and stat.S_ISREG(current_lock.st_mode)
+                    and current_lock.st_ino == stat_result.st_ino
+                    and current_lock.st_dev == stat_result.st_dev
+                ):
+                    with suppress(OSError, RuntimeError):
+                        lock_path.unlink(missing_ok=True)
+            if isinstance(exc, RuntimeError):
+                if stat_result is None:
+                    raise OSError(f"failed to open lock path: {lock_path}") from exc
+                raise OSError(str(exc)) from exc
+            raise
+        assert stat_result is not None
+        fd = acquired_fd
+        lock_inode = stat_result.st_ino
+        lock_dev = stat_result.st_dev
+        break
 
     try:
         yield

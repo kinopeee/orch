@@ -450,6 +450,24 @@ def test_run_lock_normalizes_open_enotdir_as_non_directory_run_path(
         pass
 
 
+def test_run_lock_normalizes_open_permission_error_as_open_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    original_open = os.open
+
+    def flaky_open(path: str | os.PathLike[str], flags: int, mode: int = 0o777) -> int:
+        if str(path) == str(run_dir / ".lock"):
+            raise PermissionError("simulated open denied")
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", flaky_open)
+
+    with pytest.raises(OSError, match="failed to open lock path"), run_lock(run_dir):
+        pass
+
+
 def test_run_lock_closes_fd_when_fstat_oserror_raised(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
