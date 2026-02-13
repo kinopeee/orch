@@ -167,6 +167,7 @@ def _collect_unguarded_calls(
     *,
     receiver_name: str | None = None,
     allow_suppress_guard: bool = False,
+    required_exceptions: tuple[str, ...] = ("OSError", "RuntimeError"),
 ) -> list[str]:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     violations: list[str] = []
@@ -190,13 +191,11 @@ def _collect_unguarded_calls(
             return False
 
         def visit_Try(self, node: ast.Try) -> None:
-            handles_oserror = any(
-                self._covers("OSError", handler.type) for handler in node.handlers
+            handles_required = all(
+                any(self._covers(exc_name, handler.type) for handler in node.handlers)
+                for exc_name in required_exceptions
             )
-            handles_runtime = any(
-                self._covers("RuntimeError", handler.type) for handler in node.handlers
-            )
-            self.guard_stack.append(handles_oserror and handles_runtime)
+            self.guard_stack.append(handles_required)
             for stmt in node.body:
                 self.visit(stmt)
             self.guard_stack.pop()
@@ -314,6 +313,18 @@ def test_source_wraps_os_fdopen_calls_with_oserror_and_runtimeerror_handlers() -
     violations = _collect_unguarded_calls("fdopen", receiver_name="os")
 
     assert not violations, "unguarded os.fdopen calls found:\n" + "\n".join(violations)
+
+
+def test_source_wraps_subprocess_creation_calls_with_expected_handlers() -> None:
+    violations = _collect_unguarded_calls(
+        "create_subprocess_exec",
+        receiver_name="asyncio",
+        required_exceptions=("OSError", "RuntimeError", "ValueError"),
+    )
+
+    assert not violations, "unguarded asyncio.create_subprocess_exec calls found:\n" + "\n".join(
+        violations
+    )
 
 
 def test_source_wraps_os_write_calls_with_oserror_and_runtimeerror_handlers() -> None:
