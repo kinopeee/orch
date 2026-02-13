@@ -183,6 +183,34 @@ def test_load_state_rejects_incomplete_object(tmp_path: Path) -> None:
         load_state(run_dir)
 
 
+def test_load_state_rejects_unknown_root_field(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_unknown_root_field"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["status"] = "SUCCESS"
+    payload["unexpected_root"] = "noise"
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: root"):
+        load_state(run_dir)
+
+
+def test_load_state_rejects_unknown_task_field(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_unknown_task_field"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["status"] = "SUCCESS"
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["unexpected_task_field"] = "noise"
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_invalid_timestamps(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad_ts"
     run_dir.mkdir()

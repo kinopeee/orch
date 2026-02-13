@@ -14,6 +14,41 @@ from orch.util.errors import StateError
 _SAFE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _TASK_ID_MAX_LEN = 128
 _RUN_ID_MAX_LEN = 128
+_ALLOWED_RUN_KEYS = {
+    "run_id",
+    "created_at",
+    "updated_at",
+    "status",
+    "goal",
+    "plan_relpath",
+    "home",
+    "workdir",
+    "max_parallel",
+    "fail_fast",
+    "tasks",
+}
+_ALLOWED_TASK_KEYS = {
+    "status",
+    "depends_on",
+    "cmd",
+    "cwd",
+    "env",
+    "timeout_sec",
+    "retries",
+    "retry_backoff_sec",
+    "outputs",
+    "attempts",
+    "started_at",
+    "ended_at",
+    "duration_sec",
+    "exit_code",
+    "timed_out",
+    "canceled",
+    "skip_reason",
+    "stdout_path",
+    "stderr_path",
+    "artifact_paths",
+}
 
 
 def _fsync_directory(path: Path) -> None:
@@ -70,6 +105,12 @@ def _is_non_blank_str_without_nul(value: object) -> bool:
 
 
 def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
+    if any(not isinstance(key, str) for key in raw):
+        raise StateError("invalid state field: root")
+    unknown_root = set(raw.keys()) - _ALLOWED_RUN_KEYS
+    if unknown_root:
+        raise StateError("invalid state field: root")
+
     required_str = ("run_id", "status", "plan_relpath", "home", "workdir")
     for key in required_str:
         value = raw.get(key)
@@ -165,6 +206,11 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
             or _SAFE_ID_PATTERN.fullmatch(task_id) is None
             or not isinstance(task_data, dict)
         ):
+            raise StateError("invalid state field: tasks")
+        if any(not isinstance(key, str) for key in task_data):
+            raise StateError("invalid state field: tasks")
+        unknown_task = set(task_data.keys()) - _ALLOWED_TASK_KEYS
+        if unknown_task:
             raise StateError("invalid state field: tasks")
         task_status = task_data.get("status")
         if not isinstance(task_status, str) or task_status not in TASK_STATUS_VALUES:
