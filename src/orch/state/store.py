@@ -110,6 +110,14 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
     home_path = Path(home)
     if not home_path.is_absolute() or ".." in home_path.parts:
         raise StateError("invalid state field: home")
+    try:
+        resolved_home = home_path.resolve()
+    except (OSError, RuntimeError) as exc:
+        raise StateError("invalid state field: home") from exc
+    if run_dir.parent.name == "runs":
+        expected_home = run_dir.parent.parent.resolve()
+        if resolved_home != expected_home:
+            raise StateError("state home does not match directory")
 
     workdir = raw["workdir"]
     if not isinstance(workdir, str) or "\x00" in workdir:

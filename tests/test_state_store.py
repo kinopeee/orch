@@ -150,6 +150,18 @@ def test_load_state_rejects_non_absolute_home_and_workdir(tmp_path: Path) -> Non
         load_state(run_dir)
 
 
+def test_load_state_rejects_home_mismatch_with_run_directory(tmp_path: Path) -> None:
+    run_id = "run_bad_home_mismatch"
+    run_dir = tmp_path / ".orch" / "runs" / run_id
+    run_dir.mkdir(parents=True)
+    payload = _minimal_state_payload(run_id=run_id)
+    payload["home"] = str((tmp_path / "other_home").resolve())
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="state home does not match directory"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_naive_timestamp(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_naive_ts"
     run_dir.mkdir()
