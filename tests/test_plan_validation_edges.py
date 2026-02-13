@@ -83,3 +83,34 @@ def test_load_plan_rejects_invalid_retry_backoff_values(tmp_path: Path) -> None:
     )
     with pytest.raises(PlanError):
         load_plan(plan)
+
+
+def test_load_plan_rejects_bool_for_retries(tmp_path: Path) -> None:
+    plan = tmp_path / "plan.yaml"
+    _write(
+        plan,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('x')"]
+            retries: true
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan)
+
+
+def test_load_plan_rejects_bool_for_timeout_and_backoff(tmp_path: Path) -> None:
+    plan = tmp_path / "plan.yaml"
+    _write(
+        plan,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('x')"]
+            timeout_sec: true
+            retry_backoff_sec: [1, false]
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan)

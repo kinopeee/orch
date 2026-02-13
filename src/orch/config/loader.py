@@ -10,6 +10,10 @@ from orch.config.schema import PlanSpec, TaskSpec
 from orch.util.errors import PlanError
 
 
+def _is_real_number(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
 def normalize_cmd(cmd: str | list[str]) -> list[str]:
     if isinstance(cmd, str):
         parts = shlex.split(cmd)
@@ -38,18 +42,18 @@ def _parse_task(raw: Any) -> TaskSpec:
         raise PlanError(f"task '{raw['id']}' missing cmd")
 
     retries = raw.get("retries", 0)
-    if not isinstance(retries, int) or retries < 0:
+    if not isinstance(retries, int) or isinstance(retries, bool) or retries < 0:
         raise PlanError(f"task '{raw['id']}' retries must be int >= 0")
 
     timeout_sec = raw.get("timeout_sec")
     if timeout_sec is not None:
-        if not isinstance(timeout_sec, (int, float)) or timeout_sec <= 0:
+        if not _is_real_number(timeout_sec) or timeout_sec <= 0:
             raise PlanError(f"task '{raw['id']}' timeout_sec must be > 0")
         timeout_sec = float(timeout_sec)
 
     raw_backoff = raw.get("retry_backoff_sec", [])
     if not isinstance(raw_backoff, list) or not all(
-        isinstance(v, (int, float)) and v >= 0 for v in raw_backoff
+        _is_real_number(v) and v >= 0 for v in raw_backoff
     ):
         raise PlanError(f"task '{raw['id']}' retry_backoff_sec must be list[number>=0]")
     retry_backoff = [float(v) for v in raw_backoff]
