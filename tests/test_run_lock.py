@@ -593,6 +593,29 @@ def test_run_lock_rejects_symlink_run_directory(tmp_path: Path) -> None:
         pass
 
 
+def test_run_lock_rejects_symlink_run_directory_without_open_side_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_run_dir = tmp_path / "real_run"
+    real_run_dir.mkdir()
+    run_dir = tmp_path / "run_link"
+    run_dir.symlink_to(real_run_dir, target_is_directory=True)
+    open_called = False
+    original_open = os.open
+
+    def capture_open(path: str | os.PathLike[str], flags: int, mode: int = 0o777) -> int:
+        nonlocal open_called
+        open_called = True
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", capture_open)
+
+    with pytest.raises(OSError, match="run directory must not be symlink"), run_lock(run_dir):
+        pass
+    assert open_called is False
+    assert not (real_run_dir / ".lock").exists()
+
+
 def test_run_lock_rejects_path_with_symlink_ancestor(tmp_path: Path) -> None:
     real_parent = tmp_path / "real_parent"
     real_parent.mkdir()
@@ -604,6 +627,32 @@ def test_run_lock_rejects_path_with_symlink_ancestor(tmp_path: Path) -> None:
     run_dir = link_parent / "run"
     with pytest.raises(OSError, match="path contains symlink component"), run_lock(run_dir):
         pass
+    assert not (real_run_dir / ".lock").exists()
+
+
+def test_run_lock_rejects_path_with_symlink_ancestor_without_open_side_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_parent = tmp_path / "real_parent"
+    real_parent.mkdir()
+    real_run_dir = real_parent / "run"
+    real_run_dir.mkdir()
+    link_parent = tmp_path / "link_parent"
+    link_parent.symlink_to(real_parent, target_is_directory=True)
+    run_dir = link_parent / "run"
+    open_called = False
+    original_open = os.open
+
+    def capture_open(path: str | os.PathLike[str], flags: int, mode: int = 0o777) -> int:
+        nonlocal open_called
+        open_called = True
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", capture_open)
+
+    with pytest.raises(OSError, match="path contains symlink component"), run_lock(run_dir):
+        pass
+    assert open_called is False
     assert not (real_run_dir / ".lock").exists()
 
 
@@ -725,6 +774,31 @@ def test_run_lock_rejects_symlink_lock_path(tmp_path: Path) -> None:
 
     with pytest.raises(OSError, match="lock path must not be symlink"), run_lock(run_dir):
         pass
+    assert outside.read_text(encoding="utf-8") == "outside\n"
+
+
+def test_run_lock_rejects_symlink_lock_path_without_open_side_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    outside = tmp_path / "outside_lock"
+    outside.write_text("outside\n", encoding="utf-8")
+    lock_path = run_dir / ".lock"
+    lock_path.symlink_to(outside)
+    open_called = False
+    original_open = os.open
+
+    def capture_open(path: str | os.PathLike[str], flags: int, mode: int = 0o777) -> int:
+        nonlocal open_called
+        open_called = True
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", capture_open)
+
+    with pytest.raises(OSError, match="lock path must not be symlink"), run_lock(run_dir):
+        pass
+    assert open_called is False
     assert outside.read_text(encoding="utf-8") == "outside\n"
 
 
