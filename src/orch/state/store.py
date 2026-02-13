@@ -230,6 +230,16 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
             skip_reason
         ):
             raise StateError("invalid state field: tasks")
+        if task_status == "RUNNING":
+            if not isinstance(started_at, str):
+                raise StateError("invalid state field: tasks")
+            if _is_non_blank_str_without_nul(skip_reason):
+                raise StateError("invalid state field: tasks")
+        if task_status == "SUCCESS":
+            if _is_non_blank_str_without_nul(skip_reason):
+                raise StateError("invalid state field: tasks")
+            if bool_values["timed_out"] is True or bool_values["canceled"] is True:
+                raise StateError("invalid state field: tasks")
         for key in ("stdout_path", "stderr_path"):
             rel = task_data.get(key)
             if rel is None:

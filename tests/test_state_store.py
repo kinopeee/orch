@@ -371,6 +371,44 @@ def test_load_state_rejects_success_task_missing_timestamps(tmp_path: Path) -> N
         load_state(run_dir)
 
 
+def test_load_state_rejects_success_task_with_skip_reason(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_success_skip_reason"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["skip_reason"] = "should_not_exist"
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
+def test_load_state_rejects_running_task_without_started_at(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_running_started"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["status"] = "RUNNING"
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["status"] = "RUNNING"
+    task["started_at"] = None
+    task["ended_at"] = None
+    task["duration_sec"] = None
+    task["exit_code"] = None
+    task["timed_out"] = False
+    task["canceled"] = False
+    task["skip_reason"] = None
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_inconsistent_task_exit_and_flags(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad_task_flags"
     run_dir.mkdir()
