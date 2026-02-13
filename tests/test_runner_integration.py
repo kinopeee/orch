@@ -954,16 +954,16 @@ async def test_runner_skips_copy_when_source_revalidation_runtime_fails(
     )
 
     source_path = (workdir / "out" / "ok.txt").resolve()
-    original_is_file = Path.is_file
-    source_is_file_calls = 0
+    original_lstat = Path.lstat
+    source_lstat_calls = 0
 
-    def flaky_is_file(path_obj: Path) -> bool:
-        nonlocal source_is_file_calls
+    def flaky_lstat(path_obj: Path) -> os.stat_result:
+        nonlocal source_lstat_calls
         if path_obj == source_path:
-            source_is_file_calls += 1
-            if source_is_file_calls >= 2:
+            source_lstat_calls += 1
+            if source_lstat_calls >= 2:
                 raise RuntimeError("simulated source revalidation runtime failure")
-        return original_is_file(path_obj)
+        return original_lstat(path_obj)
 
     original_copy2 = runner_module.shutil.copy2
     copy_calls = 0
@@ -973,7 +973,7 @@ async def test_runner_skips_copy_when_source_revalidation_runtime_fails(
         copy_calls += 1
         return original_copy2(src, dst, *args, **kwargs)
 
-    monkeypatch.setattr(Path, "is_file", flaky_is_file)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
     monkeypatch.setattr(runner_module.shutil, "copy2", tracking_copy2)
 
     state = await run_plan(
@@ -988,7 +988,7 @@ async def test_runner_skips_copy_when_source_revalidation_runtime_fails(
     assert state.status == "SUCCESS"
     assert state.tasks["publish"].status == "SUCCESS"
     assert state.tasks["publish"].artifact_paths == []
-    assert source_is_file_calls >= 2
+    assert source_lstat_calls >= 2
     assert copy_calls == 0
 
 

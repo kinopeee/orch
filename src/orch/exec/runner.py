@@ -173,7 +173,10 @@ def _disambiguate_case_collision(rel: Path, seen_rel_keys: set[str]) -> Path:
 
 def _is_copyable_artifact_source(path: Path) -> bool:
     try:
-        if not (path.exists() and path.is_file() and not path.is_dir()):
+        meta = path.lstat()
+        if stat.S_ISLNK(meta.st_mode):
+            return False
+        if not stat.S_ISREG(meta.st_mode):
             return False
     except (OSError, RuntimeError):
         return False
