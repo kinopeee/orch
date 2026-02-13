@@ -572,6 +572,8 @@ async def run_plan(
                     task_state.status = "SUCCESS"
                 else:
                     task_state.status = "FAILED"
+                    if result.start_failed and task_state.skip_reason is None:
+                        task_state.skip_reason = "process_start_failed"
                     if fail_fast:
                         fail_fast_mode = True
 

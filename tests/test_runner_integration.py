@@ -97,6 +97,7 @@ async def test_runner_marks_task_failed_when_command_cannot_start(tmp_path: Path
     assert state.status == "FAILED"
     assert state.tasks["badcmd"].status == "FAILED"
     assert state.tasks["badcmd"].exit_code == 127
+    assert state.tasks["badcmd"].skip_reason == "process_start_failed"
     stderr_log = run_dir / "logs" / "badcmd.err.log"
     assert "failed to start process" in stderr_log.read_text(encoding="utf-8")
 
@@ -128,6 +129,7 @@ async def test_runner_does_not_retry_when_command_cannot_start(tmp_path: Path) -
     assert state.tasks["badcmd"].status == "FAILED"
     assert state.tasks["badcmd"].attempts == 1
     assert state.tasks["badcmd"].exit_code == 127
+    assert state.tasks["badcmd"].skip_reason == "process_start_failed"
 
 
 @pytest.mark.asyncio

@@ -676,6 +676,7 @@ def test_cli_run_missing_command_fails_without_retry_and_logs_reason(tmp_path: P
     assert badcmd["status"] == "FAILED"
     assert badcmd["attempts"] == 1
     assert badcmd["exit_code"] == 127
+    assert badcmd["skip_reason"] == "process_start_failed"
     stderr_log = home / "runs" / run_id / badcmd["stderr_path"]
     assert "failed to start process" in stderr_log.read_text(encoding="utf-8")
 
