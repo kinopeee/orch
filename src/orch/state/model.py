@@ -1,10 +1,80 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Literal, cast
 
 RunStatus = Literal["PENDING", "RUNNING", "SUCCESS", "FAILED", "CANCELED"]
 TaskStatus = Literal["PENDING", "READY", "RUNNING", "SUCCESS", "FAILED", "SKIPPED", "CANCELED"]
+RUN_STATUS_VALUES: set[str] = {"PENDING", "RUNNING", "SUCCESS", "FAILED", "CANCELED"}
+TASK_STATUS_VALUES: set[str] = {
+    "PENDING",
+    "READY",
+    "RUNNING",
+    "SUCCESS",
+    "FAILED",
+    "SKIPPED",
+    "CANCELED",
+}
+
+
+def _as_str(value: object, default: str = "") -> str:
+    return value if isinstance(value, str) else default
+
+
+def _as_optional_str(value: object) -> str | None:
+    return value if isinstance(value, str) else None
+
+
+def _as_bool(value: object, default: bool = False) -> bool:
+    return value if isinstance(value, bool) else default
+
+
+def _as_int(value: object, default: int = 0) -> int:
+    return value if isinstance(value, int) else default
+
+
+def _as_optional_int(value: object) -> int | None:
+    return value if isinstance(value, int) else None
+
+
+def _as_optional_float(value: object) -> float | None:
+    return float(value) if isinstance(value, (int, float)) else None
+
+
+def _as_list_str(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str)]
+
+
+def _as_list_float(value: object) -> list[float]:
+    if not isinstance(value, list):
+        return []
+    return [float(item) for item in value if isinstance(item, (int, float))]
+
+
+def _as_env_map(value: object) -> dict[str, str] | None:
+    if not isinstance(value, dict):
+        return None
+    env: dict[str, str] = {}
+    for key, val in value.items():
+        if isinstance(key, str) and isinstance(val, str):
+            env[key] = val
+    return env
+
+
+def _parse_task_status(value: object) -> TaskStatus:
+    status = _as_str(value, "PENDING")
+    if status not in TASK_STATUS_VALUES:
+        status = "PENDING"
+    return cast(TaskStatus, status)
+
+
+def _parse_run_status(value: object) -> RunStatus:
+    status = _as_str(value, "PENDING")
+    if status not in RUN_STATUS_VALUES:
+        status = "PENDING"
+    return cast(RunStatus, status)
 
 
 @dataclass(slots=True)
@@ -57,40 +127,26 @@ class TaskState:
     @classmethod
     def from_dict(cls, data: dict[str, object]) -> TaskState:
         return cls(
-            status=str(data["status"]),  # type: ignore[arg-type]
-            depends_on=list(data.get("depends_on", [])),  # type: ignore[arg-type]
-            cmd=list(data.get("cmd", [])),  # type: ignore[arg-type]
-            cwd=data.get("cwd") if isinstance(data.get("cwd"), str) else None,
-            env=data.get("env") if isinstance(data.get("env"), dict) else None,  # type: ignore[arg-type]
-            timeout_sec=(
-                float(data["timeout_sec"])
-                if isinstance(data.get("timeout_sec"), (int, float))
-                else None
-            ),
-            retries=int(data.get("retries", 0)),
-            retry_backoff_sec=[float(v) for v in data.get("retry_backoff_sec", [])],  # type: ignore[arg-type]
-            outputs=list(data.get("outputs", [])),  # type: ignore[arg-type]
-            attempts=int(data.get("attempts", 0)),
-            started_at=data.get("started_at") if isinstance(data.get("started_at"), str) else None,
-            ended_at=data.get("ended_at") if isinstance(data.get("ended_at"), str) else None,
-            duration_sec=(
-                float(data["duration_sec"])
-                if isinstance(data.get("duration_sec"), (int, float))
-                else None
-            ),
-            exit_code=int(data["exit_code"]) if isinstance(data.get("exit_code"), int) else None,
-            timed_out=bool(data.get("timed_out", False)),
-            canceled=bool(data.get("canceled", False)),
-            skip_reason=data.get("skip_reason")
-            if isinstance(data.get("skip_reason"), str)
-            else None,
-            stdout_path=(
-                data.get("stdout_path") if isinstance(data.get("stdout_path"), str) else None
-            ),
-            stderr_path=(
-                data.get("stderr_path") if isinstance(data.get("stderr_path"), str) else None
-            ),
-            artifact_paths=list(data.get("artifact_paths", [])),  # type: ignore[arg-type]
+            status=_parse_task_status(data.get("status")),
+            depends_on=_as_list_str(data.get("depends_on")),
+            cmd=_as_list_str(data.get("cmd")),
+            cwd=_as_optional_str(data.get("cwd")),
+            env=_as_env_map(data.get("env")),
+            timeout_sec=_as_optional_float(data.get("timeout_sec")),
+            retries=_as_int(data.get("retries")),
+            retry_backoff_sec=_as_list_float(data.get("retry_backoff_sec")),
+            outputs=_as_list_str(data.get("outputs")),
+            attempts=_as_int(data.get("attempts")),
+            started_at=_as_optional_str(data.get("started_at")),
+            ended_at=_as_optional_str(data.get("ended_at")),
+            duration_sec=_as_optional_float(data.get("duration_sec")),
+            exit_code=_as_optional_int(data.get("exit_code")),
+            timed_out=_as_bool(data.get("timed_out")),
+            canceled=_as_bool(data.get("canceled")),
+            skip_reason=_as_optional_str(data.get("skip_reason")),
+            stdout_path=_as_optional_str(data.get("stdout_path")),
+            stderr_path=_as_optional_str(data.get("stderr_path")),
+            artifact_paths=_as_list_str(data.get("artifact_paths")),
         )
 
 
@@ -126,21 +182,21 @@ class RunState:
     @classmethod
     def from_dict(cls, data: dict[str, object]) -> RunState:
         raw_tasks = data.get("tasks")
-        if not isinstance(raw_tasks, dict):
-            raw_tasks = {}
+        tasks: dict[str, TaskState] = {}
+        if isinstance(raw_tasks, dict):
+            for task_id, task_data in raw_tasks.items():
+                if isinstance(task_id, str) and isinstance(task_data, dict):
+                    tasks[task_id] = TaskState.from_dict(task_data)
         return cls(
-            run_id=str(data["run_id"]),
-            created_at=str(data["created_at"]),
-            updated_at=str(data["updated_at"]),
-            status=str(data["status"]),  # type: ignore[arg-type]
-            goal=data.get("goal") if isinstance(data.get("goal"), str) else None,
-            plan_relpath=str(data["plan_relpath"]),
-            home=str(data["home"]),
-            workdir=str(data["workdir"]),
-            max_parallel=int(data["max_parallel"]),
-            fail_fast=bool(data["fail_fast"]),
-            tasks={
-                task_id: TaskState.from_dict(task_data)  # type: ignore[arg-type]
-                for task_id, task_data in raw_tasks.items()
-            },
+            run_id=_as_str(data.get("run_id")),
+            created_at=_as_str(data.get("created_at")),
+            updated_at=_as_str(data.get("updated_at")),
+            status=_parse_run_status(data.get("status")),
+            goal=_as_optional_str(data.get("goal")),
+            plan_relpath=_as_str(data.get("plan_relpath")),
+            home=_as_str(data.get("home")),
+            workdir=_as_str(data.get("workdir")),
+            max_parallel=_as_int(data.get("max_parallel")),
+            fail_fast=_as_bool(data.get("fail_fast")),
+            tasks=tasks,
         )
