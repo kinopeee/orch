@@ -52,7 +52,7 @@ tasks:
 
 `artifacts_dir` を指定すると、`outputs` で収集した成果物を run 内 (`runs/<run_id>/artifacts/...`)
 に保存するだけでなく、`artifacts_dir/<task_id>/...` にもコピーします。
-相対パスは `--workdir` 基準で解決されます。
+相対パスは `--workdir` 基準で解決され、絶対パスはそのまま使用されます。
 また、`outputs` はタスクが失敗した場合でも可能な範囲で収集されます（best-effort）。
 
 ## 終了コード

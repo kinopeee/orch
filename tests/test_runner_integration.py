@@ -350,6 +350,44 @@ async def test_runner_copies_artifacts_to_plan_artifacts_dir(tmp_path: Path) -> 
 
 
 @pytest.mark.asyncio
+async def test_runner_copies_artifacts_to_absolute_plan_artifacts_dir(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_artifacts_dir_abs"
+    workdir = tmp_path / "wd"
+    absolute_aggregate = tmp_path / "aggregate_abs"
+    workdir.mkdir(parents=True)
+    absolute_aggregate.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    create_outputs_cmd = [
+        sys.executable,
+        "-c",
+        "from pathlib import Path; Path('build').mkdir(exist_ok=True); "
+        "Path('build/out.txt').write_text('OK', encoding='utf-8')",
+    ]
+    plan = PlanSpec(
+        goal="absolute artifacts dir copy test",
+        artifacts_dir=str(absolute_aggregate),
+        tasks=[TaskSpec(id="publish", cmd=create_outputs_cmd, outputs=["build/**/*.txt"])],
+    )
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "SUCCESS"
+    assert state.tasks["publish"].status == "SUCCESS"
+    run_copy = run_dir / "artifacts" / "publish" / "build" / "out.txt"
+    aggregated_copy = absolute_aggregate / "publish" / "build" / "out.txt"
+    assert run_copy.read_text(encoding="utf-8") == "OK"
+    assert aggregated_copy.read_text(encoding="utf-8") == "OK"
+
+
+@pytest.mark.asyncio
 async def test_runner_keeps_success_when_plan_artifacts_dir_is_unusable(tmp_path: Path) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run_artifacts_dir_unusable"
     workdir = tmp_path / "wd"
