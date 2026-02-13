@@ -1,0 +1,15 @@
+goal: "basic success flow"
+tasks:
+  - id: inspect
+    cmd: ["python", "tools/fake_agent.py", "inspect", "--produce", "tmp/inspect.json"]
+    outputs: ["tmp/inspect.json"]
+
+  - id: build
+    cmd: ["python", "tools/fake_agent.py", "build", "--produce", "tmp/build.json"]
+    depends_on: ["inspect"]
+    outputs: ["tmp/build.json"]
+
+  - id: test
+    cmd: ["python", "tools/fake_agent.py", "test", "--produce", "tmp/test.json"]
+    depends_on: ["build"]
+    outputs: ["tmp/test.json"]
