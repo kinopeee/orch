@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 
-from orch.state.model import RUN_STATUS_VALUES, RunState
+from orch.state.model import RUN_STATUS_VALUES, TASK_STATUS_VALUES, RunState
 from orch.util.errors import StateError
+
+_SAFE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+_TASK_ID_MAX_LEN = 128
 
 
 def _fsync_directory(path: Path) -> None:
@@ -52,8 +56,47 @@ def _validate_state_shape(raw: dict[str, object]) -> None:
         raise StateError("invalid state field: tasks")
 
     for task_id, task_data in tasks.items():
-        if not isinstance(task_id, str) or not isinstance(task_data, dict):
+        if (
+            not isinstance(task_id, str)
+            or len(task_id) > _TASK_ID_MAX_LEN
+            or _SAFE_ID_PATTERN.fullmatch(task_id) is None
+            or not isinstance(task_data, dict)
+        ):
             raise StateError("invalid state field: tasks")
+        task_status = task_data.get("status")
+        if not isinstance(task_status, str) or task_status not in TASK_STATUS_VALUES:
+            raise StateError("invalid state field: tasks")
+        for key in ("stdout_path", "stderr_path"):
+            rel = task_data.get(key)
+            if rel is None:
+                continue
+            if not isinstance(rel, str) or not rel or "\x00" in rel:
+                raise StateError("invalid state field: tasks")
+            rel_path = Path(rel)
+            if (
+                rel_path.is_absolute()
+                or ".." in rel_path.parts
+                or not rel_path.parts
+                or rel_path.parts[0] != "logs"
+            ):
+                raise StateError("invalid state field: tasks")
+
+        artifact_paths = task_data.get("artifact_paths")
+        if artifact_paths is None:
+            continue
+        if not isinstance(artifact_paths, list):
+            raise StateError("invalid state field: tasks")
+        for artifact_rel in artifact_paths:
+            if not isinstance(artifact_rel, str) or not artifact_rel or "\x00" in artifact_rel:
+                raise StateError("invalid state field: tasks")
+            artifact_path = Path(artifact_rel)
+            if (
+                artifact_path.is_absolute()
+                or ".." in artifact_path.parts
+                or not artifact_path.parts
+                or artifact_path.parts[0] != "artifacts"
+            ):
+                raise StateError("invalid state field: tasks")
 
 
 def load_state(run_dir: Path) -> RunState:
