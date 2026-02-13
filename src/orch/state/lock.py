@@ -104,6 +104,10 @@ def run_lock(
         except OSError as err:
             if err.errno == errno.ELOOP:
                 raise OSError(f"lock path must not be symlink: {lock_path}") from err
+            if isinstance(err, FileNotFoundError) or err.errno == errno.ENOENT:
+                raise OSError(f"run directory not found: {run_dir}") from err
+            if isinstance(err, NotADirectoryError) or err.errno == errno.ENOTDIR:
+                raise OSError(f"run directory must be directory: {run_dir}") from err
             raise
         except RuntimeError as err:
             raise OSError(f"failed to open lock path: {lock_path}") from err

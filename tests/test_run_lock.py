@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import errno
 import os
 import threading
 import time
@@ -410,6 +411,42 @@ def test_run_lock_wraps_runtime_open_error_as_oserror(
     monkeypatch.setattr(os, "open", flaky_open)
 
     with pytest.raises(OSError, match="failed to open lock path"), run_lock(run_dir):
+        pass
+
+
+def test_run_lock_normalizes_open_enoent_as_missing_run_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    original_open = os.open
+
+    def flaky_open(path: str | os.PathLike[str], flags: int, mode: int = 0o777) -> int:
+        if str(path) == str(run_dir / ".lock"):
+            raise FileNotFoundError("simulated missing run directory")
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", flaky_open)
+
+    with pytest.raises(OSError, match="run directory not found"), run_lock(run_dir):
+        pass
+
+
+def test_run_lock_normalizes_open_enotdir_as_non_directory_run_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    original_open = os.open
+
+    def flaky_open(path: str | os.PathLike[str], flags: int, mode: int = 0o777) -> int:
+        if str(path) == str(run_dir / ".lock"):
+            raise OSError(errno.ENOTDIR, "simulated non-directory run path")
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", flaky_open)
+
+    with pytest.raises(OSError, match="run directory must be directory"), run_lock(run_dir):
         pass
 
 
