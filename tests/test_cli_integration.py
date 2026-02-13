@@ -294,3 +294,49 @@ def test_cli_logs_unknown_task_returns_two(tmp_path: Path) -> None:
     )
     assert logs_proc.returncode == 2
     assert "unknown task" in logs_proc.stdout
+
+
+def test_cli_fail_fast_skips_unstarted_ready_tasks(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_fail_fast.yaml"
+    home = tmp_path / ".orch_cli"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: fail_first
+            cmd: ["python3", "-c", "import sys; sys.exit(1)"]
+          - id: independent
+            cmd: ["python3", "-c", "print('independent')"]
+          - id: dependent
+            cmd: ["python3", "-c", "print('dependent')"]
+            depends_on: ["fail_first"]
+        """,
+    )
+
+    run_proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--workdir",
+            str(tmp_path),
+            "--fail-fast",
+            "--max-parallel",
+            "1",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert run_proc.returncode == 3
+    run_id = _extract_run_id(run_proc.stdout)
+    state = json.loads((home / "runs" / run_id / "state.json").read_text(encoding="utf-8"))
+    assert state["status"] == "FAILED"
+    assert state["tasks"]["fail_first"]["status"] == "FAILED"
+    assert state["tasks"]["independent"]["status"] == "SKIPPED"
+    assert state["tasks"]["independent"]["skip_reason"] == "fail_fast"
+    assert state["tasks"]["dependent"]["status"] == "SKIPPED"
