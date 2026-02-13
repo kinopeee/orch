@@ -115,6 +115,64 @@ async def test_run_plan_normalizes_home_resolve_errors(
 
 
 @pytest.mark.asyncio
+async def test_run_plan_rejects_non_directory_workdir(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_workdir_file"
+    ensure_run_layout(run_dir)
+    workdir_file = tmp_path / "workdir.txt"
+    workdir_file.write_text("not-a-directory\n", encoding="utf-8")
+    plan = PlanSpec(
+        goal="workdir must be directory",
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="t1", cmd=[sys.executable, "-c", "print('ok')"])],
+    )
+
+    with pytest.raises(OSError, match="workdir must be directory"):
+        await run_plan(
+            plan,
+            run_dir,
+            max_parallel=1,
+            fail_fast=False,
+            workdir=workdir_file,
+            resume=False,
+            failed_only=False,
+        )
+
+
+@pytest.mark.asyncio
+async def test_run_plan_normalizes_workdir_is_dir_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_workdir_is_dir_error"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+    plan = PlanSpec(
+        goal="workdir is_dir error normalization",
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="t1", cmd=[sys.executable, "-c", "print('ok')"])],
+    )
+    original_is_dir = Path.is_dir
+
+    def flaky_is_dir(path_obj: Path) -> bool:
+        if path_obj == workdir.resolve():
+            raise PermissionError("simulated workdir is_dir failure")
+        return original_is_dir(path_obj)
+
+    monkeypatch.setattr(Path, "is_dir", flaky_is_dir)
+
+    with pytest.raises(OSError, match="failed to access workdir"):
+        await run_plan(
+            plan,
+            run_dir,
+            max_parallel=1,
+            fail_fast=False,
+            workdir=workdir,
+            resume=False,
+            failed_only=False,
+        )
+
+
+@pytest.mark.asyncio
 async def test_runner_propagates_skipped_and_retries(tmp_path: Path) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run_retry"
     workdir = tmp_path / "wd"
