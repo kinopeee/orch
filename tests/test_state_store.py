@@ -132,6 +132,30 @@ def test_save_state_atomic_cleans_tmp_when_write_fsync_fails(
     assert not (run_dir / "state.json.tmp").exists()
 
 
+def test_save_state_atomic_ignores_directory_close_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_close_fail"
+    run_dir.mkdir()
+    state = RunState.from_dict(_minimal_state_payload(run_id=run_dir.name))
+    state.status = "SUCCESS"
+    original_close = os.close
+    failed_once = False
+
+    def flaky_close(fd: int) -> None:
+        nonlocal failed_once
+        original_close(fd)
+        if not failed_once:
+            failed_once = True
+            raise OSError("simulated directory close failure")
+
+    monkeypatch.setattr(os, "close", flaky_close)
+
+    save_state_atomic(run_dir, state)
+    loaded = load_state(run_dir)
+    assert loaded.run_id == run_dir.name
+
+
 def test_load_state_rejects_invalid_json(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad"
     run_dir.mkdir()

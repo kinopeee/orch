@@ -26,7 +26,8 @@ def _fsync_directory(path: Path) -> None:
     except OSError:
         pass
     finally:
-        os.close(fd)
+        with suppress(OSError):
+            os.close(fd)
 
 
 def _is_iso_datetime(value: object) -> bool:
