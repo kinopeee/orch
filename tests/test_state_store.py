@@ -63,3 +63,21 @@ def test_load_state_rejects_non_object_json(tmp_path: Path) -> None:
 
     with pytest.raises(StateError):
         load_state(run_dir)
+
+
+def test_load_state_rejects_non_utf8_file(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_non_utf8"
+    run_dir.mkdir()
+    (run_dir / "state.json").write_bytes(b"\xff\xfe\xfd")
+
+    with pytest.raises(StateError, match="failed to decode state file as utf-8"):
+        load_state(run_dir)
+
+
+def test_load_state_wraps_read_oserror(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_state_dir"
+    run_dir.mkdir()
+    (run_dir / "state.json").mkdir()
+
+    with pytest.raises(StateError, match="failed to read state file"):
+        load_state(run_dir)

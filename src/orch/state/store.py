@@ -27,6 +27,10 @@ def load_state(run_dir: Path) -> RunState:
         raw = json.loads(state_path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
         raise StateError(f"state file not found: {state_path}") from exc
+    except UnicodeError as exc:
+        raise StateError(f"failed to decode state file as utf-8: {state_path}") from exc
+    except OSError as exc:
+        raise StateError(f"failed to read state file: {state_path}") from exc
     except json.JSONDecodeError as exc:
         raise StateError(f"invalid state json: {state_path}") from exc
     if not isinstance(raw, dict):
