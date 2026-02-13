@@ -173,6 +173,8 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
         retries = task_data.get("retries")
         if retries is not None and not _is_non_negative_int(retries):
             raise StateError("invalid state field: tasks")
+        if isinstance(attempts, int) and isinstance(retries, int) and attempts > (retries + 1):
+            raise StateError("invalid state field: tasks")
         timeout_sec = task_data.get("timeout_sec")
         if timeout_sec is not None and not _is_positive_finite_number(timeout_sec):
             raise StateError("invalid state field: tasks")

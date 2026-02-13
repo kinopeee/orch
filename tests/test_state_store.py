@@ -316,6 +316,22 @@ def test_load_state_rejects_non_finite_backoff_in_task(tmp_path: Path) -> None:
         load_state(run_dir)
 
 
+def test_load_state_rejects_attempts_exceeding_retry_budget(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_attempt_budget"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["retries"] = 0
+    task["attempts"] = 3
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_invalid_task_timestamps(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad_task_timestamps"
     run_dir.mkdir()
