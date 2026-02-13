@@ -72,3 +72,11 @@ def test_load_plan_rejects_invalid_yaml_syntax(tmp_path: Path) -> None:
 
     with pytest.raises(PlanError, match="failed to parse yaml"):
         load_plan(plan_path)
+
+
+def test_load_plan_rejects_non_utf8_file(tmp_path: Path) -> None:
+    plan_path = tmp_path / "bad_encoding.yaml"
+    plan_path.write_bytes(b"\xff\xfe\xfd")
+
+    with pytest.raises(PlanError, match="failed to decode plan file as utf-8"):
+        load_plan(plan_path)

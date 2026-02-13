@@ -157,6 +157,8 @@ def load_plan(path: Path) -> PlanSpec:
         content = path.read_text(encoding="utf-8")
     except FileNotFoundError as exc:
         raise PlanError(f"plan file not found: {path}") from exc
+    except UnicodeError as exc:
+        raise PlanError(f"failed to decode plan file as utf-8: {path}") from exc
     except OSError as exc:
         raise PlanError(f"failed to read plan file: {path}") from exc
 
