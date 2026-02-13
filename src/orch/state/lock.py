@@ -28,9 +28,26 @@ def run_lock(
     attempt = 0
     while True:
         try:
-            fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            os.write(fd, str(os.getpid()).encode("utf-8"))
-            stat_result = os.fstat(fd)
+            acquired_fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            stat_result = os.fstat(acquired_fd)
+            try:
+                os.write(acquired_fd, str(os.getpid()).encode("utf-8"))
+            except OSError:
+                with suppress(OSError):
+                    os.close(acquired_fd)
+                try:
+                    current_lock = lock_path.stat()
+                except OSError:
+                    current_lock = None
+                if (
+                    current_lock is not None
+                    and current_lock.st_ino == stat_result.st_ino
+                    and current_lock.st_dev == stat_result.st_dev
+                ):
+                    with suppress(OSError):
+                        lock_path.unlink(missing_ok=True)
+                raise
+            fd = acquired_fd
             lock_inode = stat_result.st_ino
             lock_dev = stat_result.st_dev
             break

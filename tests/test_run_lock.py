@@ -156,3 +156,30 @@ def test_run_lock_ignores_release_unlink_error(
         assert lock_path.exists()
 
     assert lock_path.exists()
+
+
+def test_run_lock_cleans_up_if_pid_write_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    lock_path = run_dir / ".lock"
+    original_write = os.write
+    failed_once = False
+
+    def flaky_write(fd: int, data: bytes) -> int:
+        nonlocal failed_once
+        if not failed_once:
+            failed_once = True
+            raise OSError("simulated write failure")
+        return original_write(fd, data)
+
+    monkeypatch.setattr(os, "write", flaky_write)
+
+    with pytest.raises(OSError, match="simulated write failure"), run_lock(run_dir):
+        pass
+
+    assert not lock_path.exists()
+
+    with run_lock(run_dir):
+        assert lock_path.exists()
