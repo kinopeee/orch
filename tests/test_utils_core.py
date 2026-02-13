@@ -486,3 +486,22 @@ def test_source_three_arg_os_open_calls_use_secure_mode() -> None:
                 )
 
     assert not violations, "os.open secure mode violations found:\n" + "\n".join(violations)
+
+
+def test_source_does_not_use_os_ordwr_flag() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    violations: list[str] = []
+
+    for file_path in src_root.rglob("*.py"):
+        relative_path = file_path.relative_to(src_root)
+        module = ast.parse(file_path.read_text(encoding="utf-8"))
+        for node in ast.walk(module):
+            if (
+                isinstance(node, ast.Attribute)
+                and isinstance(node.value, ast.Name)
+                and node.value.id == "os"
+                and node.attr == "O_RDWR"
+            ):
+                violations.append(f"{relative_path}:{node.lineno}")
+
+    assert not violations, "unexpected os.O_RDWR usage found:\n" + "\n".join(violations)

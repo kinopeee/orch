@@ -253,6 +253,10 @@ tasks:
         assert captured_flags["flags"] & os.O_ACCMODE == os.O_RDONLY
     if hasattr(os, "O_CREAT"):
         assert not (captured_flags["flags"] & os.O_CREAT)
+    if hasattr(os, "O_APPEND"):
+        assert not (captured_flags["flags"] & os.O_APPEND)
+    if hasattr(os, "O_TRUNC"):
+        assert not (captured_flags["flags"] & os.O_TRUNC)
     if hasattr(os, "O_NONBLOCK"):
         assert captured_flags["flags"] & os.O_NONBLOCK
     if hasattr(os, "O_NOFOLLOW"):
