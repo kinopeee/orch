@@ -476,6 +476,18 @@ async def test_runner_does_not_write_logs_when_logs_dir_is_symlink(tmp_path: Pat
     assert list(outside_logs.iterdir()) == []
 
 
+def test_runner_append_text_best_effort_ignores_symlink_ancestor_path(tmp_path: Path) -> None:
+    real_parent = tmp_path / "real_parent"
+    (real_parent / "logs").mkdir(parents=True)
+    target = real_parent / "logs" / "task.err.log"
+    target.write_text("keep\n", encoding="utf-8")
+    link_parent = tmp_path / "link_parent"
+    link_parent.symlink_to(real_parent, target_is_directory=True)
+
+    runner_module._append_text_best_effort(link_parent / "logs" / "task.err.log", "new-line\n")
+    assert target.read_text(encoding="utf-8") == "keep\n"
+
+
 @pytest.mark.asyncio
 async def test_runner_start_failure_does_not_write_symlinked_logs(tmp_path: Path) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run_logs_symlink_start_fail"
@@ -861,6 +873,50 @@ async def test_runner_skips_aggregate_copy_when_artifacts_dir_is_symlink(tmp_pat
     assert state.status == "SUCCESS"
     run_copy = run_dir / "artifacts" / "publish" / "build" / "out.txt"
     assert run_copy.read_text(encoding="utf-8") == "OK"
+    assert list(outside.iterdir()) == []
+
+
+@pytest.mark.asyncio
+async def test_runner_skips_aggregate_copy_when_artifacts_dir_has_symlink_ancestor(
+    tmp_path: Path,
+) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_artifacts_dir_symlink_ancestor"
+    workdir = tmp_path / "wd"
+    real_parent = workdir / "real_parent"
+    outside = tmp_path / "outside_collected"
+    workdir.mkdir(parents=True)
+    real_parent.mkdir(parents=True)
+    outside.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    link_parent = workdir / "link_parent"
+    link_parent.symlink_to(real_parent, target_is_directory=True)
+
+    create_outputs_cmd = [
+        sys.executable,
+        "-c",
+        "from pathlib import Path; Path('build').mkdir(exist_ok=True); "
+        "Path('build/out.txt').write_text('OK', encoding='utf-8')",
+    ]
+    plan = PlanSpec(
+        goal="artifacts dir symlink ancestor skip",
+        artifacts_dir="link_parent/collected",
+        tasks=[TaskSpec(id="publish", cmd=create_outputs_cmd, outputs=["build/**/*.txt"])],
+    )
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "SUCCESS"
+    run_copy = run_dir / "artifacts" / "publish" / "build" / "out.txt"
+    assert run_copy.read_text(encoding="utf-8") == "OK"
+    assert not (real_parent / "collected").exists()
     assert list(outside.iterdir()) == []
 
 

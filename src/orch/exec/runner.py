@@ -22,6 +22,19 @@ from orch.util.errors import StateError
 from orch.util.time import duration_sec, now_iso
 
 
+def _has_symlink_ancestor(path: Path) -> bool:
+    current = path.parent
+    while True:
+        try:
+            if current.is_symlink():
+                return True
+        except OSError:
+            return False
+        if current == current.parent:
+            return False
+        current = current.parent
+
+
 @dataclass(slots=True)
 class TaskResult:
     exit_code: int | None
@@ -56,6 +69,8 @@ def _append_attempt_header(log_path: Path, attempt: int, max_attempts: int) -> N
 
 
 def _append_text_best_effort(log_path: Path, text: str) -> None:
+    if _has_symlink_ancestor(log_path):
+        return
     if log_path.parent.is_symlink() or log_path.is_symlink():
         return
     try:
@@ -194,9 +209,13 @@ def _copy_artifacts(task: TaskSpec, run_dir: Path, cwd: Path) -> list[str]:
     if not task.outputs:
         return copied
     artifacts_root = run_dir / "artifacts"
+    if _has_symlink_ancestor(artifacts_root):
+        return copied
     if artifacts_root.is_symlink():
         return copied
     task_root = artifacts_root / task.id
+    if _has_symlink_ancestor(task_root):
+        return copied
     if task_root.is_symlink():
         return copied
     try:
@@ -205,6 +224,8 @@ def _copy_artifacts(task: TaskSpec, run_dir: Path, cwd: Path) -> list[str]:
         return copied
     for match, rel in _iter_unique_artifact_sources(task, cwd):
         dest = task_root / rel
+        if _has_symlink_ancestor(dest):
+            continue
         if dest.parent.is_symlink() or dest.is_symlink():
             continue
         try:
@@ -224,9 +245,13 @@ def _copy_to_aggregate_dir(
     *,
     aggregate_root: Path,
 ) -> None:
+    if _has_symlink_ancestor(aggregate_root):
+        return
     if aggregate_root.is_symlink():
         return
     task_root = aggregate_root / task.id
+    if _has_symlink_ancestor(task_root):
+        return
     if task_root.is_symlink():
         return
     try:
@@ -235,6 +260,8 @@ def _copy_to_aggregate_dir(
         return
     for match, rel in _iter_unique_artifact_sources(task, cwd):
         dest = task_root / rel
+        if _has_symlink_ancestor(dest):
+            continue
         if dest.parent.is_symlink() or dest.is_symlink():
             continue
         try:

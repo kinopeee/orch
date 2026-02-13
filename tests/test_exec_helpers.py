@@ -93,6 +93,28 @@ async def test_stream_to_file_ignores_symlink_parent_directory(tmp_path: Path) -
 
 
 @pytest.mark.asyncio
+async def test_stream_to_file_ignores_symlink_ancestor_path(tmp_path: Path) -> None:
+    real_parent = tmp_path / "real_parent"
+    (real_parent / "logs").mkdir(parents=True)
+    target = real_parent / "logs" / "capture.log"
+    target.write_text("keep-ancestor\n", encoding="utf-8")
+    symlink_parent = tmp_path / "link_parent"
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+    linked_path = symlink_parent / "logs" / "capture.log"
+
+    proc = await asyncio.create_subprocess_exec(
+        sys.executable,
+        "-c",
+        "print('line-a')",
+        stdout=asyncio.subprocess.PIPE,
+    )
+    await stream_to_file(proc.stdout, linked_path)
+    await proc.wait()
+
+    assert target.read_text(encoding="utf-8") == "keep-ancestor\n"
+
+
+@pytest.mark.asyncio
 async def test_stream_to_file_rejects_non_regular_opened_target(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

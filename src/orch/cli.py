@@ -38,6 +38,19 @@ _RUN_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _RUN_ID_MAX_LEN = 128
 
 
+def _has_symlink_ancestor(path: Path) -> bool:
+    current = path.parent
+    while True:
+        try:
+            if current.is_symlink():
+                return True
+        except OSError:
+            return False
+        if current == current.parent:
+            return False
+        current = current.parent
+
+
 def _exit_code_for_state(state: RunState) -> int:
     if state.status == "SUCCESS":
         return 0
@@ -75,6 +88,8 @@ def _write_plan_snapshot(plan: PlanSpec, destination: Path) -> None:
     if plan.artifacts_dir is not None:
         plan_data["artifacts_dir"] = plan.artifacts_dir
     payload = yaml.safe_dump(plan_data, sort_keys=False, allow_unicode=True)
+    if _has_symlink_ancestor(destination):
+        raise OSError(f"plan snapshot path contains symlink component: {destination}")
     if destination.parent.is_symlink() or destination.is_symlink():
         raise OSError(f"plan snapshot path must not be symlink: {destination}")
     try:
@@ -115,6 +130,8 @@ def _write_report(state: RunState, current_run_dir: Path) -> Path:
     summary = build_summary(state, current_run_dir)
     md = render_markdown(summary)
     report_path = current_run_dir / "report" / "final_report.md"
+    if _has_symlink_ancestor(report_path):
+        raise OSError(f"report path contains symlink component: {report_path}")
     if report_path.parent.is_symlink() or report_path.is_symlink():
         raise OSError(f"report path must not be symlink: {report_path}")
     try:
