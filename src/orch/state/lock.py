@@ -25,6 +25,8 @@ def run_lock(
     lock_inode: int | None = None
     lock_dev: int | None = None
     open_flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
+    if hasattr(os, "O_NONBLOCK"):
+        open_flags |= os.O_NONBLOCK
     if hasattr(os, "O_NOFOLLOW"):
         open_flags |= os.O_NOFOLLOW
 
