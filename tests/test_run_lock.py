@@ -98,3 +98,40 @@ def test_run_lock_handles_stat_race_during_stale_check(
 
     with run_lock(run_dir, retries=1, retry_interval=0.01):
         assert lock_path.exists()
+
+
+def test_run_lock_raises_conflict_when_stale_lock_cannot_be_removed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    lock_path = run_dir / ".lock"
+    lock_path.write_text("stale-lock", encoding="utf-8")
+    old = time.time() - 120
+    os.utime(lock_path, (old, old))
+
+    original_unlink = Path.unlink
+
+    def deny_unlink(path_obj: Path, *args: object, **kwargs: object) -> None:
+        if path_obj == lock_path:
+            raise PermissionError("simulated unlink denied")
+        original_unlink(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", deny_unlink)
+
+    with pytest.raises(RunConflictError), run_lock(run_dir, stale_sec=1, retries=0):
+        pass
+
+
+def test_run_lock_does_not_delete_replaced_foreign_lock(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    lock_path = run_dir / ".lock"
+
+    with run_lock(run_dir):
+        assert lock_path.exists()
+        lock_path.unlink()
+        lock_path.write_text("foreign-holder", encoding="utf-8")
+
+    assert lock_path.exists()
+    assert lock_path.read_text(encoding="utf-8") == "foreign-holder"
