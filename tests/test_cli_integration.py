@@ -90,6 +90,41 @@ def test_cli_run_rejects_non_positive_max_parallel(tmp_path: Path) -> None:
     assert "x>=1" in output
 
 
+def test_cli_run_rejects_missing_workdir_without_creating_run_dir(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    home = tmp_path / ".orch_cli"
+    missing_workdir = tmp_path / "does_not_exist"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--workdir",
+            str(missing_workdir),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid workdir" in output
+    assert not (home / "runs").exists()
+
+
 def test_cli_resume_rejects_non_positive_max_parallel(tmp_path: Path) -> None:
     proc = subprocess.run(
         [
@@ -109,6 +144,58 @@ def test_cli_resume_rejects_non_positive_max_parallel(tmp_path: Path) -> None:
     assert proc.returncode == 2
     assert "invalid value" in output
     assert "x>=1" in output
+
+
+def test_cli_resume_rejects_missing_workdir(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_resume_wd.yaml"
+    home = tmp_path / ".orch_cli"
+    missing_workdir = tmp_path / "missing_resume_wd"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+    run_proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--workdir",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert run_proc.returncode == 0
+    run_id = _extract_run_id(run_proc.stdout)
+
+    resume_proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "resume",
+            run_id,
+            "--home",
+            str(home),
+            "--workdir",
+            str(missing_workdir),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = resume_proc.stdout + resume_proc.stderr
+    assert resume_proc.returncode == 2
+    assert "Invalid workdir" in output
 
 
 def test_cli_run_failure_returns_three_and_writes_state(tmp_path: Path) -> None:

@@ -56,6 +56,14 @@ def _run_exists(current_run_dir: Path) -> bool:
     )
 
 
+def _resolve_workdir_or_exit(workdir: Path) -> Path:
+    resolved = workdir.resolve()
+    if not resolved.is_dir():
+        console.print(f"[red]Invalid workdir:[/red] {workdir}")
+        raise typer.Exit(2)
+    return resolved
+
+
 @app.command()
 def run(
     plan_path: Annotated[Path, typer.Argument(exists=True)],
@@ -82,6 +90,7 @@ def run(
         console.print(table)
         raise typer.Exit(0)
 
+    resolved_workdir = _resolve_workdir_or_exit(workdir)
     run_id = new_run_id(datetime.now().astimezone())
     current_run_dir = run_dir(home, run_id)
     ensure_run_layout(current_run_dir)
@@ -93,7 +102,7 @@ def run(
             current_run_dir,
             max_parallel=max_parallel,
             fail_fast=fail_fast,
-            workdir=workdir.resolve(),
+            workdir=resolved_workdir,
             resume=False,
             failed_only=False,
         )
@@ -114,6 +123,7 @@ def resume(
     fail_fast: Annotated[bool, typer.Option("--fail-fast/--no-fail-fast")] = False,
     failed_only: Annotated[bool, typer.Option("--failed-only")] = False,
 ) -> None:
+    resolved_workdir = _resolve_workdir_or_exit(workdir)
     current_run_dir = run_dir(home, run_id)
     try:
         with run_lock(current_run_dir):
@@ -126,7 +136,7 @@ def resume(
                     current_run_dir,
                     max_parallel=max_parallel,
                     fail_fast=fail_fast,
-                    workdir=workdir.resolve(),
+                    workdir=resolved_workdir,
                     resume=True,
                     failed_only=failed_only,
                 )
