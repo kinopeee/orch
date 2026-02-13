@@ -438,3 +438,82 @@ def test_cli_timeout_with_retry_records_attempts_and_fails(tmp_path: Path) -> No
     assert state["tasks"]["slow"]["status"] == "FAILED"
     assert state["tasks"]["slow"]["attempts"] == 2
     assert state["tasks"]["slow"]["timed_out"] is True
+
+
+def test_cli_status_json_outputs_valid_state_payload(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_status_json.yaml"
+    home = tmp_path / ".orch_cli"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: only
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    run_proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--workdir",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert run_proc.returncode == 0
+    run_id = _extract_run_id(run_proc.stdout)
+
+    status_proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "status",
+            run_id,
+            "--home",
+            str(home),
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert status_proc.returncode == 0
+    payload = json.loads(status_proc.stdout)
+    assert payload["run_id"] == run_id
+    assert payload["status"] == "SUCCESS"
+    assert payload["tasks"]["only"]["status"] == "SUCCESS"
+
+
+def test_cli_dry_run_cycle_plan_returns_two(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_cycle.yaml"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: a
+            cmd: ["python3", "-c", "print('a')"]
+            depends_on: ["b"]
+          - id: b
+            cmd: ["python3", "-c", "print('b')"]
+            depends_on: ["a"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "run", str(plan_path), "--dry-run"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Plan validation error" in output
