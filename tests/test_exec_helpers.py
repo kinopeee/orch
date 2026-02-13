@@ -347,6 +347,64 @@ def test_cancel_requested_non_directory_run_path_skips_target_lstat(
     assert target_lstat_calls == 0
 
 
+def test_cancel_requested_run_dir_lstat_oserror_skips_target_lstat(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_cancel_requested_lstat_oserror"
+    run_dir.mkdir()
+    cancel_path = run_dir / "cancel.request"
+    cancel_path.write_text("cancel requested\n", encoding="utf-8")
+    original_lstat = Path.lstat
+    run_dir_lstat_calls = 0
+    target_lstat_calls = 0
+
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal run_dir_lstat_calls, target_lstat_calls
+        if path_obj == run_dir:
+            run_dir_lstat_calls += 1
+            if run_dir_lstat_calls >= 2:
+                raise PermissionError("simulated run_dir lstat failure")
+        if path_obj == cancel_path:
+            target_lstat_calls += 1
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
+
+    assert cancel_requested(run_dir) is False
+    assert run_dir_lstat_calls >= 2
+    assert target_lstat_calls == 0
+    assert cancel_path.exists()
+
+
+def test_cancel_requested_run_dir_lstat_runtime_skips_target_lstat(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_cancel_requested_lstat_runtime"
+    run_dir.mkdir()
+    cancel_path = run_dir / "cancel.request"
+    cancel_path.write_text("cancel requested\n", encoding="utf-8")
+    original_lstat = Path.lstat
+    run_dir_lstat_calls = 0
+    target_lstat_calls = 0
+
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal run_dir_lstat_calls, target_lstat_calls
+        if path_obj == run_dir:
+            run_dir_lstat_calls += 1
+            if run_dir_lstat_calls >= 2:
+                raise RuntimeError("simulated run_dir lstat runtime failure")
+        if path_obj == cancel_path:
+            target_lstat_calls += 1
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
+
+    assert cancel_requested(run_dir) is False
+    assert run_dir_lstat_calls >= 2
+    assert target_lstat_calls == 0
+    assert cancel_path.exists()
+
+
 def test_cancel_requested_returns_false_when_lstat_runtime_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -438,6 +496,84 @@ def test_clear_cancel_request_non_directory_run_path_skips_target_checks(
     clear_cancel_request(run_dir)
     assert target_lstat_calls == 0
     assert target_unlink_calls == 0
+
+
+def test_clear_cancel_request_run_dir_lstat_oserror_skips_target_checks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_clear_cancel_lstat_oserror"
+    run_dir.mkdir()
+    cancel_path = run_dir / "cancel.request"
+    cancel_path.write_text("cancel requested\n", encoding="utf-8")
+    original_lstat = Path.lstat
+    original_unlink = Path.unlink
+    run_dir_lstat_calls = 0
+    target_lstat_calls = 0
+    target_unlink_calls = 0
+
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal run_dir_lstat_calls, target_lstat_calls
+        if path_obj == run_dir:
+            run_dir_lstat_calls += 1
+            if run_dir_lstat_calls >= 2:
+                raise PermissionError("simulated run_dir lstat failure")
+        if path_obj == cancel_path:
+            target_lstat_calls += 1
+        return original_lstat(path_obj, *args, **kwargs)
+
+    def capture_unlink(path_obj: Path, *args: object, **kwargs: object) -> None:
+        nonlocal target_unlink_calls
+        if path_obj == cancel_path:
+            target_unlink_calls += 1
+        original_unlink(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
+    monkeypatch.setattr(Path, "unlink", capture_unlink)
+
+    clear_cancel_request(run_dir)
+    assert run_dir_lstat_calls >= 2
+    assert target_lstat_calls == 0
+    assert target_unlink_calls == 0
+    assert cancel_path.exists()
+
+
+def test_clear_cancel_request_run_dir_lstat_runtime_skips_target_checks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_clear_cancel_lstat_runtime"
+    run_dir.mkdir()
+    cancel_path = run_dir / "cancel.request"
+    cancel_path.write_text("cancel requested\n", encoding="utf-8")
+    original_lstat = Path.lstat
+    original_unlink = Path.unlink
+    run_dir_lstat_calls = 0
+    target_lstat_calls = 0
+    target_unlink_calls = 0
+
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal run_dir_lstat_calls, target_lstat_calls
+        if path_obj == run_dir:
+            run_dir_lstat_calls += 1
+            if run_dir_lstat_calls >= 2:
+                raise RuntimeError("simulated run_dir lstat runtime failure")
+        if path_obj == cancel_path:
+            target_lstat_calls += 1
+        return original_lstat(path_obj, *args, **kwargs)
+
+    def capture_unlink(path_obj: Path, *args: object, **kwargs: object) -> None:
+        nonlocal target_unlink_calls
+        if path_obj == cancel_path:
+            target_unlink_calls += 1
+        original_unlink(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
+    monkeypatch.setattr(Path, "unlink", capture_unlink)
+
+    clear_cancel_request(run_dir)
+    assert run_dir_lstat_calls >= 2
+    assert target_lstat_calls == 0
+    assert target_unlink_calls == 0
+    assert cancel_path.exists()
 
 
 def test_clear_cancel_request_ignores_unlink_runtime_error(
