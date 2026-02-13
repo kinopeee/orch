@@ -673,3 +673,59 @@ def test_write_cancel_request_rejects_symlink_ancestor_without_open_side_effect(
         write_cancel_request(linked_run_dir)
     assert open_called is False
     assert cancel_path.read_text(encoding="utf-8") == "cancel requested\n"
+
+
+def test_write_cancel_request_fails_closed_when_ancestor_lstat_oserror_without_open_side_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_cancel_ancestor_lstat_oserror"
+    run_dir.mkdir()
+    open_called = False
+    original_open = os.open
+    original_lstat = Path.lstat
+
+    def capture_open(path: os.PathLike[str] | str, flags: int, mode: int = 0o777) -> int:
+        nonlocal open_called
+        open_called = True
+        return original_open(path, flags, mode)
+
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        if path_obj == tmp_path:
+            raise PermissionError("simulated ancestor lstat failure")
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", capture_open)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
+
+    with pytest.raises(OSError, match="contains symlink component"):
+        write_cancel_request(run_dir)
+    assert open_called is False
+    assert not (run_dir / "cancel.request").exists()
+
+
+def test_write_cancel_request_fails_closed_ancestor_runtime_without_open_side_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_cancel_ancestor_lstat_runtime_error"
+    run_dir.mkdir()
+    open_called = False
+    original_open = os.open
+    original_lstat = Path.lstat
+
+    def capture_open(path: os.PathLike[str] | str, flags: int, mode: int = 0o777) -> int:
+        nonlocal open_called
+        open_called = True
+        return original_open(path, flags, mode)
+
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        if path_obj == tmp_path:
+            raise RuntimeError("simulated ancestor lstat runtime failure")
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", capture_open)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
+
+    with pytest.raises(OSError, match="contains symlink component"):
+        write_cancel_request(run_dir)
+    assert open_called is False
+    assert not (run_dir / "cancel.request").exists()
