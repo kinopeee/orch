@@ -870,3 +870,72 @@ def test_source_os_open_calls_use_supported_positional_signature() -> None:
                 )
 
     assert not violations, "os.open signature policy violations found:\n" + "\n".join(violations)
+
+
+def test_source_critical_writers_check_symlink_guards_before_open() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    targets = [
+        (Path("exec/cancel.py"), "write_cancel_request"),
+        (Path("state/lock.py"), "run_lock"),
+    ]
+    violations: list[str] = []
+
+    for relative_path, function_name in targets:
+        file_path = src_root / relative_path
+        module = ast.parse(file_path.read_text(encoding="utf-8"))
+        function_node = next(
+            (
+                node
+                for node in ast.walk(module)
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and node.name == function_name
+            ),
+            None,
+        )
+        if function_node is None:
+            violations.append(f"{relative_path}:{function_name}: function not found")
+            continue
+
+        open_lines = [
+            node.lineno
+            for node in ast.walk(function_node)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "os"
+            and node.func.attr == "open"
+        ]
+        ancestor_guard_lines = [
+            node.lineno
+            for node in ast.walk(function_node)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "has_symlink_ancestor"
+        ]
+        symlink_guard_lines = [
+            node.lineno
+            for node in ast.walk(function_node)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "is_symlink_path"
+        ]
+
+        if not open_lines:
+            violations.append(f"{relative_path}:{function_name}: os.open not found")
+            continue
+        if not ancestor_guard_lines:
+            violations.append(f"{relative_path}:{function_name}: has_symlink_ancestor not found")
+        if not symlink_guard_lines:
+            violations.append(f"{relative_path}:{function_name}: is_symlink_path not found")
+
+        first_open = min(open_lines)
+        if ancestor_guard_lines and min(ancestor_guard_lines) >= first_open:
+            violations.append(
+                f"{relative_path}:{function_name}: has_symlink_ancestor occurs after os.open"
+            )
+        if symlink_guard_lines and min(symlink_guard_lines) >= first_open:
+            violations.append(
+                f"{relative_path}:{function_name}: is_symlink_path occurs after os.open"
+            )
+
+    assert not violations, "critical writer guard-order violations found:\n" + "\n".join(violations)
