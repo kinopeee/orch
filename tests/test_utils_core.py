@@ -73,3 +73,20 @@ def test_ensure_run_layout_rejects_symlink_ancestor(tmp_path: Path) -> None:
     with pytest.raises(OSError, match="contains symlink component"):
         ensure_run_layout(path)
     assert not (real_home / "runs").exists()
+
+
+def test_ensure_run_layout_normalizes_is_dir_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = run_dir(tmp_path, "run_1")
+    original_is_dir = Path.is_dir
+
+    def flaky_is_dir(path_obj: Path) -> bool:
+        if path_obj == path:
+            raise PermissionError("simulated is_dir failure")
+        return original_is_dir(path_obj)
+
+    monkeypatch.setattr(Path, "is_dir", flaky_is_dir)
+
+    with pytest.raises(OSError, match="path must be directory"):
+        ensure_run_layout(path)
