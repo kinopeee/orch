@@ -200,18 +200,13 @@ def _validate_home_or_exit(home: Path) -> None:
     to_check = [home, *home.parents]
     for candidate in to_check:
         try:
-            exists = candidate.exists()
-        except (OSError, RuntimeError) as exc:
-            console.print(f"[red]Invalid home:[/red] {home}")
-            raise typer.Exit(2) from exc
-        if not exists:
+            meta = candidate.lstat()
+        except FileNotFoundError:
             continue
-        try:
-            is_dir = candidate.is_dir()
         except (OSError, RuntimeError) as exc:
             console.print(f"[red]Invalid home:[/red] {home}")
             raise typer.Exit(2) from exc
-        if is_dir:
+        if stat.S_ISDIR(meta.st_mode):
             break
         console.print(f"[red]Invalid home:[/red] {home}")
         raise typer.Exit(2)

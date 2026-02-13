@@ -240,89 +240,50 @@ def test_write_report_wraps_runtime_open_error(
         _write_report(state, run_dir)
 
 
-def test_validate_home_or_exit_rejects_when_exists_errors(
+def test_validate_home_or_exit_rejects_when_lstat_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     home = tmp_path / "home"
-    original_exists = Path.exists
+    original_lstat = Path.lstat
 
-    def flaky_exists(path_obj: Path) -> bool:
+    def flaky_lstat(path_obj: Path) -> os.stat_result:
         if path_obj == home:
-            raise PermissionError("simulated exists failure")
-        return original_exists(path_obj)
+            raise PermissionError("simulated lstat failure")
+        return original_lstat(path_obj)
 
-    monkeypatch.setattr(Path, "exists", flaky_exists)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
 
     with pytest.raises(typer.Exit) as exc_info:
         _validate_home_or_exit(home)
     assert exc_info.value.exit_code == 2
 
 
-def test_validate_home_or_exit_rejects_when_exists_runtime_errors(
+def test_validate_home_or_exit_rejects_when_lstat_runtime_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     home = tmp_path / "home"
-    original_exists = Path.exists
+    original_lstat = Path.lstat
 
-    def flaky_exists(path_obj: Path) -> bool:
+    def flaky_lstat(path_obj: Path) -> os.stat_result:
         if path_obj == home:
-            raise RuntimeError("simulated exists runtime failure")
-        return original_exists(path_obj)
+            raise RuntimeError("simulated lstat runtime failure")
+        return original_lstat(path_obj)
 
-    monkeypatch.setattr(Path, "exists", flaky_exists)
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
 
     with pytest.raises(typer.Exit) as exc_info:
         _validate_home_or_exit(home)
     assert exc_info.value.exit_code == 2
 
 
-def test_validate_home_or_exit_rejects_when_is_dir_errors(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_validate_home_or_exit_rejects_when_existing_component_is_not_directory(
+    tmp_path: Path,
 ) -> None:
-    home = tmp_path / "home"
-    original_exists = Path.exists
-    original_is_dir = Path.is_dir
-
-    def fake_exists(path_obj: Path) -> bool:
-        if path_obj == home:
-            return True
-        return original_exists(path_obj)
-
-    def flaky_is_dir(path_obj: Path) -> bool:
-        if path_obj == home:
-            raise PermissionError("simulated is_dir failure")
-        return original_is_dir(path_obj)
-
-    monkeypatch.setattr(Path, "exists", fake_exists)
-    monkeypatch.setattr(Path, "is_dir", flaky_is_dir)
+    home_file = tmp_path / "home_file"
+    home_file.write_text("not a directory\n", encoding="utf-8")
 
     with pytest.raises(typer.Exit) as exc_info:
-        _validate_home_or_exit(home)
-    assert exc_info.value.exit_code == 2
-
-
-def test_validate_home_or_exit_rejects_when_is_dir_runtime_errors(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    home = tmp_path / "home"
-    original_exists = Path.exists
-    original_is_dir = Path.is_dir
-
-    def fake_exists(path_obj: Path) -> bool:
-        if path_obj == home:
-            return True
-        return original_exists(path_obj)
-
-    def flaky_is_dir(path_obj: Path) -> bool:
-        if path_obj == home:
-            raise RuntimeError("simulated is_dir runtime failure")
-        return original_is_dir(path_obj)
-
-    monkeypatch.setattr(Path, "exists", fake_exists)
-    monkeypatch.setattr(Path, "is_dir", flaky_is_dir)
-
-    with pytest.raises(typer.Exit) as exc_info:
-        _validate_home_or_exit(home)
+        _validate_home_or_exit(home_file)
     assert exc_info.value.exit_code == 2
 
 

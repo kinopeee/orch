@@ -353,7 +353,7 @@ def test_cli_run_rejects_home_with_symlink_ancestor_without_side_effect(tmp_path
     )
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
-    assert "Failed to initialize run" in output
+    assert "Invalid home" in output
     assert not (real_home / "runs").exists()
 
 
@@ -1051,7 +1051,7 @@ def test_cli_cancel_rejects_run_with_symlink_ancestor_home(tmp_path: Path) -> No
         check=False,
     )
     assert proc.returncode == 2
-    assert "Run not found" in proc.stdout
+    assert "Invalid home" in proc.stdout
     assert not (real_run_dir / "cancel.request").exists()
 
 
@@ -3862,7 +3862,7 @@ def test_cli_status_rejects_run_dir_with_symlink_ancestor_without_lock_side_effe
         check=False,
     )
     assert proc.returncode == 2
-    assert "Failed to load state" in proc.stdout
+    assert "Invalid home" in proc.stdout
     assert not (real_run_dir / ".lock").exists()
 
 
