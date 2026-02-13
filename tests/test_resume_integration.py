@@ -107,3 +107,62 @@ async def test_resume_converts_interrupted_running_and_reruns(tmp_path: Path) ->
     assert resumed.status == "SUCCESS"
     assert resumed.tasks["single"].status == "SUCCESS"
     assert resumed.tasks["single"].attempts == 2
+
+
+@pytest.mark.asyncio
+async def test_resume_failed_only_reruns_interrupted_ready_task(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_resume_ready_interrupted"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+    gate_file = workdir / "gate.ok"
+    fail_until_gate_exists = [
+        sys.executable,
+        "-c",
+        "from pathlib import Path; import sys; sys.exit(0 if Path('gate.ok').exists() else 1)",
+    ]
+    plan = PlanSpec(
+        goal="resume interrupted ready",
+        artifacts_dir=None,
+        tasks=[
+            TaskSpec(
+                id="flaky",
+                cmd=fail_until_gate_exists,
+                retries=2,
+                retry_backoff_sec=[0.01, 0.01],
+            )
+        ],
+    )
+
+    first = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert first.tasks["flaky"].status == "FAILED"
+    assert first.tasks["flaky"].attempts == 3
+
+    interrupted = load_state(run_dir)
+    interrupted.status = "RUNNING"
+    interrupted_task = interrupted.tasks["flaky"]
+    interrupted_task.status = "READY"
+    interrupted_task.skip_reason = None
+    save_state_atomic(run_dir, interrupted)
+
+    gate_file.write_text("ok", encoding="utf-8")
+    resumed = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=True,
+        failed_only=True,
+    )
+    assert resumed.status == "SUCCESS"
+    assert resumed.tasks["flaky"].status == "SUCCESS"
+    assert resumed.tasks["flaky"].attempts == 4

@@ -276,7 +276,7 @@ def _initial_state(
 
 def _prepare_resume_state(state: RunState) -> None:
     for task in state.tasks.values():
-        if task.status == "RUNNING":
+        if task.status in {"RUNNING", "READY"} or (task.status == "PENDING" and task.attempts > 0):
             task.status = "FAILED"
             task.canceled = False
             task.timed_out = False
