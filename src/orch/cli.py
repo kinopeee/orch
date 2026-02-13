@@ -180,8 +180,13 @@ def _run_exists(current_run_dir: Path) -> bool:
 
 
 def _resolve_workdir_or_exit(workdir: Path) -> Path:
-    resolved = workdir.resolve()
-    if not resolved.is_dir():
+    try:
+        resolved = workdir.resolve()
+        is_dir = resolved.is_dir()
+    except (OSError, RuntimeError) as exc:
+        console.print(f"[red]Invalid workdir:[/red] {workdir}")
+        raise typer.Exit(2) from exc
+    if not is_dir:
         console.print(f"[red]Invalid workdir:[/red] {workdir}")
         raise typer.Exit(2)
     return resolved
@@ -190,9 +195,19 @@ def _resolve_workdir_or_exit(workdir: Path) -> Path:
 def _validate_home_or_exit(home: Path) -> None:
     to_check = [home, *home.parents]
     for candidate in to_check:
-        if not candidate.exists():
+        try:
+            exists = candidate.exists()
+        except OSError as exc:
+            console.print(f"[red]Invalid home:[/red] {home}")
+            raise typer.Exit(2) from exc
+        if not exists:
             continue
-        if candidate.is_dir():
+        try:
+            is_dir = candidate.is_dir()
+        except OSError as exc:
+            console.print(f"[red]Invalid home:[/red] {home}")
+            raise typer.Exit(2) from exc
+        if is_dir:
             break
         console.print(f"[red]Invalid home:[/red] {home}")
         raise typer.Exit(2)

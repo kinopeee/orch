@@ -4,8 +4,14 @@ import os
 from pathlib import Path
 
 import pytest
+import typer
 
-from orch.cli import _write_plan_snapshot, _write_report
+from orch.cli import (
+    _resolve_workdir_or_exit,
+    _validate_home_or_exit,
+    _write_plan_snapshot,
+    _write_report,
+)
 from orch.config.loader import load_plan
 from orch.config.schema import PlanSpec, TaskSpec
 from orch.state.model import RunState
@@ -115,3 +121,83 @@ def test_write_report_rejects_symlink_ancestor_path(tmp_path: Path) -> None:
     with pytest.raises(OSError, match="contains symlink component"):
         _write_report(state, symlink_parent / "run")
     assert not (real_run_dir / "report" / "final_report.md").exists()
+
+
+def test_validate_home_or_exit_rejects_when_exists_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "home"
+    original_exists = Path.exists
+
+    def flaky_exists(path_obj: Path) -> bool:
+        if path_obj == home:
+            raise PermissionError("simulated exists failure")
+        return original_exists(path_obj)
+
+    monkeypatch.setattr(Path, "exists", flaky_exists)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _validate_home_or_exit(home)
+    assert exc_info.value.exit_code == 2
+
+
+def test_validate_home_or_exit_rejects_when_is_dir_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "home"
+    original_exists = Path.exists
+    original_is_dir = Path.is_dir
+
+    def fake_exists(path_obj: Path) -> bool:
+        if path_obj == home:
+            return True
+        return original_exists(path_obj)
+
+    def flaky_is_dir(path_obj: Path) -> bool:
+        if path_obj == home:
+            raise PermissionError("simulated is_dir failure")
+        return original_is_dir(path_obj)
+
+    monkeypatch.setattr(Path, "exists", fake_exists)
+    monkeypatch.setattr(Path, "is_dir", flaky_is_dir)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _validate_home_or_exit(home)
+    assert exc_info.value.exit_code == 2
+
+
+def test_resolve_workdir_or_exit_rejects_when_resolve_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workdir = tmp_path / "workdir"
+    original_resolve = Path.resolve
+
+    def flaky_resolve(path_obj: Path, *args: object, **kwargs: object) -> Path:
+        if path_obj == workdir:
+            raise RuntimeError("simulated resolve failure")
+        return original_resolve(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", flaky_resolve)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _resolve_workdir_or_exit(workdir)
+    assert exc_info.value.exit_code == 2
+
+
+def test_resolve_workdir_or_exit_rejects_when_is_dir_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workdir = tmp_path / "workdir"
+    workdir.mkdir()
+    original_is_dir = Path.is_dir
+
+    def flaky_is_dir(path_obj: Path) -> bool:
+        if path_obj == workdir:
+            raise PermissionError("simulated is_dir failure")
+        return original_is_dir(path_obj)
+
+    monkeypatch.setattr(Path, "is_dir", flaky_is_dir)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _resolve_workdir_or_exit(workdir)
+    assert exc_info.value.exit_code == 2
