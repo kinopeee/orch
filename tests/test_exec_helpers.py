@@ -1155,9 +1155,12 @@ def test_cancel_requested_symlink_ancestor_skips_target_lstat(
     real_cancel_path.write_text("cancel requested\n", encoding="utf-8")
     original_lstat = Path.lstat
     target_lstat_calls = 0
+    run_dir_lstat_calls = 0
 
     def capture_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
-        nonlocal target_lstat_calls
+        nonlocal target_lstat_calls, run_dir_lstat_calls
+        if path_obj == linked_run_dir:
+            run_dir_lstat_calls += 1
         if path_obj == target_cancel_path:
             target_lstat_calls += 1
         return original_lstat(path_obj, *args, **kwargs)
@@ -1165,6 +1168,7 @@ def test_cancel_requested_symlink_ancestor_skips_target_lstat(
     monkeypatch.setattr(Path, "lstat", capture_lstat)
 
     assert cancel_requested(linked_run_dir) is False
+    assert run_dir_lstat_calls == 1
     assert target_lstat_calls == 0
     assert real_cancel_path.exists()
 
@@ -1181,8 +1185,19 @@ def test_clear_cancel_request_symlink_ancestor_skips_target_unlink(
     target_cancel_path = linked_run_dir / "cancel.request"
     real_cancel_path = real_run_dir / "cancel.request"
     real_cancel_path.write_text("cancel requested\n", encoding="utf-8")
+    original_lstat = Path.lstat
     original_unlink = Path.unlink
+    run_dir_lstat_calls = 0
+    target_lstat_calls = 0
     target_unlink_calls = 0
+
+    def capture_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal run_dir_lstat_calls, target_lstat_calls
+        if path_obj == linked_run_dir:
+            run_dir_lstat_calls += 1
+        if path_obj == target_cancel_path:
+            target_lstat_calls += 1
+        return original_lstat(path_obj, *args, **kwargs)
 
     def capture_unlink(path_obj: Path, *args: object, **kwargs: object) -> None:
         nonlocal target_unlink_calls
@@ -1190,9 +1205,12 @@ def test_clear_cancel_request_symlink_ancestor_skips_target_unlink(
             target_unlink_calls += 1
         original_unlink(path_obj, *args, **kwargs)
 
+    monkeypatch.setattr(Path, "lstat", capture_lstat)
     monkeypatch.setattr(Path, "unlink", capture_unlink)
 
     clear_cancel_request(linked_run_dir)
+    assert run_dir_lstat_calls == 1
+    assert target_lstat_calls == 0
     assert target_unlink_calls == 0
     assert real_cancel_path.exists()
 
@@ -1208,19 +1226,44 @@ def test_write_cancel_request_rejects_symlink_ancestor_without_open_side_effect(
     linked_run_dir = symlink_home / "runs" / "run1"
     cancel_path = real_run_dir / "cancel.request"
     cancel_path.write_text("cancel requested\n", encoding="utf-8")
+    target_cancel_path = linked_run_dir / "cancel.request"
     open_called = False
     original_open = os.open
+    original_lstat = Path.lstat
+    original_is_symlink = Path.is_symlink
+    run_dir_lstat_calls = 0
+    target_lstat_calls = 0
+    target_is_symlink_calls = 0
 
     def capture_open(path: os.PathLike[str] | str, flags: int, mode: int = 0o777) -> int:
         nonlocal open_called
         open_called = True
         return original_open(path, flags, mode)
 
+    def capture_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal run_dir_lstat_calls, target_lstat_calls
+        if path_obj == linked_run_dir:
+            run_dir_lstat_calls += 1
+        if path_obj == target_cancel_path:
+            target_lstat_calls += 1
+        return original_lstat(path_obj, *args, **kwargs)
+
+    def capture_is_symlink(path_obj: Path) -> bool:
+        nonlocal target_is_symlink_calls
+        if path_obj == target_cancel_path:
+            target_is_symlink_calls += 1
+        return original_is_symlink(path_obj)
+
     monkeypatch.setattr(os, "open", capture_open)
+    monkeypatch.setattr(Path, "lstat", capture_lstat)
+    monkeypatch.setattr(Path, "is_symlink", capture_is_symlink)
 
     with pytest.raises(OSError, match="contains symlink component"):
         write_cancel_request(linked_run_dir)
     assert open_called is False
+    assert run_dir_lstat_calls == 1
+    assert target_lstat_calls == 0
+    assert target_is_symlink_calls == 0
     assert cancel_path.read_text(encoding="utf-8") == "cancel requested\n"
 
 
