@@ -443,6 +443,28 @@ def test_load_state_rejects_state_path_with_symlink_ancestor(tmp_path: Path) -> 
         load_state(symlink_run_dir)
 
 
+def test_load_state_rejects_when_ancestor_stat_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_state_ancestor_error"
+    run_dir.mkdir()
+    (run_dir / "state.json").write_text(
+        json.dumps(_minimal_state_payload(run_id=run_dir.name)),
+        encoding="utf-8",
+    )
+    original_lstat = Path.lstat
+
+    def flaky_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        if path_obj == run_dir.parent:
+            raise PermissionError("simulated ancestor lstat failure")
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", flaky_lstat)
+
+    with pytest.raises(StateError, match="contains symlink component"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_unsafe_task_log_path(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad_log_path"
     run_dir.mkdir()

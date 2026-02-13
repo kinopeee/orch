@@ -45,7 +45,7 @@ def _has_symlink_ancestor(path: Path) -> bool:
             if current.is_symlink():
                 return True
         except OSError:
-            return False
+            return True
         if current == current.parent:
             return False
         current = current.parent

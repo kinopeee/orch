@@ -15,7 +15,7 @@ def _has_symlink_ancestor(path: Path) -> bool:
         except FileNotFoundError:
             pass
         except OSError:
-            return False
+            return True
         else:
             if stat.S_ISLNK(meta.st_mode):
                 return True
