@@ -8,7 +8,22 @@ def run_dir(home: Path, run_id: str) -> Path:
     return home / "runs" / run_id
 
 
+def _has_symlink_ancestor(path: Path) -> bool:
+    current = path.parent
+    while True:
+        try:
+            if current.is_symlink():
+                return True
+        except OSError:
+            return False
+        if current == current.parent:
+            return False
+        current = current.parent
+
+
 def _ensure_directory(path: Path, *, parents: bool = False) -> None:
+    if _has_symlink_ancestor(path):
+        raise OSError(f"path contains symlink component: {path}")
     if path.is_symlink():
         raise OSError(f"path must not be symlink: {path}")
     path.mkdir(parents=parents, exist_ok=True)

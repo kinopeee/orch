@@ -61,3 +61,15 @@ def test_ensure_run_layout_rejects_symlink_logs_dir(tmp_path: Path) -> None:
     with pytest.raises(OSError, match="must not be symlink"):
         ensure_run_layout(path)
     assert list(external_logs.iterdir()) == []
+
+
+def test_ensure_run_layout_rejects_symlink_ancestor(tmp_path: Path) -> None:
+    real_home = tmp_path / "real_home"
+    real_home.mkdir()
+    linked_home = tmp_path / "home_link"
+    linked_home.symlink_to(real_home, target_is_directory=True)
+    path = run_dir(linked_home, "run_1")
+
+    with pytest.raises(OSError, match="contains symlink component"):
+        ensure_run_layout(path)
+    assert not (real_home / "runs").exists()
