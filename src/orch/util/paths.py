@@ -16,7 +16,10 @@ def _ensure_directory(path: Path, *, parents: bool = False) -> None:
         raise OSError(f"path contains symlink component: {path}")
     if is_symlink_path(path):
         raise OSError(f"path must not be symlink: {path}")
-    path.mkdir(parents=parents, exist_ok=True)
+    try:
+        path.mkdir(parents=parents, exist_ok=True)
+    except (OSError, RuntimeError) as exc:
+        raise OSError(f"failed to create directory path: {path}") from exc
     try:
         meta = path.lstat()
     except (OSError, RuntimeError) as exc:

@@ -77,6 +77,42 @@ def test_ensure_run_layout_rejects_symlink_ancestor(tmp_path: Path) -> None:
     assert not (real_home / "runs").exists()
 
 
+def test_ensure_run_layout_normalizes_mkdir_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = run_dir(tmp_path, "run_1")
+    original_mkdir = Path.mkdir
+    target_path = path
+
+    def flaky_mkdir(path_obj: Path, *args: object, **kwargs: object) -> None:
+        if path_obj == target_path:
+            raise PermissionError("simulated mkdir failure")
+        original_mkdir(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "mkdir", flaky_mkdir)
+
+    with pytest.raises(OSError, match="failed to create directory path"):
+        ensure_run_layout(path)
+
+
+def test_ensure_run_layout_normalizes_mkdir_runtime_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = run_dir(tmp_path, "run_1")
+    original_mkdir = Path.mkdir
+    target_path = path
+
+    def flaky_mkdir(path_obj: Path, *args: object, **kwargs: object) -> None:
+        if path_obj == target_path:
+            raise RuntimeError("simulated mkdir runtime failure")
+        original_mkdir(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "mkdir", flaky_mkdir)
+
+    with pytest.raises(OSError, match="failed to create directory path"):
+        ensure_run_layout(path)
+
+
 def test_ensure_run_layout_normalizes_lstat_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -313,6 +349,12 @@ def test_source_wraps_os_fdopen_calls_with_oserror_and_runtimeerror_handlers() -
     violations = _collect_unguarded_calls("fdopen", receiver_name="os")
 
     assert not violations, "unguarded os.fdopen calls found:\n" + "\n".join(violations)
+
+
+def test_source_wraps_mkdir_calls_with_oserror_and_runtimeerror_handlers() -> None:
+    violations = _collect_unguarded_calls("mkdir")
+
+    assert not violations, "unguarded mkdir calls found:\n" + "\n".join(violations)
 
 
 def test_source_wraps_subprocess_creation_calls_with_expected_handlers() -> None:
