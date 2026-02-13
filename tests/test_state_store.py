@@ -620,6 +620,26 @@ def test_load_state_rejects_inconsistent_task_exit_and_flags(tmp_path: Path) -> 
         load_state(run_dir)
 
 
+def test_load_state_rejects_failed_task_with_zero_exit_code(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_failed_zero_exit"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["status"] = "FAILED"
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["status"] = "FAILED"
+    task["exit_code"] = 0
+    task["timed_out"] = False
+    task["canceled"] = False
+    task["skip_reason"] = None
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_attempts_exceeding_retry_budget(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad_attempt_budget"
     run_dir.mkdir()
@@ -692,6 +712,10 @@ def test_load_state_rejects_success_status_with_non_success_task(tmp_path: Path)
     task = tasks["t1"]
     assert isinstance(task, dict)
     task["status"] = "FAILED"
+    task["exit_code"] = 1
+    task["timed_out"] = False
+    task["canceled"] = False
+    task["skip_reason"] = None
     (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
 
     with pytest.raises(StateError, match="invalid state field: status"):
