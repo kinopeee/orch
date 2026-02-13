@@ -306,6 +306,47 @@ def test_cancel_requested_ignores_directory_and_clear_is_safe(tmp_path: Path) ->
     assert cancel_path.is_dir()
 
 
+def test_cancel_requested_missing_run_dir_skips_target_lstat(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "missing_run_dir_cancel_requested"
+    cancel_path = run_dir / "cancel.request"
+    original_lstat = Path.lstat
+    target_lstat_calls = 0
+
+    def capture_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal target_lstat_calls
+        if path_obj == cancel_path:
+            target_lstat_calls += 1
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", capture_lstat)
+
+    assert cancel_requested(run_dir) is False
+    assert target_lstat_calls == 0
+
+
+def test_cancel_requested_non_directory_run_path_skips_target_lstat(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_as_file_cancel_requested"
+    run_dir.write_text("not a directory", encoding="utf-8")
+    cancel_path = run_dir / "cancel.request"
+    original_lstat = Path.lstat
+    target_lstat_calls = 0
+
+    def capture_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal target_lstat_calls
+        if path_obj == cancel_path:
+            target_lstat_calls += 1
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", capture_lstat)
+
+    assert cancel_requested(run_dir) is False
+    assert target_lstat_calls == 0
+
+
 def test_cancel_requested_returns_false_when_lstat_runtime_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -336,6 +377,67 @@ def test_clear_cancel_request_removes_non_regular_path(tmp_path: Path) -> None:
 
     clear_cancel_request(run_dir)
     assert not cancel_path.exists()
+
+
+def test_clear_cancel_request_missing_run_dir_skips_target_checks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "missing_run_dir_clear_cancel"
+    cancel_path = run_dir / "cancel.request"
+    original_lstat = Path.lstat
+    original_unlink = Path.unlink
+    target_lstat_calls = 0
+    target_unlink_calls = 0
+
+    def capture_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal target_lstat_calls
+        if path_obj == cancel_path:
+            target_lstat_calls += 1
+        return original_lstat(path_obj, *args, **kwargs)
+
+    def capture_unlink(path_obj: Path, *args: object, **kwargs: object) -> None:
+        nonlocal target_unlink_calls
+        if path_obj == cancel_path:
+            target_unlink_calls += 1
+        original_unlink(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", capture_lstat)
+    monkeypatch.setattr(Path, "unlink", capture_unlink)
+
+    clear_cancel_request(run_dir)
+    assert target_lstat_calls == 0
+    assert target_unlink_calls == 0
+
+
+def test_clear_cancel_request_non_directory_run_path_skips_target_checks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_as_file_clear_cancel"
+    run_dir.write_text("not a directory", encoding="utf-8")
+    cancel_path = run_dir / "cancel.request"
+    original_lstat = Path.lstat
+    original_unlink = Path.unlink
+    target_lstat_calls = 0
+    target_unlink_calls = 0
+
+    def capture_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal target_lstat_calls
+        if path_obj == cancel_path:
+            target_lstat_calls += 1
+        return original_lstat(path_obj, *args, **kwargs)
+
+    def capture_unlink(path_obj: Path, *args: object, **kwargs: object) -> None:
+        nonlocal target_unlink_calls
+        if path_obj == cancel_path:
+            target_unlink_calls += 1
+        original_unlink(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", capture_lstat)
+    monkeypatch.setattr(Path, "unlink", capture_unlink)
+
+    clear_cancel_request(run_dir)
+    assert target_lstat_calls == 0
+    assert target_unlink_calls == 0
 
 
 def test_clear_cancel_request_ignores_unlink_runtime_error(

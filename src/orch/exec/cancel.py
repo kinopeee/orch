@@ -14,6 +14,14 @@ def cancel_requested(run_dir: Path) -> bool:
     if has_symlink_ancestor(path):
         return False
     try:
+        run_meta = run_dir.lstat()
+    except FileNotFoundError:
+        return False
+    except (OSError, RuntimeError):
+        return False
+    if stat.S_ISLNK(run_meta.st_mode) or not stat.S_ISDIR(run_meta.st_mode):
+        return False
+    try:
         meta = path.lstat()
     except FileNotFoundError:
         return False
@@ -87,6 +95,14 @@ def write_cancel_request(run_dir: Path) -> None:
 def clear_cancel_request(run_dir: Path) -> None:
     path = run_dir / "cancel.request"
     if has_symlink_ancestor(path):
+        return
+    try:
+        run_meta = run_dir.lstat()
+    except FileNotFoundError:
+        return
+    except (OSError, RuntimeError):
+        return
+    if stat.S_ISLNK(run_meta.st_mode) or not stat.S_ISDIR(run_meta.st_mode):
         return
     try:
         meta = path.lstat()
