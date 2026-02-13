@@ -107,7 +107,10 @@ def _copy_artifacts(task: TaskSpec, run_dir: Path, cwd: Path) -> list[str]:
     if not task.outputs:
         return copied
     task_root = run_dir / "artifacts" / task.id
-    task_root.mkdir(parents=True, exist_ok=True)
+    try:
+        task_root.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return copied
     for pattern in task.outputs:
         if Path(pattern).is_absolute():
             matches = [Path(p) for p in globlib.glob(pattern, recursive=True)]
@@ -118,8 +121,8 @@ def _copy_artifacts(task: TaskSpec, run_dir: Path, cwd: Path) -> list[str]:
                 continue
             rel = _artifact_relative_path(match, cwd)
             dest = task_root / rel
-            dest.parent.mkdir(parents=True, exist_ok=True)
             try:
+                dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(match, dest)
             except OSError:
                 continue
@@ -134,7 +137,10 @@ def _copy_to_aggregate_dir(
     aggregate_root: Path,
 ) -> None:
     task_root = aggregate_root / task.id
-    task_root.mkdir(parents=True, exist_ok=True)
+    try:
+        task_root.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return
     for pattern in task.outputs:
         if Path(pattern).is_absolute():
             matches = [Path(p) for p in globlib.glob(pattern, recursive=True)]
@@ -145,8 +151,8 @@ def _copy_to_aggregate_dir(
                 continue
             rel = _artifact_relative_path(match, cwd)
             dest = task_root / rel
-            dest.parent.mkdir(parents=True, exist_ok=True)
             try:
+                dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(match, dest)
             except OSError:
                 continue

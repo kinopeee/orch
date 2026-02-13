@@ -162,6 +162,44 @@ async def test_runner_ignores_copy_failures_and_keeps_success(
 
 
 @pytest.mark.asyncio
+async def test_runner_ignores_artifact_dir_creation_failures_and_keeps_success(
+    tmp_path: Path,
+) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_artifacts_dir_blocked"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+    blocked = run_dir / "artifacts" / "publish"
+    blocked.write_text("blocked\n", encoding="utf-8")
+
+    create_outputs_cmd = [
+        sys.executable,
+        "-c",
+        "from pathlib import Path; Path('out').mkdir(exist_ok=True); "
+        "Path('out/ok.txt').write_text('OK', encoding='utf-8')",
+    ]
+    plan = PlanSpec(
+        goal="artifact mkdir best effort",
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="publish", cmd=create_outputs_cmd, outputs=["out/*.txt"])],
+    )
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "SUCCESS"
+    assert state.tasks["publish"].status == "SUCCESS"
+    assert state.tasks["publish"].artifact_paths == []
+    assert blocked.read_text(encoding="utf-8") == "blocked\n"
+
+
+@pytest.mark.asyncio
 async def test_runner_sanitizes_parent_segments_in_outputs_patterns(tmp_path: Path) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run_outputs_parent_pattern"
     workdir = tmp_path / "wd"
