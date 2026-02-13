@@ -162,7 +162,7 @@ def test_source_uses_path_guard_for_is_symlink_checks() -> None:
     )
 
 
-def _collect_unguarded_calls(method_name: str) -> list[str]:
+def _collect_unguarded_calls(method_name: str, *, receiver_name: str | None = None) -> list[str]:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     violations: list[str] = []
 
@@ -202,9 +202,17 @@ def _collect_unguarded_calls(method_name: str) -> list[str]:
                 self.visit(stmt)
 
         def visit_Call(self, node: ast.Call) -> None:
+            matches_receiver = True
+            if receiver_name is not None:
+                matches_receiver = (
+                    isinstance(node.func, ast.Attribute)
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == receiver_name
+                )
             if (
                 isinstance(node.func, ast.Attribute)
                 and node.func.attr == method_name
+                and matches_receiver
                 and not any(self.guard_stack)
             ):
                 violations.append(f"{self.relative_path}:{node.lineno}")
@@ -228,3 +236,15 @@ def test_source_wraps_resolve_calls_with_oserror_and_runtimeerror_handlers() -> 
     violations = _collect_unguarded_calls("resolve")
 
     assert not violations, "unguarded resolve calls found:\n" + "\n".join(violations)
+
+
+def test_source_wraps_os_open_calls_with_oserror_and_runtimeerror_handlers() -> None:
+    violations = _collect_unguarded_calls("open", receiver_name="os")
+
+    assert not violations, "unguarded os.open calls found:\n" + "\n".join(violations)
+
+
+def test_source_wraps_os_fstat_calls_with_oserror_and_runtimeerror_handlers() -> None:
+    violations = _collect_unguarded_calls("fstat", receiver_name="os")
+
+    assert not violations, "unguarded os.fstat calls found:\n" + "\n".join(violations)
