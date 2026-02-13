@@ -440,6 +440,21 @@ def test_load_state_rejects_duplicate_artifact_paths(tmp_path: Path) -> None:
         load_state(run_dir)
 
 
+def test_load_state_rejects_case_insensitive_duplicate_outputs(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_dup_outputs_case"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["outputs"] = ["dist/report.txt", "dist/REPORT.txt"]
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_identical_stdout_and_stderr_path(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_same_log_paths"
     run_dir.mkdir()

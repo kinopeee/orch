@@ -237,7 +237,7 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
             not _is_non_blank_str_without_nul(output) for output in outputs
         ):
             raise StateError("invalid state field: tasks")
-        if len(set(outputs)) != len(outputs):
+        if len({output.casefold() for output in outputs}) != len(outputs):
             raise StateError("invalid state field: tasks")
 
         if "cwd" not in task_data:

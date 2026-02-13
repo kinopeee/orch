@@ -164,7 +164,7 @@ def validate_plan(plan: PlanSpec) -> None:
             raise PlanError(f"task '{task.id}' must not depend on itself")
         if len(set(task.depends_on)) != len(task.depends_on):
             raise PlanError(f"task '{task.id}' has duplicate dependencies")
-        if len(set(task.outputs)) != len(task.outputs):
+        if len({output.casefold() for output in task.outputs}) != len(task.outputs):
             raise PlanError(f"task '{task.id}' has duplicate outputs")
 
     dependents, in_degree = build_adjacency(plan)
