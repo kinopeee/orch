@@ -336,6 +336,30 @@ def test_save_state_atomic_ignores_directory_close_error(
     assert loaded.run_id == run_dir.name
 
 
+def test_save_state_atomic_ignores_directory_close_runtime_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_dir_close_runtime_fail"
+    run_dir.mkdir()
+    state = RunState.from_dict(_minimal_state_payload(run_id=run_dir.name))
+    state.status = "SUCCESS"
+    original_close = os.close
+    failed_once = False
+
+    def flaky_close(fd: int) -> None:
+        nonlocal failed_once
+        original_close(fd)
+        if not failed_once:
+            failed_once = True
+            raise RuntimeError("simulated directory close runtime failure")
+
+    monkeypatch.setattr(os, "close", flaky_close)
+
+    save_state_atomic(run_dir, state)
+    loaded = load_state(run_dir)
+    assert loaded.run_id == run_dir.name
+
+
 def test_save_state_atomic_uses_nofollow_for_directory_fsync(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -357,6 +381,37 @@ def test_save_state_atomic_uses_nofollow_for_directory_fsync(
     assert "flags" in captured_flags
     if hasattr(os, "O_NOFOLLOW"):
         assert captured_flags["flags"] & os.O_NOFOLLOW
+
+
+def test_save_state_atomic_preserves_write_error_when_tmp_cleanup_runtime_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run_tmp_cleanup_runtime_fail"
+    run_dir.mkdir()
+    state = RunState.from_dict(_minimal_state_payload(run_id=run_dir.name))
+    tmp_state_path = run_dir / "state.json.tmp"
+    original_fsync = os.fsync
+    original_unlink = Path.unlink
+    failed_once = False
+
+    def flaky_fsync(fd: int) -> None:
+        nonlocal failed_once
+        if not failed_once:
+            failed_once = True
+            raise OSError("simulated write fsync failure")
+        original_fsync(fd)
+
+    def flaky_unlink(path_obj: Path, *args: object, **kwargs: object) -> None:
+        if path_obj == tmp_state_path:
+            raise RuntimeError("simulated tmp cleanup runtime failure")
+        original_unlink(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(os, "fsync", flaky_fsync)
+    monkeypatch.setattr(Path, "unlink", flaky_unlink)
+
+    with pytest.raises(OSError, match="simulated write fsync failure"):
+        save_state_atomic(run_dir, state)
+    assert tmp_state_path.exists()
 
 
 def test_load_state_rejects_invalid_json(tmp_path: Path) -> None:

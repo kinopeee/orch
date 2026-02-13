@@ -60,17 +60,17 @@ def _fsync_directory(path: Path) -> None:
         flags |= os.O_NOFOLLOW
     try:
         fd = os.open(str(path), flags)
-    except OSError:
+    except (OSError, RuntimeError):
         return
     try:
         opened_meta = os.fstat(fd)
         if not stat.S_ISDIR(opened_meta.st_mode):
             return
         os.fsync(fd)
-    except OSError:
+    except (OSError, RuntimeError):
         pass
     finally:
-        with suppress(OSError):
+        with suppress(OSError, RuntimeError):
             os.close(fd)
 
 
@@ -628,7 +628,7 @@ def load_state(run_dir: Path) -> RunState:
         raise StateError(f"failed to read state file: {state_path}") from exc
     finally:
         if fd is not None:
-            with suppress(OSError):
+            with suppress(OSError, RuntimeError):
                 os.close(fd)
     if not isinstance(raw, dict):
         raise StateError("state root must be object")
@@ -669,7 +669,7 @@ def save_state_atomic(run_dir: Path, state: RunState) -> None:
             raise OSError(f"temporary state path must be regular file: {tmp_path}")
     except OSError as exc:
         if fd is not None:
-            with suppress(OSError):
+            with suppress(OSError, RuntimeError):
                 os.close(fd)
         if exc.errno == errno.ELOOP:
             raise OSError(f"temporary state path must not be symlink: {tmp_path}") from exc
@@ -684,10 +684,10 @@ def save_state_atomic(run_dir: Path, state: RunState) -> None:
             f.flush()
             os.fsync(f.fileno())
     except OSError:
-        with suppress(OSError):
+        with suppress(OSError, RuntimeError):
             tmp_path.unlink(missing_ok=True)
         if fd is not None:
-            with suppress(OSError):
+            with suppress(OSError, RuntimeError):
                 os.close(fd)
         raise
     try:
@@ -701,13 +701,13 @@ def save_state_atomic(run_dir: Path, state: RunState) -> None:
         ):
             raise OSError(f"temporary state path changed before replace: {tmp_path}")
     except (OSError, RuntimeError):
-        with suppress(OSError):
+        with suppress(OSError, RuntimeError):
             tmp_path.unlink(missing_ok=True)
         raise
     try:
         os.replace(tmp_path, state_path)
     except OSError:
-        with suppress(OSError):
+        with suppress(OSError, RuntimeError):
             tmp_path.unlink(missing_ok=True)
         raise
     _fsync_directory(run_dir)
