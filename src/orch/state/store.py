@@ -56,6 +56,8 @@ _ALLOWED_TASK_KEYS = {
 
 def _fsync_directory(path: Path) -> None:
     flags = os.O_RDONLY
+    if hasattr(os, "O_NONBLOCK"):
+        flags |= os.O_NONBLOCK
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
     try:

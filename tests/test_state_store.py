@@ -443,6 +443,8 @@ def test_save_state_atomic_uses_nofollow_for_directory_fsync(
         assert not (captured_flags["flags"] & os.O_APPEND)
     if hasattr(os, "O_TRUNC"):
         assert not (captured_flags["flags"] & os.O_TRUNC)
+    if hasattr(os, "O_NONBLOCK"):
+        assert captured_flags["flags"] & os.O_NONBLOCK
     if hasattr(os, "O_NOFOLLOW"):
         assert captured_flags["flags"] & os.O_NOFOLLOW
 
