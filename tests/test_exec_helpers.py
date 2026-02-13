@@ -237,3 +237,22 @@ def test_write_cancel_request_uses_nonblock_open_flag(
 
     if hasattr(os, "O_NONBLOCK"):
         assert captured_flags["flags"] & os.O_NONBLOCK
+
+
+def test_cancel_helpers_ignore_symlink_ancestor_paths(tmp_path: Path) -> None:
+    real_home = tmp_path / "real_home"
+    real_run_dir = real_home / "runs" / "run1"
+    real_run_dir.mkdir(parents=True)
+    symlink_home = tmp_path / "home_link"
+    symlink_home.symlink_to(real_home, target_is_directory=True)
+    linked_run_dir = symlink_home / "runs" / "run1"
+    cancel_path = real_run_dir / "cancel.request"
+    cancel_path.write_text("cancel requested\n", encoding="utf-8")
+
+    assert cancel_requested(linked_run_dir) is False
+    clear_cancel_request(linked_run_dir)
+    assert cancel_path.exists()
+
+    with pytest.raises(OSError, match="contains symlink component"):
+        write_cancel_request(linked_run_dir)
+    assert cancel_path.read_text(encoding="utf-8") == "cancel requested\n"

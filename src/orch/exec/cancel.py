@@ -7,8 +7,27 @@ from contextlib import suppress
 from pathlib import Path
 
 
+def _has_symlink_ancestor(path: Path) -> bool:
+    current = path.parent
+    while True:
+        try:
+            meta = current.lstat()
+        except FileNotFoundError:
+            pass
+        except OSError:
+            return False
+        else:
+            if stat.S_ISLNK(meta.st_mode):
+                return True
+        if current == current.parent:
+            return False
+        current = current.parent
+
+
 def cancel_requested(run_dir: Path) -> bool:
     path = run_dir / "cancel.request"
+    if _has_symlink_ancestor(path):
+        return False
     try:
         return path.is_file() and not path.is_symlink()
     except OSError:
@@ -17,6 +36,8 @@ def cancel_requested(run_dir: Path) -> bool:
 
 def write_cancel_request(run_dir: Path) -> None:
     path = run_dir / "cancel.request"
+    if _has_symlink_ancestor(path):
+        raise OSError("cancel request path contains symlink component")
     if path.is_symlink():
         raise OSError("cancel request path must not be symlink")
     if path.exists() and not path.is_file():
@@ -51,6 +72,8 @@ def write_cancel_request(run_dir: Path) -> None:
 
 def clear_cancel_request(run_dir: Path) -> None:
     path = run_dir / "cancel.request"
+    if _has_symlink_ancestor(path):
+        return
     try:
         if path.is_symlink() or path.is_file():
             path.unlink(missing_ok=True)
