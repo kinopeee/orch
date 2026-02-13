@@ -68,3 +68,44 @@ async def test_runner_timeout_marks_task_failed(tmp_path: Path) -> None:
     )
     assert state.tasks["slow"].status == "FAILED"
     assert state.tasks["slow"].timed_out is True
+
+
+@pytest.mark.asyncio
+async def test_runner_copies_declared_output_artifacts(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run_artifacts"
+    workdir = tmp_path / "wd"
+    workdir.mkdir(parents=True)
+    ensure_run_layout(run_dir)
+
+    create_outputs_cmd = [
+        sys.executable,
+        "-c",
+        "from pathlib import Path; Path('out/sub').mkdir(parents=True, exist_ok=True); "
+        "Path('out/sub/a.txt').write_text('A', encoding='utf-8'); "
+        "Path('out/b.txt').write_text('B', encoding='utf-8')",
+    ]
+    plan = PlanSpec(
+        goal="artifact copy test",
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="publish", cmd=create_outputs_cmd, outputs=["out/**/*.txt"])],
+    )
+
+    state = await run_plan(
+        plan,
+        run_dir,
+        max_parallel=1,
+        fail_fast=False,
+        workdir=workdir,
+        resume=False,
+        failed_only=False,
+    )
+    assert state.status == "SUCCESS"
+    assert state.tasks["publish"].status == "SUCCESS"
+    assert set(state.tasks["publish"].artifact_paths) == {
+        "artifacts/publish/out/b.txt",
+        "artifacts/publish/out/sub/a.txt",
+    }
+    assert (run_dir / "artifacts" / "publish" / "out" / "b.txt").read_text(encoding="utf-8") == "B"
+    assert (run_dir / "artifacts" / "publish" / "out" / "sub" / "a.txt").read_text(
+        encoding="utf-8"
+    ) == "A"
