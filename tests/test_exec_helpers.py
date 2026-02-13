@@ -210,11 +210,13 @@ async def test_stream_to_file_uses_nonblock_open_flag(
 ) -> None:
     file_path = tmp_path / "capture.log"
     captured_flags: dict[str, int] = {}
+    captured_mode: dict[str, int] = {}
     original_open = os.open
 
     def capture_open(path: str, flags: int, mode: int = 0o777) -> int:
         if path == str(file_path):
             captured_flags["flags"] = flags
+            captured_mode["mode"] = mode
         return original_open(path, flags, mode)
 
     monkeypatch.setattr(os, "open", capture_open)
@@ -228,6 +230,7 @@ async def test_stream_to_file_uses_nonblock_open_flag(
     assert captured_flags["flags"] & os.O_WRONLY
     assert captured_flags["flags"] & os.O_CREAT
     assert captured_flags["flags"] & os.O_APPEND
+    assert captured_mode.get("mode") == 0o600
     if hasattr(os, "O_NONBLOCK"):
         assert captured_flags["flags"] & os.O_NONBLOCK
 
@@ -524,10 +527,12 @@ def test_write_cancel_request_uses_nonblock_open_flag(
     run_dir = tmp_path / "run_dir_cancel_nonblock_flag"
     run_dir.mkdir()
     captured_flags: dict[str, int] = {}
+    captured_mode: dict[str, int] = {}
     original_open = os.open
 
     def capture_open(path: os.PathLike[str] | str, flags: int, mode: int = 0o777) -> int:
         captured_flags["flags"] = flags
+        captured_mode["mode"] = mode
         return original_open(path, flags, mode)
 
     monkeypatch.setattr(os, "open", capture_open)
@@ -537,6 +542,7 @@ def test_write_cancel_request_uses_nonblock_open_flag(
     assert captured_flags["flags"] & os.O_WRONLY
     assert captured_flags["flags"] & os.O_CREAT
     assert captured_flags["flags"] & os.O_TRUNC
+    assert captured_mode.get("mode") == 0o600
     if hasattr(os, "O_NONBLOCK"):
         assert captured_flags["flags"] & os.O_NONBLOCK
 

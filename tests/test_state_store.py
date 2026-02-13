@@ -447,11 +447,13 @@ def test_save_state_atomic_uses_nonblock_and_nofollow_for_tmp_state_file(
     state = RunState.from_dict(_minimal_state_payload(run_id=run_dir.name))
     tmp_state_path = run_dir / "state.json.tmp"
     captured_flags: dict[str, int] = {}
+    captured_mode: dict[str, int] = {}
     original_open = os.open
 
     def capture_open(path: str | os.PathLike[str], flags: int, mode: int = 0o777) -> int:
         if str(path) == str(tmp_state_path):
             captured_flags["flags"] = flags
+            captured_mode["mode"] = mode
         return original_open(path, flags, mode)
 
     monkeypatch.setattr(os, "open", capture_open)
@@ -461,6 +463,7 @@ def test_save_state_atomic_uses_nonblock_and_nofollow_for_tmp_state_file(
     assert captured_flags["flags"] & os.O_WRONLY
     assert captured_flags["flags"] & os.O_CREAT
     assert captured_flags["flags"] & os.O_TRUNC
+    assert captured_mode.get("mode") == 0o600
     if hasattr(os, "O_NONBLOCK"):
         assert captured_flags["flags"] & os.O_NONBLOCK
     if hasattr(os, "O_NOFOLLOW"):
