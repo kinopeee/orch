@@ -1130,6 +1130,58 @@ def test_load_state_rejects_skipped_task_with_missing_bool_flags(tmp_path: Path)
         load_state(run_dir)
 
 
+def test_load_state_rejects_task_with_missing_attempts(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_missing_attempts"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["status"] = "RUNNING"
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["status"] = "PENDING"
+    task["attempts"] = None
+    task["retries"] = 1
+    task["timed_out"] = False
+    task["canceled"] = False
+    task["started_at"] = None
+    task["ended_at"] = None
+    task["duration_sec"] = None
+    task["exit_code"] = None
+    task["skip_reason"] = None
+    task["artifact_paths"] = []
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
+def test_load_state_rejects_task_with_missing_retries(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_missing_retries"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["status"] = "RUNNING"
+    tasks = payload["tasks"]
+    assert isinstance(tasks, dict)
+    task = tasks["t1"]
+    assert isinstance(task, dict)
+    task["status"] = "PENDING"
+    task["attempts"] = 0
+    task["retries"] = None
+    task["timed_out"] = False
+    task["canceled"] = False
+    task["started_at"] = None
+    task["ended_at"] = None
+    task["duration_sec"] = None
+    task["exit_code"] = None
+    task["skip_reason"] = None
+    task["artifact_paths"] = []
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: tasks"):
+        load_state(run_dir)
+
+
 def test_load_state_rejects_attempts_exceeding_retry_budget(tmp_path: Path) -> None:
     run_dir = tmp_path / "run_bad_attempt_budget"
     run_dir.mkdir()

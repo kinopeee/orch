@@ -203,13 +203,17 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
                     or "\x00" in env_value
                 ):
                     raise StateError("invalid state field: tasks")
-        attempts = task_data.get("attempts")
-        if attempts is not None and not _is_non_negative_int(attempts):
+        attempts_raw = task_data.get("attempts")
+        if not _is_non_negative_int(attempts_raw):
             raise StateError("invalid state field: tasks")
-        retries = task_data.get("retries")
-        if retries is not None and not _is_non_negative_int(retries):
+        retries_raw = task_data.get("retries")
+        if not _is_non_negative_int(retries_raw):
             raise StateError("invalid state field: tasks")
-        if isinstance(attempts, int) and isinstance(retries, int) and attempts > (retries + 1):
+        assert isinstance(attempts_raw, int) and not isinstance(attempts_raw, bool)
+        assert isinstance(retries_raw, int) and not isinstance(retries_raw, bool)
+        attempts = attempts_raw
+        retries = retries_raw
+        if attempts > (retries + 1):
             raise StateError("invalid state field: tasks")
         timeout_sec = task_data.get("timeout_sec")
         if timeout_sec is not None and not _is_positive_finite_number(timeout_sec):
