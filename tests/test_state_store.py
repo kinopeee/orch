@@ -18,8 +18,8 @@ def _minimal_state_payload(*, run_id: str) -> dict[str, object]:
         status="RUNNING",
         goal=None,
         plan_relpath="plan.yaml",
-        home=".orch",
-        workdir=".",
+        home="/tmp/.orch_state_test",
+        workdir="/tmp",
         max_parallel=1,
         fail_fast=False,
         tasks={
@@ -48,8 +48,9 @@ def _minimal_state_payload(*, run_id: str) -> dict[str, object]:
 
 
 def test_save_and_load_state_atomic(tmp_path: Path) -> None:
-    run_dir = tmp_path / "run1"
-    run_dir.mkdir()
+    home = tmp_path / ".orch"
+    run_dir = home / "runs" / "run1"
+    run_dir.mkdir(parents=True)
     state = RunState(
         run_id="run1",
         created_at="2026-01-01T00:00:00+00:00",
@@ -57,8 +58,8 @@ def test_save_and_load_state_atomic(tmp_path: Path) -> None:
         status="RUNNING",
         goal="demo",
         plan_relpath="plan.yaml",
-        home=".orch",
-        workdir=".",
+        home=str(home),
+        workdir=str(tmp_path),
         max_parallel=2,
         fail_fast=False,
         tasks={
@@ -134,6 +135,18 @@ def test_load_state_rejects_unsafe_plan_relpath(tmp_path: Path) -> None:
     (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
 
     with pytest.raises(StateError, match="invalid state field: plan_relpath"):
+        load_state(run_dir)
+
+
+def test_load_state_rejects_non_absolute_home_and_workdir(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_paths"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["home"] = ".orch"
+    payload["workdir"] = "."
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: home"):
         load_state(run_dir)
 
 
