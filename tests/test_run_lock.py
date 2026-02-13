@@ -158,6 +158,28 @@ def test_run_lock_ignores_release_unlink_error(
     assert lock_path.exists()
 
 
+def test_run_lock_ignores_release_close_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    lock_path = run_dir / ".lock"
+    original_close = os.close
+    failed_once = False
+
+    def flaky_close(fd: int) -> None:
+        nonlocal failed_once
+        if not failed_once:
+            failed_once = True
+            raise OSError("simulated close failure")
+        original_close(fd)
+
+    monkeypatch.setattr(os, "close", flaky_close)
+
+    with run_lock(run_dir):
+        assert lock_path.exists()
+
+
 def test_run_lock_cleans_up_if_pid_write_fails(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

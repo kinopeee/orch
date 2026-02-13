@@ -72,7 +72,8 @@ def run_lock(
         yield
     finally:
         if fd is not None:
-            os.close(fd)
+            with suppress(OSError):
+                os.close(fd)
         if lock_inode is not None and lock_dev is not None:
             current: os.stat_result | None
             try:
