@@ -147,6 +147,33 @@ def test_write_plan_snapshot_wraps_runtime_open_error(
         _write_plan_snapshot(plan, snapshot_path)
 
 
+def test_write_plan_snapshot_uses_nonblock_and_nofollow_open_flags(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plan = PlanSpec(
+        goal=None,
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="only", cmd=["python3", "-c", "print('ok')"])],
+    )
+    snapshot_path = tmp_path / "plan_flags.yaml"
+    captured_flags: dict[str, int] = {}
+    original_open = os.open
+
+    def capture_open(path: str, flags: int, mode: int = 0o777) -> int:
+        if path == str(snapshot_path):
+            captured_flags["flags"] = flags
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", capture_open)
+    _write_plan_snapshot(plan, snapshot_path)
+
+    assert "flags" in captured_flags
+    if hasattr(os, "O_NONBLOCK"):
+        assert captured_flags["flags"] & os.O_NONBLOCK
+    if hasattr(os, "O_NOFOLLOW"):
+        assert captured_flags["flags"] & os.O_NOFOLLOW
+
+
 def test_write_report_rejects_symlink_ancestor_path(tmp_path: Path) -> None:
     real_parent = tmp_path / "real_parent"
     real_run_dir = real_parent / "run"
@@ -238,6 +265,43 @@ def test_write_report_wraps_runtime_open_error(
 
     with pytest.raises(OSError, match="failed to write report"):
         _write_report(state, run_dir)
+
+
+def test_write_report_uses_nonblock_and_nofollow_open_flags(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    (run_dir / "report").mkdir(parents=True)
+    state = RunState(
+        run_id="run",
+        created_at="2026-01-01T00:00:00+00:00",
+        updated_at="2026-01-01T00:00:01+00:00",
+        status="SUCCESS",
+        goal=None,
+        plan_relpath="plan.yaml",
+        home=str(tmp_path),
+        workdir=str(tmp_path),
+        max_parallel=1,
+        fail_fast=False,
+        tasks={},
+    )
+    report_path = run_dir / "report" / "final_report.md"
+    captured_flags: dict[str, int] = {}
+    original_open = os.open
+
+    def capture_open(path: str, flags: int, mode: int = 0o777) -> int:
+        if path == str(report_path):
+            captured_flags["flags"] = flags
+        return original_open(path, flags, mode)
+
+    monkeypatch.setattr(os, "open", capture_open)
+    _write_report(state, run_dir)
+
+    assert "flags" in captured_flags
+    if hasattr(os, "O_NONBLOCK"):
+        assert captured_flags["flags"] & os.O_NONBLOCK
+    if hasattr(os, "O_NOFOLLOW"):
+        assert captured_flags["flags"] & os.O_NOFOLLOW
 
 
 def test_validate_home_or_exit_rejects_when_lstat_errors(
