@@ -37,3 +37,12 @@ def test_tail_lines_returns_empty_for_directory_path(tmp_path: Path) -> None:
     directory = tmp_path / "logs_dir"
     directory.mkdir()
     assert tail_lines(directory, 10) == []
+
+
+def test_tail_lines_returns_empty_for_symlink_path(tmp_path: Path) -> None:
+    target = tmp_path / "outside.log"
+    target.write_text("secret\nline2\n", encoding="utf-8")
+    symlink = tmp_path / "linked.log"
+    symlink.symlink_to(target)
+
+    assert tail_lines(symlink, 10) == []
