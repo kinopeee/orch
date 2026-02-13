@@ -129,6 +129,8 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
     status = raw["status"]
     if status not in RUN_STATUS_VALUES:
         raise StateError("invalid state field: status")
+    if status == "PENDING":
+        raise StateError("invalid state field: status")
 
     max_parallel = raw.get("max_parallel")
     if not isinstance(max_parallel, int) or isinstance(max_parallel, bool) or max_parallel < 1:

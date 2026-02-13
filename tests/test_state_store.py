@@ -658,3 +658,14 @@ def test_load_state_rejects_running_status_when_all_tasks_terminal(tmp_path: Pat
 
     with pytest.raises(StateError, match="invalid state field: status"):
         load_state(run_dir)
+
+
+def test_load_state_rejects_pending_run_status(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_bad_pending_status"
+    run_dir.mkdir()
+    payload = _minimal_state_payload(run_id=run_dir.name)
+    payload["status"] = "PENDING"
+    (run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(StateError, match="invalid state field: status"):
+        load_state(run_dir)
