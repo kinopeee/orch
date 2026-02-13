@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
 import shutil
 from datetime import datetime
@@ -49,7 +50,14 @@ def _write_report(state: RunState, current_run_dir: Path) -> Path:
     summary = build_summary(state, current_run_dir)
     md = render_markdown(summary)
     report_path = current_run_dir / "report" / "final_report.md"
-    report_path.write_text(md + "\n", encoding="utf-8")
+    if report_path.parent.is_symlink() or report_path.is_symlink():
+        raise OSError(f"report path must not be symlink: {report_path}")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(str(report_path), flags, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(md + "\n")
     return report_path
 
 
