@@ -627,3 +627,74 @@ def test_source_os_open_uses_flag_variable_with_nonblock_and_nofollow() -> None:
     assert not violations, "os.open flag-variable policy violations found:\n" + "\n".join(
         violations
     )
+
+
+def test_source_read_only_os_open_calls_do_not_include_write_flags() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    violations: list[str] = []
+
+    def _is_os_attr(expr: ast.AST, attr: str) -> bool:
+        return (
+            isinstance(expr, ast.Attribute)
+            and isinstance(expr.value, ast.Name)
+            and expr.value.id == "os"
+            and expr.attr == attr
+        )
+
+    def _expr_contains_os_attr(expr: ast.AST, attr: str) -> bool:
+        return any(_is_os_attr(node, attr) for node in ast.walk(expr))
+
+    forbidden = {"O_WRONLY", "O_RDWR", "O_CREAT", "O_TRUNC", "O_APPEND", "O_EXCL"}
+
+    for file_path in src_root.rglob("*.py"):
+        relative_path = file_path.relative_to(src_root)
+        module = ast.parse(file_path.read_text(encoding="utf-8"))
+
+        for function_node in ast.walk(module):
+            if not isinstance(function_node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+
+            flag_assignments: dict[str, set[str]] = {}
+            for node in ast.walk(function_node):
+                if isinstance(node, ast.Assign):
+                    targets = [target.id for target in node.targets if isinstance(target, ast.Name)]
+                    for target_name in targets:
+                        recorded = flag_assignments.setdefault(target_name, set())
+                        for attr_name in ("O_RDONLY", *sorted(forbidden)):
+                            if _expr_contains_os_attr(node.value, attr_name):
+                                recorded.add(attr_name)
+                elif isinstance(node, ast.AugAssign) and isinstance(node.target, ast.Name):
+                    recorded = flag_assignments.setdefault(node.target.id, set())
+                    for attr_name in ("O_RDONLY", *sorted(forbidden)):
+                        if _expr_contains_os_attr(node.value, attr_name):
+                            recorded.add(attr_name)
+
+            for node in ast.walk(function_node):
+                if not (
+                    isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == "os"
+                    and node.func.attr == "open"
+                    and len(node.args) == 2
+                ):
+                    continue
+                open_arg = node.args[1]
+                if not isinstance(open_arg, ast.Name):
+                    violations.append(
+                        f"{relative_path}:{node.lineno}: read os.open flags must use named variable"
+                    )
+                    continue
+                seen_flags = flag_assignments.get(open_arg.id, set())
+                if "O_RDONLY" not in seen_flags:
+                    violations.append(
+                        f"{relative_path}:{node.lineno}: {open_arg.id} missing O_RDONLY"
+                    )
+                used_forbidden = sorted(seen_flags & forbidden)
+                if used_forbidden:
+                    violations.append(
+                        f"{relative_path}:{node.lineno}: {open_arg.id} uses forbidden flags "
+                        + ",".join(used_forbidden)
+                    )
+
+    assert not violations, "read-only os.open policy violations found:\n" + "\n".join(violations)
