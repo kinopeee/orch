@@ -26,6 +26,34 @@ def test_load_plan_rejects_non_string_cmd_entries(tmp_path: Path) -> None:
         load_plan(plan)
 
 
+def test_load_plan_rejects_empty_cmd_list(tmp_path: Path) -> None:
+    plan = tmp_path / "plan.yaml"
+    _write(
+        plan,
+        """
+        tasks:
+          - id: t1
+            cmd: []
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan)
+
+
+def test_load_plan_rejects_cmd_list_with_empty_string(tmp_path: Path) -> None:
+    plan = tmp_path / "plan.yaml"
+    _write(
+        plan,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", ""]
+        """,
+    )
+    with pytest.raises(PlanError):
+        load_plan(plan)
+
+
 def test_load_plan_rejects_non_str_or_list_cmd(tmp_path: Path) -> None:
     plan = tmp_path / "plan.yaml"
     _write(

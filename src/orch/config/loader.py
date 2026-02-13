@@ -20,7 +20,7 @@ def normalize_cmd(cmd: str | list[str]) -> list[str]:
         if not parts:
             raise PlanError("cmd string must not be empty")
         return parts
-    if isinstance(cmd, list) and all(isinstance(p, str) and p for p in cmd):
+    if isinstance(cmd, list) and cmd and all(isinstance(p, str) and p for p in cmd):
         return cmd
     raise PlanError("cmd must be str or non-empty list[str]")
 
