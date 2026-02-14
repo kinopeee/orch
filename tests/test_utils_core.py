@@ -9011,6 +9011,9 @@ def test_cli_integration_status_logs_resume_invalid_run_id_preserve_boundaries()
         assert 'assert "Invalid home" not in output, context' in source_segment
         assert 'assert "Run not found or broken" not in output, context' in source_segment
         assert 'assert "Plan validation error" not in output, context' in source_segment
+        assert 'assert "run_id: [bold]" not in output, context' in source_segment
+        assert 'assert "state: [bold]" not in output, context' in source_segment
+        assert 'assert "report: [bold]" not in output, context' in source_segment
         assert f"assert {home_var}.exists(), context" in source_segment
         assert f'assert not ({home_var} / "runs").exists(), context' in source_segment
         assert f"{home_var}.iterdir()" in source_segment

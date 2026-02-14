@@ -14615,6 +14615,9 @@ def test_cli_status_logs_resume_invalid_run_id_existing_home_preserve_entries_ma
             assert "Invalid home" not in output, context
             assert "Run not found or broken" not in output, context
             assert "Plan validation error" not in output, context
+            assert "run_id: [bold]" not in output, context
+            assert "state: [bold]" not in output, context
+            assert "report: [bold]" not in output, context
             assert home.exists(), context
             assert not (home / "runs").exists(), context
             assert sorted(path.name for path in home.iterdir()) == ["keep.txt", "keep_dir"], context
@@ -14663,6 +14666,9 @@ def test_cli_status_logs_resume_invalid_run_id_default_home_preserve_entries_mat
             assert "Invalid home" not in output, context
             assert "Run not found or broken" not in output, context
             assert "Plan validation error" not in output, context
+            assert "run_id: [bold]" not in output, context
+            assert "state: [bold]" not in output, context
+            assert "report: [bold]" not in output, context
             assert default_home.exists(), context
             assert not (default_home / "runs").exists(), context
             assert sorted(path.name for path in default_home.iterdir()) == [
@@ -14718,6 +14724,9 @@ def test_cli_status_logs_resume_invalid_run_id_existing_home_with_runs_preserve_
             assert "Invalid home" not in output, context
             assert "Run not found or broken" not in output, context
             assert "Plan validation error" not in output, context
+            assert "run_id: [bold]" not in output, context
+            assert "state: [bold]" not in output, context
+            assert "report: [bold]" not in output, context
             assert home.exists(), context
             assert sorted(path.name for path in home.iterdir()) == [
                 "keep.txt",
@@ -14774,6 +14783,9 @@ def test_cli_status_logs_resume_invalid_run_id_default_home_with_runs_preserve_e
             assert "Invalid home" not in output, context
             assert "Run not found or broken" not in output, context
             assert "Plan validation error" not in output, context
+            assert "run_id: [bold]" not in output, context
+            assert "state: [bold]" not in output, context
+            assert "report: [bold]" not in output, context
             assert default_home.exists(), context
             assert sorted(path.name for path in default_home.iterdir()) == [
                 "keep.txt",
@@ -14842,6 +14854,9 @@ def test_cli_status_logs_resume_invalid_run_id_existing_home_run_artifacts_prese
             assert "Invalid home" not in output, context
             assert "Run not found or broken" not in output, context
             assert "Plan validation error" not in output, context
+            assert "run_id: [bold]" not in output, context
+            assert "state: [bold]" not in output, context
+            assert "report: [bold]" not in output, context
             assert home.exists(), context
             assert sorted(path.name for path in home.iterdir()) == [
                 "keep.txt",
@@ -14916,6 +14931,9 @@ def test_cli_status_logs_resume_invalid_run_id_default_home_run_artifacts_preser
             assert "Invalid home" not in output, context
             assert "Run not found or broken" not in output, context
             assert "Plan validation error" not in output, context
+            assert "run_id: [bold]" not in output, context
+            assert "state: [bold]" not in output, context
+            assert "report: [bold]" not in output, context
             assert default_home.exists(), context
             assert sorted(path.name for path in default_home.iterdir()) == [
                 "keep.txt",
@@ -15478,6 +15496,9 @@ def test_cli_cancel_invalid_run_id_existing_home_preserves_entries_matrix(
         assert "Run not found or broken" not in output, context
         assert "Plan validation error" not in output, context
         assert "Cancel request written" not in output, context
+        assert "run_id: [bold]" not in output, context
+        assert "state: [bold]" not in output, context
+        assert "report: [bold]" not in output, context
         assert home.exists(), context
         assert not (home / "runs").exists(), context
         assert sorted(path.name for path in home.iterdir()) == ["keep.txt", "keep_dir"], context
@@ -15525,6 +15546,9 @@ def test_cli_cancel_invalid_run_id_default_home_preserves_entries_matrix(
         assert "Run not found or broken" not in output, context
         assert "Plan validation error" not in output, context
         assert "Cancel request written" not in output, context
+        assert "run_id: [bold]" not in output, context
+        assert "state: [bold]" not in output, context
+        assert "report: [bold]" not in output, context
         assert default_home.exists(), context
         assert not (default_home / "runs").exists(), context
         assert sorted(path.name for path in default_home.iterdir()) == [
@@ -15579,6 +15603,9 @@ def test_cli_cancel_invalid_run_id_existing_home_with_runs_preserves_entries_mat
         assert "Run not found or broken" not in output, context
         assert "Plan validation error" not in output, context
         assert "Cancel request written" not in output, context
+        assert "run_id: [bold]" not in output, context
+        assert "state: [bold]" not in output, context
+        assert "report: [bold]" not in output, context
         assert home.exists(), context
         assert sorted(path.name for path in home.iterdir()) == ["keep.txt", "keep_dir", "runs"], (
             context
@@ -15633,6 +15660,9 @@ def test_cli_cancel_invalid_run_id_default_home_with_runs_preserves_entries_matr
         assert "Run not found or broken" not in output, context
         assert "Plan validation error" not in output, context
         assert "Cancel request written" not in output, context
+        assert "run_id: [bold]" not in output, context
+        assert "state: [bold]" not in output, context
+        assert "report: [bold]" not in output, context
         assert default_home.exists(), context
         assert sorted(path.name for path in default_home.iterdir()) == [
             "keep.txt",
@@ -15699,6 +15729,9 @@ def test_cli_cancel_invalid_run_id_existing_home_run_artifacts_preserved_matrix(
         assert "Run not found or broken" not in output, context
         assert "Plan validation error" not in output, context
         assert "Cancel request written" not in output, context
+        assert "run_id: [bold]" not in output, context
+        assert "state: [bold]" not in output, context
+        assert "report: [bold]" not in output, context
         assert home.exists(), context
         assert sorted(path.name for path in home.iterdir()) == ["keep.txt", "keep_dir", "runs"], (
             context
@@ -15768,6 +15801,9 @@ def test_cli_cancel_invalid_run_id_default_home_run_artifacts_preserved_matrix(
         assert "Run not found or broken" not in output, context
         assert "Plan validation error" not in output, context
         assert "Cancel request written" not in output, context
+        assert "run_id: [bold]" not in output, context
+        assert "state: [bold]" not in output, context
+        assert "report: [bold]" not in output, context
         assert default_home.exists(), context
         assert sorted(path.name for path in default_home.iterdir()) == [
             "keep.txt",
