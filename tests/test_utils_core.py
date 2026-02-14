@@ -4880,6 +4880,117 @@ def test_cli_integration_missing_plan_reject_default_home_matrix_asserts_output_
     assert "cwd=case_root" in source_segment
 
 
+def test_cli_integration_missing_plan_default_home_workdir_matrix_keeps_mode_and_toggle_sets() -> (
+    None
+):
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_module = ast.parse(
+        (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    )
+    matrix_name = (
+        "test_cli_run_dry_run_both_toggles_missing_plan_default_home_precedes_workdir_matrix"
+    )
+
+    matrix_function = next(
+        (
+            node
+            for node in ast.walk(integration_module)
+            if isinstance(node, ast.FunctionDef) and node.name == matrix_name
+        ),
+        None,
+    )
+    assert matrix_function is not None
+
+    flag_orders_assign = next(
+        (
+            stmt
+            for stmt in matrix_function.body
+            if isinstance(stmt, ast.AnnAssign)
+            and isinstance(stmt.target, ast.Name)
+            and stmt.target.id == "flag_orders"
+            and isinstance(stmt.value, ast.List)
+        ),
+        None,
+    )
+    assert flag_orders_assign is not None
+    assert isinstance(flag_orders_assign.value, ast.List)
+    toggle_orders: set[tuple[str, ...]] = set()
+    for order_node in flag_orders_assign.value.elts:
+        assert isinstance(order_node, ast.List)
+        order_values: list[str] = []
+        for item in order_node.elts:
+            assert isinstance(item, ast.Constant)
+            assert isinstance(item.value, str)
+            order_values.append(item.value)
+        toggle_orders.add(tuple(order_values))
+    assert toggle_orders == {
+        ("--fail-fast", "--no-fail-fast"),
+        ("--no-fail-fast", "--fail-fast"),
+    }
+
+    plan_modes_assign = next(
+        (
+            stmt
+            for stmt in matrix_function.body
+            if isinstance(stmt, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "plan_modes"
+                for target in stmt.targets
+            )
+            and isinstance(stmt.value, ast.Tuple)
+        ),
+        None,
+    )
+    assert plan_modes_assign is not None
+    assert isinstance(plan_modes_assign.value, ast.Tuple)
+    plan_modes: set[str] = set()
+    for mode_node in plan_modes_assign.value.elts:
+        assert isinstance(mode_node, ast.Constant)
+        assert isinstance(mode_node.value, str)
+        plan_modes.add(mode_node.value)
+    assert plan_modes == {
+        "missing_path",
+        "dangling_symlink_path",
+        "symlink_ancestor_missing_path",
+    }
+
+
+def test_cli_integration_missing_plan_default_home_workdir_matrix_asserts_output_contract() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+    matrix_name = (
+        "test_cli_run_dry_run_both_toggles_missing_plan_default_home_precedes_workdir_matrix"
+    )
+
+    matrix_function = next(
+        (
+            node
+            for node in ast.walk(integration_module)
+            if isinstance(node, ast.FunctionDef) and node.name == matrix_name
+        ),
+        None,
+    )
+    assert matrix_function is not None
+
+    source_segment = ast.get_source_segment(integration_source, matrix_function)
+    assert source_segment is not None
+    assert '"PLAN_PATH" in output' in source_segment
+    assert "\"Invalid value for 'PLAN_PATH'\" in output" in source_segment
+    assert '"Plan validation error" not in output' in source_segment
+    assert '"Invalid home" not in output' in source_segment
+    assert '"Invalid workdir" not in output' in source_segment
+    assert '"contains symlink component" not in output' in source_segment
+    assert '"Dry Run" not in output' in source_segment
+    assert '"run_id:" not in output' in source_segment
+    assert '"state:" not in output' in source_segment
+    assert '"report:" not in output' in source_segment
+    assert "assert not default_home.exists(), context" in source_segment
+    assert 'assert not (default_home / "runs").exists(), context' in source_segment
+    assert "cwd=case_root" in source_segment
+    assert '"--workdir"' in source_segment
+
+
 def test_cli_integration_missing_plan_workdir_matrix_asserts_output_contract() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
