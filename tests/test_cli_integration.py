@@ -150,6 +150,42 @@ def test_cli_run_dry_run_ignores_fail_fast_flag_for_output(tmp_path: Path) -> No
     assert not (home / "runs").exists()
 
 
+def test_cli_run_dry_run_fail_fast_still_rejects_invalid_home(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_fail_fast_invalid_home.yaml"
+    home_file = tmp_path / "home_file"
+    home_file.write_text("not a dir\n", encoding="utf-8")
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home_file),
+            "--dry-run",
+            "--fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Dry Run" not in output
+    assert home_file.read_text(encoding="utf-8") == "not a dir\n"
+
+
 def test_cli_run_rejects_non_positive_max_parallel(tmp_path: Path) -> None:
     plan_path = tmp_path / "plan.yaml"
     _write_plan(
