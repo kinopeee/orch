@@ -1194,6 +1194,56 @@ def test_cli_cancel_rejects_run_with_symlink_plan_and_directory_state_markers(
     assert outside_plan.read_text(encoding="utf-8") == "tasks: []\n"
 
 
+def test_cli_cancel_rejects_run_with_fifo_state_and_directory_plan_markers(
+    tmp_path: Path,
+) -> None:
+    if not hasattr(os, "mkfifo"):
+        return
+
+    home = tmp_path / ".orch_cli"
+    run_id = "20260101_000000_abcdef"
+    run_dir = home / "runs" / run_id
+    run_dir.mkdir(parents=True)
+    os.mkfifo(run_dir / "state.json")
+    (run_dir / "plan.yaml").mkdir()
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "cancel", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=5,
+    )
+    assert proc.returncode == 2
+    assert "Run not found" in proc.stdout
+    assert not (run_dir / "cancel.request").exists()
+
+
+def test_cli_cancel_rejects_run_with_directory_state_and_fifo_plan_markers(
+    tmp_path: Path,
+) -> None:
+    if not hasattr(os, "mkfifo"):
+        return
+
+    home = tmp_path / ".orch_cli"
+    run_id = "20260101_000000_abcdef"
+    run_dir = home / "runs" / run_id
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").mkdir()
+    os.mkfifo(run_dir / "plan.yaml")
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "cancel", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=5,
+    )
+    assert proc.returncode == 2
+    assert "Run not found" in proc.stdout
+    assert not (run_dir / "cancel.request").exists()
+
+
 def test_cli_cancel_accepts_regular_state_with_symlink_plan_marker(tmp_path: Path) -> None:
     home = tmp_path / ".orch_cli"
     run_id = "20260101_000000_abcdef"
