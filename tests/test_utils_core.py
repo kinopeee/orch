@@ -1858,3 +1858,53 @@ def test_source_run_exists_uses_ordered_or_for_state_then_plan_markers() -> None
         marker_names.append(arg.right.value)
 
     assert marker_names == ["state.json", "plan.yaml"]
+
+
+def test_source_run_exists_marker_helper_catches_oserror_and_runtimeerror_as_false() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    run_exists_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "_run_exists"
+        ),
+        None,
+    )
+    assert run_exists_function is not None
+
+    marker_helper = next(
+        (
+            node
+            for node in ast.walk(run_exists_function)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "_is_regular_non_symlink"
+        ),
+        None,
+    )
+    assert marker_helper is not None
+
+    matched = False
+    for handler in [n for n in ast.walk(marker_helper) if isinstance(n, ast.ExceptHandler)]:
+        if handler.type is None:
+            continue
+        names: set[str] = set()
+        if isinstance(handler.type, ast.Name):
+            names.add(handler.type.id)
+        elif isinstance(handler.type, ast.Tuple):
+            for elt in handler.type.elts:
+                if isinstance(elt, ast.Name):
+                    names.add(elt.id)
+        if {"OSError", "RuntimeError"}.issubset(names):
+            returns_false = any(
+                isinstance(stmt, ast.Return)
+                and isinstance(stmt.value, ast.Constant)
+                and stmt.value.value is False
+                for stmt in handler.body
+            )
+            assert returns_false
+            matched = True
+            break
+
+    assert matched
