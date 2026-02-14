@@ -2804,6 +2804,39 @@ def test_source_cli_run_dry_run_branch_prints_table_after_row_population() -> No
     assert min(add_row_lines) < min(print_table_lines)
 
 
+def test_source_cli_run_dry_run_branch_is_independent_of_fail_fast_name() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    run_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "run"
+        ),
+        None,
+    )
+    assert run_function is not None
+
+    dry_run_if = next(
+        (
+            stmt
+            for stmt in run_function.body
+            if isinstance(stmt, ast.If)
+            and isinstance(stmt.test, ast.Name)
+            and stmt.test.id == "dry_run"
+        ),
+        None,
+    )
+    assert dry_run_if is not None
+
+    fail_fast_name_nodes = [
+        node
+        for node in ast.walk(dry_run_if)
+        if isinstance(node, ast.Name) and node.id == "fail_fast"
+    ]
+    assert not fail_fast_name_nodes
+
+
 def test_source_cli_run_has_dry_run_exit_before_run_dir_creation() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
