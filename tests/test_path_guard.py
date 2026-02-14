@@ -123,6 +123,23 @@ def test_has_symlink_ancestor_detects_real_symlink_component(tmp_path: Path) -> 
     assert has_symlink_ancestor(target) is True
 
 
+def test_is_symlink_path_returns_true_for_dangling_symlink(tmp_path: Path) -> None:
+    missing_target = tmp_path / "missing_target"
+    link = tmp_path / "link"
+    link.symlink_to(missing_target, target_is_directory=True)
+
+    assert is_symlink_path(link) is True
+
+
+def test_has_symlink_ancestor_detects_dangling_symlink_component(tmp_path: Path) -> None:
+    missing_parent_target = tmp_path / "missing_parent_target"
+    symlink_parent = tmp_path / "parent_link"
+    symlink_parent.symlink_to(missing_parent_target, target_is_directory=True)
+    target = symlink_parent / "child" / "file.txt"
+
+    assert has_symlink_ancestor(target) is True
+
+
 def test_has_symlink_ancestor_returns_false_when_no_symlink_in_ancestors(
     tmp_path: Path,
 ) -> None:
