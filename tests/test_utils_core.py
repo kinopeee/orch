@@ -315,6 +315,60 @@ def test_source_path_guard_has_symlink_ancestor_returns_true_on_error() -> None:
     assert return_stmt.value.value is True
 
 
+def test_source_path_guard_is_symlink_path_returns_false_on_filenotfound() -> None:
+    source_path = Path(__file__).resolve().parents[1] / "src" / "orch" / "util" / "path_guard.py"
+    module = ast.parse(source_path.read_text(encoding="utf-8"))
+    is_symlink_func = next(
+        node
+        for node in module.body
+        if isinstance(node, ast.FunctionDef) and node.name == "is_symlink_path"
+    )
+    try_nodes = [node for node in ast.walk(is_symlink_func) if isinstance(node, ast.Try)]
+    assert try_nodes, "is_symlink_path should include guarded try/except"
+
+    handler = next(
+        (
+            candidate
+            for try_node in try_nodes
+            for candidate in try_node.handlers
+            if "FileNotFoundError" in _collect_except_type_names(candidate.type)
+        ),
+        None,
+    )
+    assert handler is not None, "is_symlink_path must explicitly handle FileNotFoundError"
+    assert handler.body, "FileNotFoundError handler should not be empty"
+    return_stmt = handler.body[0]
+    assert isinstance(return_stmt, ast.Return)
+    assert isinstance(return_stmt.value, ast.Constant)
+    assert return_stmt.value.value is False
+
+
+def test_source_path_guard_has_symlink_ancestor_ignores_filenotfound() -> None:
+    source_path = Path(__file__).resolve().parents[1] / "src" / "orch" / "util" / "path_guard.py"
+    module = ast.parse(source_path.read_text(encoding="utf-8"))
+    has_ancestor_func = next(
+        node
+        for node in module.body
+        if isinstance(node, ast.FunctionDef) and node.name == "has_symlink_ancestor"
+    )
+    try_nodes = [node for node in ast.walk(has_ancestor_func) if isinstance(node, ast.Try)]
+    assert try_nodes, "has_symlink_ancestor should include guarded try/except"
+
+    handler = next(
+        (
+            candidate
+            for try_node in try_nodes
+            for candidate in try_node.handlers
+            if "FileNotFoundError" in _collect_except_type_names(candidate.type)
+        ),
+        None,
+    )
+    assert handler is not None, "has_symlink_ancestor must explicitly handle FileNotFoundError"
+    assert handler.body, "FileNotFoundError handler should not be empty"
+    assert len(handler.body) == 1
+    assert isinstance(handler.body[0], ast.Pass)
+
+
 def _collect_unguarded_calls(
     method_name: str,
     *,
