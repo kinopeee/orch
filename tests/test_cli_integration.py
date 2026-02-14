@@ -14789,6 +14789,157 @@ def test_cli_status_logs_resume_invalid_run_id_default_home_with_runs_preserve_e
             assert nested_file.read_text(encoding="utf-8") == "nested\n", context
 
 
+def test_cli_status_logs_resume_invalid_run_id_existing_home_run_artifacts_preserved_matrix(
+    tmp_path: Path,
+) -> None:
+    commands = ("status", "logs", "resume")
+    run_id_modes = ("path_escape", "too_long")
+
+    for run_id_mode in run_id_modes:
+        bad_run_id = "../escape" if run_id_mode == "path_escape" else "a" * 129
+        for command in commands:
+            case_root = (
+                tmp_path / f"invalid_run_id_existing_home_run_artifacts_{run_id_mode}_{command}"
+            )
+            case_root.mkdir()
+            home = case_root / ".orch_cli"
+            home.mkdir()
+            sentinel_file = home / "keep.txt"
+            sentinel_file.write_text("keep\n", encoding="utf-8")
+            sentinel_dir = home / "keep_dir"
+            sentinel_dir.mkdir()
+            nested_file = sentinel_dir / "nested.txt"
+            nested_file.write_text("nested\n", encoding="utf-8")
+            existing_run = home / "runs" / "keep_run"
+            existing_run.mkdir(parents=True)
+            plan_file = existing_run / "plan.yaml"
+            plan_file.write_text("tasks: []\n", encoding="utf-8")
+            lock_file = existing_run / ".lock"
+            lock_file.write_text("lock\n", encoding="utf-8")
+            cancel_request = existing_run / "cancel.request"
+            cancel_request.write_text("cancel\n", encoding="utf-8")
+            run_log = existing_run / "task.log"
+            run_log.write_text("log\n", encoding="utf-8")
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "orch.cli",
+                    command,
+                    bad_run_id,
+                    "--home",
+                    str(home),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            output = proc.stdout + proc.stderr
+            context = f"{run_id_mode}-{command}"
+            assert proc.returncode == 2, context
+            assert "Invalid run_id" in output, context
+            assert "Invalid home" not in output, context
+            assert "Run not found or broken" not in output, context
+            assert "Plan validation error" not in output, context
+            assert home.exists(), context
+            assert sorted(path.name for path in home.iterdir()) == [
+                "keep.txt",
+                "keep_dir",
+                "runs",
+            ], context
+            assert sorted(path.name for path in (home / "runs").iterdir()) == ["keep_run"], context
+            assert sorted(path.name for path in existing_run.iterdir()) == [
+                ".lock",
+                "cancel.request",
+                "plan.yaml",
+                "task.log",
+            ], context
+            assert plan_file.read_text(encoding="utf-8") == "tasks: []\n", context
+            assert lock_file.read_text(encoding="utf-8") == "lock\n", context
+            assert cancel_request.read_text(encoding="utf-8") == "cancel\n", context
+            assert run_log.read_text(encoding="utf-8") == "log\n", context
+            assert sentinel_file.read_text(encoding="utf-8") == "keep\n", context
+            assert sentinel_dir.is_dir(), context
+            assert nested_file.read_text(encoding="utf-8") == "nested\n", context
+
+
+def test_cli_status_logs_resume_invalid_run_id_default_home_run_artifacts_preserved_matrix(
+    tmp_path: Path,
+) -> None:
+    commands = ("status", "logs", "resume")
+    run_id_modes = ("path_escape", "too_long")
+
+    for run_id_mode in run_id_modes:
+        bad_run_id = "../escape" if run_id_mode == "path_escape" else "a" * 129
+        for command in commands:
+            case_root = (
+                tmp_path / f"invalid_run_id_default_home_run_artifacts_{run_id_mode}_{command}"
+            )
+            case_root.mkdir()
+            default_home = case_root / ".orch"
+            default_home.mkdir()
+            sentinel_file = default_home / "keep.txt"
+            sentinel_file.write_text("keep\n", encoding="utf-8")
+            sentinel_dir = default_home / "keep_dir"
+            sentinel_dir.mkdir()
+            nested_file = sentinel_dir / "nested.txt"
+            nested_file.write_text("nested\n", encoding="utf-8")
+            existing_run = default_home / "runs" / "keep_run"
+            existing_run.mkdir(parents=True)
+            plan_file = existing_run / "plan.yaml"
+            plan_file.write_text("tasks: []\n", encoding="utf-8")
+            lock_file = existing_run / ".lock"
+            lock_file.write_text("lock\n", encoding="utf-8")
+            cancel_request = existing_run / "cancel.request"
+            cancel_request.write_text("cancel\n", encoding="utf-8")
+            run_log = existing_run / "task.log"
+            run_log.write_text("log\n", encoding="utf-8")
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "orch.cli",
+                    command,
+                    bad_run_id,
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+                cwd=case_root,
+            )
+            output = proc.stdout + proc.stderr
+            context = f"{run_id_mode}-{command}"
+            assert proc.returncode == 2, context
+            assert "Invalid run_id" in output, context
+            assert "Invalid home" not in output, context
+            assert "Run not found or broken" not in output, context
+            assert "Plan validation error" not in output, context
+            assert default_home.exists(), context
+            assert sorted(path.name for path in default_home.iterdir()) == [
+                "keep.txt",
+                "keep_dir",
+                "runs",
+            ], context
+            assert sorted(path.name for path in (default_home / "runs").iterdir()) == [
+                "keep_run"
+            ], context
+            assert sorted(path.name for path in existing_run.iterdir()) == [
+                ".lock",
+                "cancel.request",
+                "plan.yaml",
+                "task.log",
+            ], context
+            assert plan_file.read_text(encoding="utf-8") == "tasks: []\n", context
+            assert lock_file.read_text(encoding="utf-8") == "lock\n", context
+            assert cancel_request.read_text(encoding="utf-8") == "cancel\n", context
+            assert run_log.read_text(encoding="utf-8") == "log\n", context
+            assert sentinel_file.read_text(encoding="utf-8") == "keep\n", context
+            assert sentinel_dir.is_dir(), context
+            assert nested_file.read_text(encoding="utf-8") == "nested\n", context
+
+
 def test_cli_resume_invalid_run_id_precedes_invalid_workdir(tmp_path: Path) -> None:
     home = tmp_path / ".orch_cli"
     missing_workdir = tmp_path / "missing_workdir"
