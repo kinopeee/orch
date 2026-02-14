@@ -5762,6 +5762,39 @@ def test_cli_status_rejects_home_with_file_ancestor(tmp_path: Path) -> None:
     assert "Invalid home" in output
 
 
+def test_cli_logs_resume_reject_home_file_path(tmp_path: Path) -> None:
+    home_file = tmp_path / "home_file"
+    home_file.write_text("not a dir\n", encoding="utf-8")
+    for command in ("logs", "resume"):
+        proc = subprocess.run(
+            [sys.executable, "-m", "orch.cli", command, "any_run", "--home", str(home_file)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        output = proc.stdout + proc.stderr
+        assert proc.returncode == 2, command
+        assert "Invalid home" in output, command
+    assert home_file.read_text(encoding="utf-8") == "not a dir\n"
+
+
+def test_cli_logs_resume_reject_home_with_file_ancestor(tmp_path: Path) -> None:
+    home_parent_file = tmp_path / "home_parent_file"
+    home_parent_file.write_text("not a dir\n", encoding="utf-8")
+    nested_home = home_parent_file / "orch_home"
+    for command in ("logs", "resume"):
+        proc = subprocess.run(
+            [sys.executable, "-m", "orch.cli", command, "any_run", "--home", str(nested_home)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        output = proc.stdout + proc.stderr
+        assert proc.returncode == 2, command
+        assert "Invalid home" in output, command
+    assert home_parent_file.read_text(encoding="utf-8") == "not a dir\n"
+
+
 def test_cli_status_logs_resume_reject_path_like_run_id(tmp_path: Path) -> None:
     home = tmp_path / ".orch_cli"
     bad_run_id = "../escape"
