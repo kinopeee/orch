@@ -1579,6 +1579,34 @@ def test_cli_cancel_rejects_home_with_file_ancestor_without_side_effect(
     assert home_parent_file.read_text(encoding="utf-8") == "not a dir\n"
 
 
+def test_cli_cancel_rejects_home_symlink_to_file_without_side_effect(
+    tmp_path: Path,
+) -> None:
+    home_target_file = tmp_path / "home_target_file.txt"
+    home_target_file.write_text("not a home dir\n", encoding="utf-8")
+    home_link = tmp_path / "home_link"
+    home_link.symlink_to(home_target_file)
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "cancel",
+            "20260101_000000_abcdef",
+            "--home",
+            str(home_link),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert home_target_file.read_text(encoding="utf-8") == "not a home dir\n"
+
+
 def test_cli_status_missing_run_returns_two(tmp_path: Path) -> None:
     home = tmp_path / ".orch_cli"
     proc = subprocess.run(
