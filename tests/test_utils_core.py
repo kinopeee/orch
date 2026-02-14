@@ -2390,6 +2390,59 @@ def test_source_cli_run_has_dry_run_exit_before_run_id_generation() -> None:
     assert dry_run_if.lineno < min(new_run_id_lines)
 
 
+def test_source_cli_run_has_dry_run_exit_before_runtime_summary_prints() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    run_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "run"
+        ),
+        None,
+    )
+    assert run_function is not None
+
+    dry_run_if = next(
+        (
+            stmt
+            for stmt in run_function.body
+            if isinstance(stmt, ast.If)
+            and isinstance(stmt.test, ast.Name)
+            and stmt.test.id == "dry_run"
+        ),
+        None,
+    )
+    assert dry_run_if is not None
+
+    def _arg_contains_token(arg: ast.AST, token: str) -> bool:
+        if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+            return token in arg.value
+        if isinstance(arg, ast.JoinedStr):
+            return any(
+                isinstance(value, ast.Constant)
+                and isinstance(value.value, str)
+                and token in value.value
+                for value in arg.values
+            )
+        return False
+
+    runtime_summary_tokens = ("run_id:", "state:", "report:")
+    runtime_summary_lines = [
+        node.lineno
+        for node in ast.walk(run_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "console"
+        and node.func.attr == "print"
+        and node.args
+        and any(_arg_contains_token(node.args[0], token) for token in runtime_summary_tokens)
+    ]
+    assert runtime_summary_lines
+    assert dry_run_if.lineno < min(runtime_summary_lines)
+
+
 def test_source_cli_run_validates_home_before_dry_run_branch() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
