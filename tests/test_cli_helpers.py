@@ -2192,6 +2192,29 @@ def test_cli_status_symlink_home_short_circuits_before_run_dir(
     assert run_dir_called is False
 
 
+def test_cli_status_symlink_ancestor_home_short_circuits_before_run_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_parent = tmp_path / "real_parent"
+    real_parent.mkdir()
+    symlink_parent = tmp_path / "home_parent_link"
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+    home = symlink_parent / "orch_home"
+    run_dir_called = False
+
+    def fake_run_dir(_home: Path, _run_id: str) -> Path:
+        nonlocal run_dir_called
+        run_dir_called = True
+        return _home / "runs" / "run1"
+
+    monkeypatch.setattr(cli_module, "run_dir", fake_run_dir)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.status("run1", home=home, as_json=False)
+    assert exc_info.value.exit_code == 2
+    assert run_dir_called is False
+
+
 def test_cli_logs_symlink_home_short_circuits_before_run_dir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -2214,6 +2237,29 @@ def test_cli_logs_symlink_home_short_circuits_before_run_dir(
     assert run_dir_called is False
 
 
+def test_cli_logs_symlink_ancestor_home_short_circuits_before_run_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_parent = tmp_path / "real_parent"
+    real_parent.mkdir()
+    symlink_parent = tmp_path / "home_parent_link"
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+    home = symlink_parent / "orch_home"
+    run_dir_called = False
+
+    def fake_run_dir(_home: Path, _run_id: str) -> Path:
+        nonlocal run_dir_called
+        run_dir_called = True
+        return _home / "runs" / "run1"
+
+    monkeypatch.setattr(cli_module, "run_dir", fake_run_dir)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.logs("run1", home=home, task=None, tail=10)
+    assert exc_info.value.exit_code == 2
+    assert run_dir_called is False
+
+
 def test_cli_resume_symlink_home_short_circuits_before_workdir_and_run_dir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -2221,6 +2267,46 @@ def test_cli_resume_symlink_home_short_circuits_before_workdir_and_run_dir(
     real_home.mkdir()
     home = tmp_path / "home_link"
     home.symlink_to(real_home, target_is_directory=True)
+    workdir = tmp_path / "workdir"
+    workdir.mkdir()
+    resolve_workdir_called = False
+    run_dir_called = False
+
+    def fake_resolve_workdir(_workdir: Path) -> Path:
+        nonlocal resolve_workdir_called
+        resolve_workdir_called = True
+        return _workdir
+
+    def fake_run_dir(_home: Path, _run_id: str) -> Path:
+        nonlocal run_dir_called
+        run_dir_called = True
+        return _home / "runs" / "run1"
+
+    monkeypatch.setattr(cli_module, "_resolve_workdir_or_exit", fake_resolve_workdir)
+    monkeypatch.setattr(cli_module, "run_dir", fake_run_dir)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.resume(
+            "run1",
+            home=home,
+            max_parallel=1,
+            workdir=workdir,
+            fail_fast=False,
+            failed_only=False,
+        )
+    assert exc_info.value.exit_code == 2
+    assert resolve_workdir_called is False
+    assert run_dir_called is False
+
+
+def test_cli_resume_symlink_ancestor_home_short_circuits_before_workdir_and_run_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_parent = tmp_path / "real_parent"
+    real_parent.mkdir()
+    symlink_parent = tmp_path / "home_parent_link"
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+    home = symlink_parent / "orch_home"
     workdir = tmp_path / "workdir"
     workdir.mkdir()
     resolve_workdir_called = False

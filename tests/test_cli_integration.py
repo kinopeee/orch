@@ -5543,6 +5543,59 @@ def test_cli_status_logs_resume_reject_home_symlink_to_file_path(tmp_path: Path)
     assert home_target_file.read_text(encoding="utf-8") == "not a home dir\n"
 
 
+def test_cli_status_logs_resume_reject_home_with_symlink_ancestor_without_lock_side_effect(
+    tmp_path: Path,
+) -> None:
+    run_id = "20260101_000000_abcdef"
+    real_parent = tmp_path / "real_parent"
+    nested_home_name = "orch_home"
+    real_run_dir = real_parent / nested_home_name / "runs" / run_id
+    real_run_dir.mkdir(parents=True)
+    (real_run_dir / "state.json").write_text(
+        json.dumps(
+            {
+                "run_id": run_id,
+                "created_at": "2026-01-01T00:00:00+00:00",
+                "updated_at": "2026-01-01T00:00:00+00:00",
+                "status": "RUNNING",
+                "goal": None,
+                "plan_relpath": "plan.yaml",
+                "home": str(real_parent / nested_home_name),
+                "workdir": str(tmp_path),
+                "max_parallel": 1,
+                "fail_fast": False,
+                "tasks": {},
+            }
+        ),
+        encoding="utf-8",
+    )
+    (real_run_dir / "plan.yaml").write_text(
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+        encoding="utf-8",
+    )
+
+    symlink_parent = tmp_path / "home_parent_link"
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+    nested_home = symlink_parent / nested_home_name
+
+    for command in ("status", "logs", "resume"):
+        proc = subprocess.run(
+            [sys.executable, "-m", "orch.cli", command, run_id, "--home", str(nested_home)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        output = proc.stdout + proc.stderr
+        assert proc.returncode == 2, command
+        assert "contains symlink component" in output, command
+
+    assert not (real_run_dir / ".lock").exists()
+
+
 def test_cli_status_rejects_non_regular_state_file(tmp_path: Path) -> None:
     if not hasattr(os, "mkfifo"):
         return
