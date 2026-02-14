@@ -1798,6 +1798,7 @@ def test_cli_run_dry_run_both_toggles_reverse_symlink_home_precedes_invalid_plan
     assert proc.returncode == 2
     assert "Invalid home" in output
     assert "Plan validation error" not in output
+    assert "contains symlink component" not in output
     assert "Dry Run" not in output
     assert not (real_home / "runs").exists()
 
