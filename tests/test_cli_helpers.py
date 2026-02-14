@@ -749,6 +749,33 @@ def test_run_exists_accepts_regular_plan_with_symlink_state(tmp_path: Path) -> N
     assert cli_module._run_exists(run_dir) is True
 
 
+def test_run_exists_rejects_directory_only_markers(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run1"
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").mkdir()
+    (run_dir / "plan.yaml").mkdir()
+
+    assert cli_module._run_exists(run_dir) is False
+
+
+def test_run_exists_accepts_regular_state_with_directory_plan(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run1"
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").write_text("{}", encoding="utf-8")
+    (run_dir / "plan.yaml").mkdir()
+
+    assert cli_module._run_exists(run_dir) is True
+
+
+def test_run_exists_accepts_regular_plan_with_directory_state(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run1"
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").mkdir()
+    (run_dir / "plan.yaml").write_text("tasks: []\n", encoding="utf-8")
+
+    assert cli_module._run_exists(run_dir) is True
+
+
 def test_cli_cancel_skips_write_when_run_not_found(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
