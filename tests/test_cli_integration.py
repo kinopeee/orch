@@ -5775,6 +5775,24 @@ def test_cli_cancel_rejects_absolute_run_id_without_side_effect(tmp_path: Path) 
     assert not (outside_run_dir / "cancel.request").exists()
 
 
+def test_cli_cancel_invalid_run_id_takes_precedence_over_invalid_home(tmp_path: Path) -> None:
+    home_file = tmp_path / "home_file"
+    home_file.write_text("not a dir\n", encoding="utf-8")
+    bad_run_id = "../escape"
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "cancel", bad_run_id, "--home", str(home_file)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid run_id" in output
+    assert "Invalid home" not in output
+    assert home_file.read_text(encoding="utf-8") == "not a dir\n"
+
+
 def test_cli_rejects_too_long_run_id_for_all_commands(tmp_path: Path) -> None:
     home = tmp_path / ".orch_cli"
     bad_run_id = "a" * 129
