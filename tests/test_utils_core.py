@@ -7328,6 +7328,129 @@ def test_cli_integration_default_existing_home_preserve_entries_matrix_output_co
     assert "cwd=case_root" in source_segment
 
 
+def test_cli_integration_preserve_entries_matrices_keep_mode_and_toggle_contracts() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    explicit_matrix = (
+        "test_cli_run_dry_run_both_toggles_existing_home_preserves_entries_plan_error_matrix"
+    )
+    default_matrix = (
+        "test_cli_run_dry_run_both_toggles_default_existing_home_"
+        "preserves_entries_plan_error_matrix"
+    )
+    expected_case_names = {
+        "invalid_only",
+        "invalid_with_workdir",
+        "missing_only",
+        "missing_with_workdir",
+    }
+    expected_plan_kinds = {"invalid_plan", "missing_plan"}
+    expected_workdir_modes = {False, True}
+    expected_toggle_orders = {
+        ("--fail-fast", "--no-fail-fast"),
+        ("--no-fail-fast", "--fail-fast"),
+    }
+
+    expectations = {
+        explicit_matrix: {"has_cwd": False, "uses_home_flag": True},
+        default_matrix: {"has_cwd": True, "uses_home_flag": False},
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expectations:
+            continue
+
+        flag_orders_assign = next(
+            (
+                stmt
+                for stmt in node.body
+                if isinstance(stmt, ast.AnnAssign)
+                and isinstance(stmt.target, ast.Name)
+                and stmt.target.id == "flag_orders"
+                and isinstance(stmt.value, ast.List)
+            ),
+            None,
+        )
+        assert flag_orders_assign is not None
+        assert isinstance(flag_orders_assign.value, ast.List)
+        toggle_orders: set[tuple[str, ...]] = set()
+        for order_node in flag_orders_assign.value.elts:
+            assert isinstance(order_node, ast.List)
+            order_values: list[str] = []
+            for item in order_node.elts:
+                assert isinstance(item, ast.Constant)
+                assert isinstance(item.value, str)
+                order_values.append(item.value)
+            toggle_orders.add(tuple(order_values))
+        assert toggle_orders == expected_toggle_orders
+
+        case_modes_assign = next(
+            (
+                stmt
+                for stmt in node.body
+                if isinstance(stmt, ast.Assign)
+                and any(
+                    isinstance(target, ast.Name) and target.id == "case_modes"
+                    for target in stmt.targets
+                )
+                and isinstance(stmt.value, ast.Tuple)
+            ),
+            None,
+        )
+        assert case_modes_assign is not None
+        assert isinstance(case_modes_assign.value, ast.Tuple)
+
+        case_names: set[str] = set()
+        plan_kinds: set[str] = set()
+        workdir_modes: set[bool] = set()
+        for case_node in case_modes_assign.value.elts:
+            assert isinstance(case_node, ast.Tuple)
+            assert len(case_node.elts) == 3
+
+            name_node = case_node.elts[0]
+            kind_node = case_node.elts[1]
+            workdir_node = case_node.elts[2]
+
+            assert isinstance(name_node, ast.Constant)
+            assert isinstance(name_node.value, str)
+            case_names.add(name_node.value)
+
+            assert isinstance(kind_node, ast.Constant)
+            assert isinstance(kind_node.value, str)
+            plan_kinds.add(kind_node.value)
+
+            assert isinstance(workdir_node, ast.Constant)
+            assert isinstance(workdir_node.value, bool)
+            workdir_modes.add(workdir_node.value)
+
+        assert case_names == expected_case_names
+        assert plan_kinds == expected_plan_kinds
+        assert workdir_modes == expected_workdir_modes
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        expected = expectations[node.name]
+        if expected["has_cwd"]:
+            assert "cwd=case_root" in source_segment
+        else:
+            assert "cwd=case_root" not in source_segment
+
+        if expected["uses_home_flag"]:
+            assert '"--home"' in source_segment
+        else:
+            assert '"--home"' not in source_segment
+
+        assert '"--workdir"' in source_segment
+        matched.add(node.name)
+
+    assert matched == set(expectations)
+
+
 def test_cli_integration_existing_home_preserve_entries_matrices_keep_boundaries() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
