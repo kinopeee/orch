@@ -1502,6 +1502,35 @@ def test_cli_status_invalid_home_short_circuits_before_run_dir(
     assert run_dir_called is False
 
 
+def test_cli_status_invalid_home_short_circuits_before_lock_and_load(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "home_as_file"
+    home.write_text("not a directory\n", encoding="utf-8")
+    lock_called = False
+    load_called = False
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        nonlocal lock_called
+        lock_called = True
+        yield
+
+    def fake_load_state(_run_dir: Path) -> object:
+        nonlocal load_called
+        load_called = True
+        return object()
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_state", fake_load_state)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.status("run1", home=home, as_json=False)
+    assert exc_info.value.exit_code == 2
+    assert lock_called is False
+    assert load_called is False
+
+
 def test_cli_logs_invalid_home_short_circuits_before_run_dir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1520,6 +1549,35 @@ def test_cli_logs_invalid_home_short_circuits_before_run_dir(
         cli_module.logs("run1", home=home, task=None, tail=10)
     assert exc_info.value.exit_code == 2
     assert run_dir_called is False
+
+
+def test_cli_logs_invalid_home_short_circuits_before_lock_and_load(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "home_as_file"
+    home.write_text("not a directory\n", encoding="utf-8")
+    lock_called = False
+    load_called = False
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        nonlocal lock_called
+        lock_called = True
+        yield
+
+    def fake_load_state(_run_dir: Path) -> object:
+        nonlocal load_called
+        load_called = True
+        return object()
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_state", fake_load_state)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.logs("run1", home=home, task=None, tail=10)
+    assert exc_info.value.exit_code == 2
+    assert lock_called is False
+    assert load_called is False
 
 
 def test_cli_resume_invalid_home_short_circuits_before_workdir_and_run_dir(
@@ -1557,6 +1615,44 @@ def test_cli_resume_invalid_home_short_circuits_before_workdir_and_run_dir(
     assert exc_info.value.exit_code == 2
     assert resolve_workdir_called is False
     assert run_dir_called is False
+
+
+def test_cli_resume_invalid_home_short_circuits_before_lock_and_plan_load(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "home_as_file"
+    home.write_text("not a directory\n", encoding="utf-8")
+    workdir = tmp_path / "workdir"
+    workdir.mkdir()
+    lock_called = False
+    plan_load_called = False
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        nonlocal lock_called
+        lock_called = True
+        yield
+
+    def fake_load_plan(_path: Path) -> object:
+        nonlocal plan_load_called
+        plan_load_called = True
+        return object()
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_plan", fake_load_plan)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.resume(
+            "run1",
+            home=home,
+            max_parallel=1,
+            workdir=workdir,
+            fail_fast=False,
+            failed_only=False,
+        )
+    assert exc_info.value.exit_code == 2
+    assert lock_called is False
+    assert plan_load_called is False
 
 
 def test_cli_cancel_too_long_run_id_short_circuits_before_home_and_run_dir(
