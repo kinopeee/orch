@@ -6140,6 +6140,7 @@ def test_cli_integration_explicit_existing_home_plan_error_cases_keep_modes_and_
                 "symlink_plan",
                 "symlink_ancestor_plan",
             },
+            "needs_workdir": True,
         },
         "test_cli_run_dry_run_both_toggles_reject_invalid_plan_existing_home_matrix": {
             "plan_modes": {
@@ -6150,6 +6151,7 @@ def test_cli_integration_explicit_existing_home_plan_error_cases_keep_modes_and_
                 "symlink_plan",
                 "symlink_ancestor_plan",
             },
+            "needs_workdir": False,
         },
         "test_cli_run_dry_run_both_toggles_missing_plan_precedes_workdir_existing_home_matrix": {
             "plan_modes": {
@@ -6157,6 +6159,7 @@ def test_cli_integration_explicit_existing_home_plan_error_cases_keep_modes_and_
                 "dangling_symlink_path",
                 "symlink_ancestor_missing_path",
             },
+            "needs_workdir": True,
         },
         "test_cli_run_dry_run_both_toggles_reject_missing_plan_path_existing_home_matrix": {
             "plan_modes": {
@@ -6164,6 +6167,7 @@ def test_cli_integration_explicit_existing_home_plan_error_cases_keep_modes_and_
                 "dangling_symlink_path",
                 "symlink_ancestor_missing_path",
             },
+            "needs_workdir": False,
         },
     }
 
@@ -6219,6 +6223,15 @@ def test_cli_integration_explicit_existing_home_plan_error_cases_keep_modes_and_
             assert isinstance(mode_node.value, str)
             actual_plan_modes.add(mode_node.value)
         assert actual_plan_modes == expectations[node.name]["plan_modes"]
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        assert "cwd=case_root" not in source_segment
+        assert '"--home"' in source_segment
+        if expectations[node.name]["needs_workdir"]:
+            assert '"--workdir"' in source_segment
+        else:
+            assert '"--workdir"' not in source_segment
 
         matched.add(node.name)
 
