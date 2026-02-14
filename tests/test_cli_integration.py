@@ -1242,6 +1242,7 @@ def test_cli_run_dry_run_both_toggles_dangling_symlink_home_precedes_invalid_wor
     assert proc.returncode == 2
     assert "Invalid home" in output
     assert "Invalid workdir" not in output
+    assert "contains symlink component" not in output
     assert "Dry Run" not in output
 
 
@@ -2003,6 +2004,7 @@ def test_cli_run_dry_run_both_toggles_reverse_symlink_to_file_home_precedes_plan
     assert "Invalid home" in output
     assert "Plan validation error" not in output
     assert "Invalid workdir" not in output
+    assert "contains symlink component" not in output
     assert "Dry Run" not in output
 
 
