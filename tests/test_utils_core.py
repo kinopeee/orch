@@ -1947,6 +1947,78 @@ def test_source_cli_run_has_dry_run_exit_before_workdir_resolution() -> None:
     assert dry_run_if.lineno < min(resolve_workdir_lines)
 
 
+def test_source_validate_home_checks_symlink_guards_before_lstat_loop() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    validate_home_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "_validate_home_or_exit"
+        ),
+        None,
+    )
+    assert validate_home_function is not None
+
+    symlink_guard_lines = [
+        node.lineno
+        for node in ast.walk(validate_home_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id in {"is_symlink_path", "has_symlink_ancestor"}
+    ]
+    lstat_lines = [
+        node.lineno
+        for node in ast.walk(validate_home_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.attr == "lstat"
+    ]
+    assert symlink_guard_lines
+    assert lstat_lines
+    assert min(symlink_guard_lines) < min(lstat_lines)
+
+    guard_if = next(
+        (
+            stmt
+            for stmt in validate_home_function.body
+            if isinstance(stmt, ast.If)
+            and isinstance(stmt.test, ast.BoolOp)
+            and isinstance(stmt.test.op, ast.Or)
+            and any(
+                isinstance(value, ast.Call)
+                and isinstance(value.func, ast.Name)
+                and value.func.id == "is_symlink_path"
+                for value in stmt.test.values
+            )
+            and any(
+                isinstance(value, ast.Call)
+                and isinstance(value.func, ast.Name)
+                and value.func.id == "has_symlink_ancestor"
+                for value in stmt.test.values
+            )
+        ),
+        None,
+    )
+    assert guard_if is not None
+
+    raises_exit_two = any(
+        isinstance(node, ast.Raise)
+        and isinstance(node.exc, ast.Call)
+        and isinstance(node.exc.func, ast.Attribute)
+        and isinstance(node.exc.func.value, ast.Name)
+        and node.exc.func.value.id == "typer"
+        and node.exc.func.attr == "Exit"
+        and len(node.exc.args) == 1
+        and isinstance(node.exc.args[0], ast.Constant)
+        and node.exc.args[0].value == 2
+        for node in ast.walk(guard_if)
+    )
+    assert raises_exit_two
+
+
 def test_source_cli_status_logs_validate_home_before_lock_and_load_state() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
