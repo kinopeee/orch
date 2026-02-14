@@ -1598,6 +1598,40 @@ def test_cli_run_dry_run_both_toggles_file_ancestor_precedes_plan_and_workdir(
     assert home_parent_file.read_text(encoding="utf-8") == "not a dir\n"
 
 
+def test_cli_run_dry_run_both_toggles_file_ancestor_precedes_invalid_plan(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "plan_both_toggles_file_ancestor_vs_plan.yaml"
+    home_parent_file = tmp_path / "home_parent_file_both_toggles_plan"
+    nested_home = home_parent_file / "orch_home"
+    home_parent_file.write_text("not a dir\n", encoding="utf-8")
+    plan_path.write_text("tasks:\n  - id: t1\n    cmd: [\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(nested_home),
+            "--dry-run",
+            "--fail-fast",
+            "--no-fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Plan validation error" not in output
+    assert "Dry Run" not in output
+    assert home_parent_file.read_text(encoding="utf-8") == "not a dir\n"
+
+
 def test_cli_run_dry_run_both_toggles_file_ancestor_precedes_invalid_workdir(
     tmp_path: Path,
 ) -> None:
@@ -2588,6 +2622,40 @@ def test_cli_run_dry_run_both_toggles_reverse_file_ancestor_precedes_plan_and_wo
     assert "Invalid home" in output
     assert "Plan validation error" not in output
     assert "Invalid workdir" not in output
+    assert "Dry Run" not in output
+    assert home_parent_file.read_text(encoding="utf-8") == "not a dir\n"
+
+
+def test_cli_run_dry_run_both_toggles_reverse_file_ancestor_precedes_invalid_plan(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "plan_both_toggles_reverse_file_ancestor_vs_plan.yaml"
+    home_parent_file = tmp_path / "home_parent_file_both_toggles_reverse_plan"
+    nested_home = home_parent_file / "orch_home"
+    home_parent_file.write_text("not a dir\n", encoding="utf-8")
+    plan_path.write_text("tasks:\n  - id: t1\n    cmd: [\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(nested_home),
+            "--dry-run",
+            "--no-fail-fast",
+            "--fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Plan validation error" not in output
     assert "Dry Run" not in output
     assert home_parent_file.read_text(encoding="utf-8") == "not a dir\n"
 
