@@ -55,3 +55,27 @@ def test_has_symlink_ancestor_fails_closed_on_runtime_error(
     monkeypatch.setattr(Path, "lstat", flaky_lstat)
 
     assert has_symlink_ancestor(path) is True
+
+
+def test_is_symlink_path_returns_false_for_missing_path(tmp_path: Path) -> None:
+    missing = tmp_path / "missing"
+
+    assert is_symlink_path(missing) is False
+
+
+def test_has_symlink_ancestor_detects_real_symlink_component(tmp_path: Path) -> None:
+    real_parent = tmp_path / "real_parent"
+    real_parent.mkdir()
+    symlink_parent = tmp_path / "parent_link"
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+    target = symlink_parent / "child" / "file.txt"
+
+    assert has_symlink_ancestor(target) is True
+
+
+def test_has_symlink_ancestor_returns_false_when_no_symlink_in_ancestors(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "a" / "b" / "file.txt"
+
+    assert has_symlink_ancestor(target) is False
