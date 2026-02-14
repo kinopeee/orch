@@ -7238,6 +7238,66 @@ def test_cli_status_logs_resume_too_long_run_id_precedes_home_symlink_ancestor(
     assert not (real_parent / "orch_home" / "runs").exists()
 
 
+def test_cli_status_logs_resume_invalid_run_id_precedes_home_symlink_ancestor_directory(
+    tmp_path: Path,
+) -> None:
+    real_parent = tmp_path / "real_parent"
+    real_parent.mkdir()
+    symlink_parent = tmp_path / "home_parent_link"
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+    nested_home_name = "orch_home"
+    nested_home = symlink_parent / nested_home_name
+    real_run_dir = real_parent / nested_home_name / "runs" / "run1"
+    real_run_dir.mkdir(parents=True)
+    (real_run_dir / "plan.yaml").write_text("tasks: []\n", encoding="utf-8")
+    bad_run_id = "../escape"
+
+    for command in ("status", "logs", "resume"):
+        proc = subprocess.run(
+            [sys.executable, "-m", "orch.cli", command, bad_run_id, "--home", str(nested_home)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        output = proc.stdout + proc.stderr
+        assert proc.returncode == 2, command
+        assert "Invalid run_id" in output, command
+        assert "Invalid home" not in output, command
+        assert "contains symlink component" not in output, command
+
+    assert not (real_run_dir / ".lock").exists()
+
+
+def test_cli_status_logs_resume_too_long_run_id_precedes_home_symlink_ancestor_directory(
+    tmp_path: Path,
+) -> None:
+    real_parent = tmp_path / "real_parent"
+    real_parent.mkdir()
+    symlink_parent = tmp_path / "home_parent_link"
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+    nested_home_name = "orch_home"
+    nested_home = symlink_parent / nested_home_name
+    real_run_dir = real_parent / nested_home_name / "runs" / "run1"
+    real_run_dir.mkdir(parents=True)
+    (real_run_dir / "plan.yaml").write_text("tasks: []\n", encoding="utf-8")
+    bad_run_id = "a" * 129
+
+    for command in ("status", "logs", "resume"):
+        proc = subprocess.run(
+            [sys.executable, "-m", "orch.cli", command, bad_run_id, "--home", str(nested_home)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        output = proc.stdout + proc.stderr
+        assert proc.returncode == 2, command
+        assert "Invalid run_id" in output, command
+        assert "Invalid home" not in output, command
+        assert "contains symlink component" not in output, command
+
+    assert not (real_run_dir / ".lock").exists()
+
+
 def test_cli_resume_invalid_run_id_precedes_invalid_workdir(tmp_path: Path) -> None:
     home = tmp_path / ".orch_cli"
     missing_workdir = tmp_path / "missing_workdir"
