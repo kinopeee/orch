@@ -2974,6 +2974,7 @@ def test_cli_run_dry_run_both_fail_fast_toggles_invalid_plan_precedes_invalid_wo
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Plan validation error" in output
+    assert "Invalid home" not in output
     assert "Invalid workdir" not in output
     assert "Dry Run" not in output
     assert not (home / "runs").exists()
@@ -3086,6 +3087,7 @@ def test_cli_run_dry_run_both_toggles_invalid_plan_precedes_invalid_workdir_matr
             context = f"{plan_mode}-{order_label}"
             assert proc.returncode == 2, context
             assert "Plan validation error" in output, context
+            assert "Invalid home" not in output, context
             assert "Invalid workdir" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
@@ -3142,6 +3144,7 @@ def test_cli_run_dry_run_both_toggles_missing_plan_path_precedes_invalid_workdir
             assert "PLAN_PATH" in output, context
             assert "Invalid value for 'PLAN_PATH'" in output, context
             assert "Plan validation error" not in output, context
+            assert "Invalid home" not in output, context
             assert "Invalid workdir" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
@@ -4093,6 +4096,7 @@ def test_cli_run_dry_run_both_fail_fast_toggles_reverse_order_invalid_plan_prece
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Plan validation error" in output
+    assert "Invalid home" not in output
     assert "Invalid workdir" not in output
     assert "Dry Run" not in output
     assert not (home / "runs").exists()
