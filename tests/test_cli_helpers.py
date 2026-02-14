@@ -1573,6 +1573,40 @@ tasks:
     assert snapshot_called is False
 
 
+def test_cli_run_dry_run_short_circuits_before_run_plan_execution(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    plan_path.write_text(
+        """
+tasks:
+  - id: t1
+    cmd: ["python3", "-c", "print('ok')"]
+""".strip(),
+        encoding="utf-8",
+    )
+    run_plan_called = False
+
+    async def fake_run_plan(*args: object, **kwargs: object) -> object:
+        nonlocal run_plan_called
+        run_plan_called = True
+        raise AssertionError("run_plan should not be executed for dry-run")
+
+    monkeypatch.setattr(cli_module, "run_plan", fake_run_plan)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.run(
+            plan_path,
+            max_parallel=1,
+            home=tmp_path / ".orch",
+            workdir=tmp_path / "wd",
+            fail_fast=False,
+            dry_run=True,
+        )
+    assert exc_info.value.exit_code == 0
+    assert run_plan_called is False
+
+
 def test_cli_resume_normalizes_runtime_lock_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
