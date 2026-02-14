@@ -2447,6 +2447,61 @@ def test_source_cli_run_dry_run_branch_prints_table_object() -> None:
     assert print_table_calls
 
 
+def test_source_cli_run_dry_run_branch_prints_table_before_exit_zero() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    run_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "run"
+        ),
+        None,
+    )
+    assert run_function is not None
+
+    dry_run_if = next(
+        (
+            stmt
+            for stmt in run_function.body
+            if isinstance(stmt, ast.If)
+            and isinstance(stmt.test, ast.Name)
+            and stmt.test.id == "dry_run"
+        ),
+        None,
+    )
+    assert dry_run_if is not None
+
+    print_table_lines = [
+        node.lineno
+        for node in ast.walk(dry_run_if)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "console"
+        and node.func.attr == "print"
+        and node.args
+        and isinstance(node.args[0], ast.Name)
+        and node.args[0].id == "table"
+    ]
+    exit_zero_lines = [
+        node.lineno
+        for node in ast.walk(dry_run_if)
+        if isinstance(node, ast.Raise)
+        and isinstance(node.exc, ast.Call)
+        and isinstance(node.exc.func, ast.Attribute)
+        and isinstance(node.exc.func.value, ast.Name)
+        and node.exc.func.value.id == "typer"
+        and node.exc.func.attr == "Exit"
+        and len(node.exc.args) == 1
+        and isinstance(node.exc.args[0], ast.Constant)
+        and node.exc.args[0].value == 0
+    ]
+    assert print_table_lines
+    assert exit_zero_lines
+    assert min(print_table_lines) < min(exit_zero_lines)
+
+
 def test_source_cli_run_has_dry_run_exit_before_run_dir_creation() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
