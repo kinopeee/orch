@@ -57,6 +57,9 @@ def test_cli_run_dry_run_returns_zero(tmp_path: Path) -> None:
     assert "Dry Run" in proc.stdout
     assert "t1" in proc.stdout
     assert "t2" in proc.stdout
+    assert "run_id:" not in proc.stdout
+    assert "state:" not in proc.stdout
+    assert "report:" not in proc.stdout
     assert not (home / "runs").exists()
 
 
