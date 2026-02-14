@@ -259,6 +259,62 @@ def test_source_path_guard_has_symlink_ancestor_catches_oserror_and_runtimeerror
     assert "RuntimeError" in except_type_names
 
 
+def test_source_path_guard_is_symlink_path_uses_fail_closed_return_on_error() -> None:
+    source_path = Path(__file__).resolve().parents[1] / "src" / "orch" / "util" / "path_guard.py"
+    module = ast.parse(source_path.read_text(encoding="utf-8"))
+    is_symlink_func = next(
+        node
+        for node in module.body
+        if isinstance(node, ast.FunctionDef) and node.name == "is_symlink_path"
+    )
+    try_nodes = [node for node in ast.walk(is_symlink_func) if isinstance(node, ast.Try)]
+    assert try_nodes, "is_symlink_path should include guarded try/except"
+
+    handler = next(
+        (
+            candidate
+            for try_node in try_nodes
+            for candidate in try_node.handlers
+            if {"OSError", "RuntimeError"}.issubset(_collect_except_type_names(candidate.type))
+        ),
+        None,
+    )
+    assert handler is not None, "is_symlink_path must catch OSError and RuntimeError together"
+    assert handler.body, "is_symlink_path error handler should not be empty"
+    return_stmt = handler.body[0]
+    assert isinstance(return_stmt, ast.Return)
+    assert isinstance(return_stmt.value, ast.Name)
+    assert return_stmt.value.id == "fail_closed"
+
+
+def test_source_path_guard_has_symlink_ancestor_returns_true_on_error() -> None:
+    source_path = Path(__file__).resolve().parents[1] / "src" / "orch" / "util" / "path_guard.py"
+    module = ast.parse(source_path.read_text(encoding="utf-8"))
+    has_ancestor_func = next(
+        node
+        for node in module.body
+        if isinstance(node, ast.FunctionDef) and node.name == "has_symlink_ancestor"
+    )
+    try_nodes = [node for node in ast.walk(has_ancestor_func) if isinstance(node, ast.Try)]
+    assert try_nodes, "has_symlink_ancestor should include guarded try/except"
+
+    handler = next(
+        (
+            candidate
+            for try_node in try_nodes
+            for candidate in try_node.handlers
+            if {"OSError", "RuntimeError"}.issubset(_collect_except_type_names(candidate.type))
+        ),
+        None,
+    )
+    assert handler is not None, "has_symlink_ancestor must catch OSError and RuntimeError together"
+    assert handler.body, "has_symlink_ancestor error handler should not be empty"
+    return_stmt = handler.body[0]
+    assert isinstance(return_stmt, ast.Return)
+    assert isinstance(return_stmt.value, ast.Constant)
+    assert return_stmt.value.value is True
+
+
 def _collect_unguarded_calls(
     method_name: str,
     *,
