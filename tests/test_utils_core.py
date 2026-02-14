@@ -10176,6 +10176,11 @@ def test_cli_integration_run_id_precedence_over_invalid_home_shape_families() ->
             "too_long",
             "symlink_ancestor_directory",
         ),
+        (
+            "test_cli_status_logs_resume_invalid_run_id_precedence_invalid_home_shape_matrix",
+            "matrix",
+            "matrix",
+        ),
     )
     cancel_entries = (
         (
@@ -10248,18 +10253,25 @@ def test_cli_integration_run_id_precedence_over_invalid_home_shape_families() ->
             "too_long",
             "symlink_ancestor_directory",
         ),
+        (
+            "test_cli_cancel_invalid_run_id_precedence_invalid_home_shape_matrix",
+            "matrix",
+            "matrix",
+        ),
     )
 
     expectations: dict[str, dict[str, str]] = {}
     for name, run_id_mode, home_shape in status_entries:
         expectations[name] = {
-            "command_family": "status_logs_resume",
+            "command_family": (
+                "status_logs_resume_matrix" if run_id_mode == "matrix" else "status_logs_resume"
+            ),
             "run_id_mode": run_id_mode,
             "home_shape": home_shape,
         }
     for name, run_id_mode, home_shape in cancel_entries:
         expectations[name] = {
-            "command_family": "cancel",
+            "command_family": "cancel_matrix" if run_id_mode == "matrix" else "cancel",
             "run_id_mode": run_id_mode,
             "home_shape": home_shape,
         }
@@ -10282,14 +10294,26 @@ def test_cli_integration_run_id_precedence_over_invalid_home_shape_families() ->
 
         if expected["command_family"] == "status_logs_resume":
             assert 'for command in ("status", "logs", "resume"):' in source_segment
+        elif expected["command_family"] == "status_logs_resume_matrix":
+            assert 'commands = ("status", "logs", "resume")' in source_segment
+            assert "for command in commands:" in source_segment
         else:
             assert 'for command in ("status", "logs", "resume"):' not in source_segment
-            assert '"cancel"' in source_segment
+            if expected["command_family"] == "cancel_matrix":
+                assert 'cmd = [sys.executable, "-m", "orch.cli", "cancel", bad_run_id]' in (
+                    source_segment
+                )
+            else:
+                assert '"cancel"' in source_segment
 
         if expected["run_id_mode"] == "path_escape":
             assert 'bad_run_id = "../escape"' in source_segment
-        else:
+        elif expected["run_id_mode"] == "too_long":
             assert 'bad_run_id = "a" * 129' in source_segment
+        else:
+            assert expected["run_id_mode"] == "matrix"
+            assert 'run_id_modes = ("path_escape", "too_long")' in source_segment
+            assert "for run_id_mode in run_id_modes:" in source_segment
 
         if expected["home_shape"] == "file_path":
             assert 'home_file.read_text(encoding="utf-8") == "not a dir\\n"' in source_segment
@@ -10323,15 +10347,37 @@ def test_cli_integration_run_id_precedence_over_invalid_home_shape_families() ->
             assert 'assert "contains symlink component" not in output' in source_segment
             assert 'assert not (real_parent / "orch_home" / "runs").exists()' in source_segment
         else:
-            assert expected["home_shape"] == "symlink_ancestor_directory"
-            assert 'nested_home_name = "orch_home"' in source_segment
-            assert 'real_run_dir = real_parent / nested_home_name / "runs"' in source_segment
-            assert 'assert "contains symlink component" not in output' in source_segment
-            if expected["command_family"] == "cancel":
-                assert 'assert not (real_run_dir / "cancel.request").exists()' in source_segment
-                assert 'assert not (real_run_dir / ".lock").exists()' in source_segment
+            if expected["home_shape"] == "symlink_ancestor_directory":
+                assert 'nested_home_name = "orch_home"' in source_segment
+                assert 'real_run_dir = real_parent / nested_home_name / "runs"' in source_segment
+                assert 'assert "contains symlink component" not in output' in source_segment
+                if expected["command_family"] == "cancel":
+                    assert 'assert not (real_run_dir / "cancel.request").exists()' in source_segment
+                    assert 'assert not (real_run_dir / ".lock").exists()' in source_segment
+                else:
+                    assert 'assert not (real_run_dir / ".lock").exists()' in source_segment
             else:
-                assert 'assert not (real_run_dir / ".lock").exists()' in source_segment
+                assert expected["home_shape"] == "matrix"
+                assert "home_modes = (" in source_segment
+                assert "for home_mode in home_modes:" in source_segment
+                assert '"file_path"' in source_segment
+                assert '"symlink"' in source_segment
+                assert '"dangling_symlink"' in source_segment
+                assert '"symlink_to_file"' in source_segment
+                assert '"file_ancestor"' in source_segment
+                assert '"symlink_ancestor"' in source_segment
+                assert '"symlink_ancestor_directory"' in source_segment
+                assert 'assert "run_id: [bold]" not in output, context' in source_segment
+                assert 'assert "state: [bold]" not in output, context' in source_segment
+                assert 'assert "report: [bold]" not in output, context' in source_segment
+                if expected["command_family"] == "cancel_matrix":
+                    assert (
+                        'assert not (real_run_dir / "cancel.request").exists(), context'
+                        in source_segment
+                    )
+                    assert 'assert not (real_run_dir / ".lock").exists(), context' in source_segment
+                else:
+                    assert 'assert not (real_run_dir / ".lock").exists(), context' in source_segment
 
         matched.add(node.name)
 

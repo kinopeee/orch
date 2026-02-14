@@ -14574,6 +14574,113 @@ def test_cli_status_logs_resume_too_long_run_id_precedes_home_symlink_ancestor_d
     assert not (real_run_dir / ".lock").exists()
 
 
+def test_cli_status_logs_resume_invalid_run_id_precedence_invalid_home_shape_matrix(
+    tmp_path: Path,
+) -> None:
+    commands = ("status", "logs", "resume")
+    run_id_modes = ("path_escape", "too_long")
+    home_modes = (
+        "file_path",
+        "symlink",
+        "dangling_symlink",
+        "symlink_to_file",
+        "file_ancestor",
+        "symlink_ancestor",
+        "symlink_ancestor_directory",
+    )
+
+    for run_id_mode in run_id_modes:
+        bad_run_id = "../escape" if run_id_mode == "path_escape" else "a" * 129
+        for home_mode in home_modes:
+            for command in commands:
+                case_root = tmp_path / f"run_id_precedence_{run_id_mode}_{home_mode}_{command}"
+                case_root.mkdir()
+                cmd = [sys.executable, "-m", "orch.cli", command, bad_run_id]
+
+                if home_mode == "file_path":
+                    home_file = case_root / "home_file"
+                    home_file.write_text("not a dir\n", encoding="utf-8")
+                    cmd += ["--home", str(home_file)]
+                elif home_mode == "symlink":
+                    real_home = case_root / "real_home"
+                    real_run_dir = real_home / "runs" / "run1"
+                    real_run_dir.mkdir(parents=True)
+                    (real_run_dir / "plan.yaml").write_text("tasks: []\n", encoding="utf-8")
+                    home_link = case_root / "home_link"
+                    home_link.symlink_to(real_home, target_is_directory=True)
+                    cmd += ["--home", str(home_link)]
+                elif home_mode == "dangling_symlink":
+                    missing_home_target = case_root / "missing_home_target"
+                    home_link = case_root / "home_link"
+                    home_link.symlink_to(missing_home_target, target_is_directory=True)
+                    cmd += ["--home", str(home_link)]
+                elif home_mode == "symlink_to_file":
+                    home_target_file = case_root / "home_target_file.txt"
+                    home_target_file.write_text("not a home dir\n", encoding="utf-8")
+                    home_link = case_root / "home_link"
+                    home_link.symlink_to(home_target_file)
+                    cmd += ["--home", str(home_link)]
+                elif home_mode == "file_ancestor":
+                    home_parent_file = case_root / "home_parent_file"
+                    home_parent_file.write_text("not a dir\n", encoding="utf-8")
+                    nested_home = home_parent_file / "orch_home"
+                    cmd += ["--home", str(nested_home)]
+                elif home_mode == "symlink_ancestor":
+                    real_parent = case_root / "real_parent"
+                    real_parent.mkdir()
+                    symlink_parent = case_root / "home_parent_link"
+                    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+                    nested_home = symlink_parent / "orch_home"
+                    cmd += ["--home", str(nested_home)]
+                else:
+                    assert home_mode == "symlink_ancestor_directory"
+                    real_parent = case_root / "real_parent"
+                    real_parent.mkdir()
+                    symlink_parent = case_root / "home_parent_link"
+                    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+                    nested_home_name = "orch_home"
+                    nested_home = symlink_parent / nested_home_name
+                    real_run_dir = real_parent / nested_home_name / "runs" / "run1"
+                    real_run_dir.mkdir(parents=True)
+                    (real_run_dir / "plan.yaml").write_text("tasks: []\n", encoding="utf-8")
+                    cmd += ["--home", str(nested_home)]
+
+                proc = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                output = proc.stdout + proc.stderr
+                context = f"{run_id_mode}-{home_mode}-{command}"
+                assert proc.returncode == 2, context
+                assert "Invalid run_id" in output, context
+                assert "Invalid home" not in output, context
+                assert "run_id: [bold]" not in output, context
+                assert "state: [bold]" not in output, context
+                assert "report: [bold]" not in output, context
+
+                if home_mode == "file_path":
+                    assert home_file.read_text(encoding="utf-8") == "not a dir\n", context
+                elif home_mode == "symlink":
+                    assert not (real_run_dir / ".lock").exists(), context
+                elif home_mode == "dangling_symlink":
+                    assert not missing_home_target.exists(), context
+                elif home_mode == "symlink_to_file":
+                    assert home_target_file.read_text(encoding="utf-8") == "not a home dir\n", (
+                        context
+                    )
+                elif home_mode == "file_ancestor":
+                    assert home_parent_file.read_text(encoding="utf-8") == "not a dir\n", context
+                elif home_mode == "symlink_ancestor":
+                    assert "contains symlink component" not in output, context
+                    assert not (real_parent / "orch_home" / "runs").exists(), context
+                else:
+                    assert home_mode == "symlink_ancestor_directory"
+                    assert "contains symlink component" not in output, context
+                    assert not (real_run_dir / ".lock").exists(), context
+
+
 def test_cli_status_logs_resume_invalid_run_id_existing_home_preserve_entries_matrix(
     tmp_path: Path,
 ) -> None:
@@ -16142,6 +16249,111 @@ def test_cli_cancel_too_long_run_id_takes_precedence_over_home_symlink_ancestor_
     assert "contains symlink component" not in output
     assert not (real_run_dir / "cancel.request").exists()
     assert not (real_run_dir / ".lock").exists()
+
+
+def test_cli_cancel_invalid_run_id_precedence_invalid_home_shape_matrix(
+    tmp_path: Path,
+) -> None:
+    run_id_modes = ("path_escape", "too_long")
+    home_modes = (
+        "file_path",
+        "symlink",
+        "dangling_symlink",
+        "symlink_to_file",
+        "file_ancestor",
+        "symlink_ancestor",
+        "symlink_ancestor_directory",
+    )
+
+    for run_id_mode in run_id_modes:
+        bad_run_id = "../escape" if run_id_mode == "path_escape" else "a" * 129
+        for home_mode in home_modes:
+            case_root = tmp_path / f"cancel_run_id_precedence_{run_id_mode}_{home_mode}"
+            case_root.mkdir()
+            cmd = [sys.executable, "-m", "orch.cli", "cancel", bad_run_id]
+
+            if home_mode == "file_path":
+                home_file = case_root / "home_file"
+                home_file.write_text("not a dir\n", encoding="utf-8")
+                cmd += ["--home", str(home_file)]
+            elif home_mode == "symlink":
+                real_home = case_root / "real_home"
+                real_run_dir = real_home / "runs" / "run1"
+                real_run_dir.mkdir(parents=True)
+                (real_run_dir / "plan.yaml").write_text("tasks: []\n", encoding="utf-8")
+                home_link = case_root / "home_link"
+                home_link.symlink_to(real_home, target_is_directory=True)
+                cmd += ["--home", str(home_link)]
+            elif home_mode == "dangling_symlink":
+                missing_home_target = case_root / "missing_home_target"
+                home_link = case_root / "home_link"
+                home_link.symlink_to(missing_home_target, target_is_directory=True)
+                cmd += ["--home", str(home_link)]
+            elif home_mode == "symlink_to_file":
+                home_target_file = case_root / "home_target_file.txt"
+                home_target_file.write_text("not a home dir\n", encoding="utf-8")
+                home_link = case_root / "home_link"
+                home_link.symlink_to(home_target_file)
+                cmd += ["--home", str(home_link)]
+            elif home_mode == "file_ancestor":
+                home_parent_file = case_root / "home_parent_file"
+                home_parent_file.write_text("not a dir\n", encoding="utf-8")
+                nested_home = home_parent_file / "orch_home"
+                cmd += ["--home", str(nested_home)]
+            elif home_mode == "symlink_ancestor":
+                real_parent = case_root / "real_parent"
+                real_parent.mkdir()
+                symlink_parent = case_root / "home_parent_link"
+                symlink_parent.symlink_to(real_parent, target_is_directory=True)
+                nested_home = symlink_parent / "orch_home"
+                cmd += ["--home", str(nested_home)]
+            else:
+                assert home_mode == "symlink_ancestor_directory"
+                real_parent = case_root / "real_parent"
+                real_parent.mkdir()
+                symlink_parent = case_root / "home_parent_link"
+                symlink_parent.symlink_to(real_parent, target_is_directory=True)
+                nested_home_name = "orch_home"
+                nested_home = symlink_parent / nested_home_name
+                real_run_dir = real_parent / nested_home_name / "runs" / "run1"
+                real_run_dir.mkdir(parents=True)
+                (real_run_dir / "plan.yaml").write_text("tasks: []\n", encoding="utf-8")
+                cmd += ["--home", str(nested_home)]
+
+            proc = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            output = proc.stdout + proc.stderr
+            context = f"{run_id_mode}-{home_mode}"
+            assert proc.returncode == 2, context
+            assert "Invalid run_id" in output, context
+            assert "Invalid home" not in output, context
+            assert "run_id: [bold]" not in output, context
+            assert "state: [bold]" not in output, context
+            assert "report: [bold]" not in output, context
+
+            if home_mode == "file_path":
+                assert home_file.read_text(encoding="utf-8") == "not a dir\n", context
+            elif home_mode == "symlink":
+                assert not (real_run_dir / "cancel.request").exists(), context
+                assert not (real_run_dir / ".lock").exists(), context
+            elif home_mode == "dangling_symlink":
+                assert not missing_home_target.exists(), context
+            elif home_mode == "symlink_to_file":
+                assert home_target_file.read_text(encoding="utf-8") == "not a home dir\n", context
+            elif home_mode == "file_ancestor":
+                assert home_parent_file.read_text(encoding="utf-8") == "not a dir\n", context
+            elif home_mode == "symlink_ancestor":
+                assert "contains symlink component" not in output, context
+                assert not (real_parent / "orch_home" / "runs").exists(), context
+            else:
+                assert home_mode == "symlink_ancestor_directory"
+                assert "contains symlink component" not in output, context
+                assert not (real_run_dir / "cancel.request").exists(), context
+                assert not (real_run_dir / ".lock").exists(), context
 
 
 def test_cli_rejects_too_long_run_id_for_all_commands(tmp_path: Path) -> None:
