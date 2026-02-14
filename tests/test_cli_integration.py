@@ -835,6 +835,7 @@ def test_cli_run_dry_run_both_toggles_symlink_home_precedes_invalid_plan(
     assert proc.returncode == 2
     assert "Invalid home" in output
     assert "Plan validation error" not in output
+    assert "contains symlink component" not in output
     assert "Dry Run" not in output
     assert not (real_home / "runs").exists()
 
@@ -876,6 +877,7 @@ def test_cli_run_dry_run_both_toggles_reject_symlink_home(
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert "Dry Run" not in output
     assert not (real_home / "runs").exists()
 
@@ -952,6 +954,7 @@ def test_cli_run_dry_run_both_toggles_reject_symlink_to_file_home(
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert "Dry Run" not in output
 
 
@@ -1037,6 +1040,7 @@ def test_cli_run_dry_run_both_toggles_symlink_to_file_home_precedes_plan_and_wor
     assert "Invalid home" in output
     assert "Plan validation error" not in output
     assert "Invalid workdir" not in output
+    assert "contains symlink component" not in output
     assert "Dry Run" not in output
 
 
@@ -1075,6 +1079,7 @@ def test_cli_run_dry_run_both_toggles_reject_dangling_symlink_home(
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert "Dry Run" not in output
 
 
@@ -1189,6 +1194,7 @@ def test_cli_run_dry_run_both_toggles_dangling_symlink_home_precedes_invalid_pla
     assert proc.returncode == 2
     assert "Invalid home" in output
     assert "Plan validation error" not in output
+    assert "contains symlink component" not in output
     assert "Dry Run" not in output
 
 
@@ -1271,6 +1277,7 @@ def test_cli_run_dry_run_both_toggles_dangling_symlink_home_precedes_plan_and_wo
     assert "Invalid home" in output
     assert "Plan validation error" not in output
     assert "Invalid workdir" not in output
+    assert "contains symlink component" not in output
     assert "Dry Run" not in output
 
 
@@ -1557,6 +1564,7 @@ def test_cli_run_dry_run_both_toggles_reject_home_file(
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert "Dry Run" not in output
     assert home_file.read_text(encoding="utf-8") == "not a dir\n"
 
@@ -1820,6 +1828,7 @@ def test_cli_run_dry_run_both_toggles_reverse_reject_symlink_home(
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert "Dry Run" not in output
     assert not (real_home / "runs").exists()
 
@@ -2137,6 +2146,7 @@ def test_cli_run_dry_run_both_toggles_reverse_dangling_symlink_home_precedes_inv
     assert proc.returncode == 2
     assert "Invalid home" in output
     assert "Plan validation error" not in output
+    assert "contains symlink component" not in output
     assert "Dry Run" not in output
 
 
@@ -2221,6 +2231,7 @@ def test_cli_run_dry_run_both_toggles_reverse_dangling_symlink_home_precedes_pla
     assert "Invalid home" in output
     assert "Plan validation error" not in output
     assert "Invalid workdir" not in output
+    assert "contains symlink component" not in output
     assert "Dry Run" not in output
 
 
@@ -2587,6 +2598,7 @@ def test_cli_run_dry_run_both_toggles_reverse_reject_home_file(
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert "Dry Run" not in output
     assert home_file.read_text(encoding="utf-8") == "not a dir\n"
 
