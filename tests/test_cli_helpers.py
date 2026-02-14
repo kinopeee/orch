@@ -561,6 +561,60 @@ def test_cli_cancel_normalizes_runtime_write_error(
     assert exc_info.value.exit_code == 2
 
 
+def test_run_exists_short_circuits_on_symlink_ancestor_without_marker_lstat(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_home = tmp_path / "real_home"
+    real_run_dir = real_home / "runs" / "run1"
+    real_run_dir.mkdir(parents=True)
+    (real_run_dir / "state.json").write_text("{}", encoding="utf-8")
+    (real_run_dir / "plan.yaml").write_text("tasks: []\n", encoding="utf-8")
+
+    linked_home = tmp_path / "home_link"
+    linked_home.symlink_to(real_home, target_is_directory=True)
+    linked_run_dir = linked_home / "runs" / "run1"
+    linked_state = linked_run_dir / "state.json"
+    linked_plan = linked_run_dir / "plan.yaml"
+
+    original_lstat = Path.lstat
+    marker_lstat_calls = 0
+
+    def capture_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal marker_lstat_calls
+        if path_obj in {linked_state, linked_plan}:
+            marker_lstat_calls += 1
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", capture_lstat)
+
+    assert cli_module._run_exists(linked_run_dir) is False
+    assert marker_lstat_calls == 0
+
+
+def test_run_exists_short_circuits_on_non_directory_without_marker_lstat(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run1"
+    run_dir.parent.mkdir(parents=True)
+    run_dir.write_text("not a directory\n", encoding="utf-8")
+    marker_state = run_dir / "state.json"
+    marker_plan = run_dir / "plan.yaml"
+
+    original_lstat = Path.lstat
+    marker_lstat_calls = 0
+
+    def capture_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal marker_lstat_calls
+        if path_obj in {marker_state, marker_plan}:
+            marker_lstat_calls += 1
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", capture_lstat)
+
+    assert cli_module._run_exists(run_dir) is False
+    assert marker_lstat_calls == 0
+
+
 def test_cli_cancel_skips_write_when_run_not_found(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
