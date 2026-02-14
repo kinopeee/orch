@@ -5860,6 +5860,28 @@ def test_cli_cancel_invalid_run_id_takes_precedence_over_symlink_home(tmp_path: 
     assert not (real_run_dir / "cancel.request").exists()
 
 
+def test_cli_cancel_too_long_run_id_takes_precedence_over_symlink_home(tmp_path: Path) -> None:
+    real_home = tmp_path / "real_home"
+    real_run_dir = real_home / "runs" / "run1"
+    real_run_dir.mkdir(parents=True)
+    (real_run_dir / "plan.yaml").write_text("tasks: []\n", encoding="utf-8")
+    home_link = tmp_path / "home_link"
+    home_link.symlink_to(real_home, target_is_directory=True)
+    bad_run_id = "a" * 129
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "cancel", bad_run_id, "--home", str(home_link)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid run_id" in output
+    assert "Invalid home" not in output
+    assert not (real_run_dir / "cancel.request").exists()
+
+
 def test_cli_rejects_too_long_run_id_for_all_commands(tmp_path: Path) -> None:
     home = tmp_path / ".orch_cli"
     bad_run_id = "a" * 129
