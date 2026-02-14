@@ -10444,6 +10444,166 @@ def test_cli_integration_run_id_precedence_over_invalid_home_shape_families() ->
     assert matched == set(expectations)
 
 
+def test_cli_integration_resume_invalid_run_id_workdir_preserve_supergroup_boundaries() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    explicit_non_preserve = "test_cli_resume_invalid_run_id_precedes_invalid_workdir_modes_matrix"
+    default_non_preserve = (
+        "test_cli_resume_default_home_invalid_run_id_precedes_invalid_workdir_modes_matrix"
+    )
+    explicit_preserve = (
+        "test_cli_resume_invalid_run_id_precedes_invalid_workdir_existing_home_"
+        "preserves_entries_matrix"
+    )
+    default_preserve = (
+        "test_cli_resume_default_home_invalid_run_id_precedes_invalid_workdir_"
+        "preserve_entries_matrix"
+    )
+    explicit_artifacts = (
+        "test_cli_resume_invalid_run_id_invalid_workdir_existing_home_run_artifacts_matrix"
+    )
+    default_artifacts = (
+        "test_cli_resume_default_home_invalid_run_id_invalid_workdir_run_artifacts_matrix"
+    )
+
+    expectations = {
+        explicit_non_preserve: {
+            "home_var": "home",
+            "has_cwd": False,
+            "uses_home_flag": True,
+            "preserves_entries": False,
+            "has_existing_runs": False,
+            "has_artifacts": False,
+        },
+        default_non_preserve: {
+            "home_var": "default_home",
+            "has_cwd": True,
+            "uses_home_flag": False,
+            "preserves_entries": False,
+            "has_existing_runs": False,
+            "has_artifacts": False,
+        },
+        explicit_preserve: {
+            "home_var": "home",
+            "has_cwd": False,
+            "uses_home_flag": True,
+            "preserves_entries": True,
+            "has_existing_runs": False,
+            "has_artifacts": False,
+        },
+        default_preserve: {
+            "home_var": "default_home",
+            "has_cwd": True,
+            "uses_home_flag": False,
+            "preserves_entries": True,
+            "has_existing_runs": False,
+            "has_artifacts": False,
+        },
+        explicit_artifacts: {
+            "home_var": "home",
+            "has_cwd": False,
+            "uses_home_flag": True,
+            "preserves_entries": True,
+            "has_existing_runs": True,
+            "has_artifacts": True,
+        },
+        default_artifacts: {
+            "home_var": "default_home",
+            "has_cwd": True,
+            "uses_home_flag": False,
+            "preserves_entries": True,
+            "has_existing_runs": True,
+            "has_artifacts": True,
+        },
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expectations:
+            continue
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        expected = expectations[node.name]
+        home_var = expected["home_var"]
+
+        assert "flag_orders" in source_segment
+        assert "run_id_modes" in source_segment
+        assert "workdir_modes" in source_segment
+        assert "for run_id_mode in run_id_modes:" in source_segment
+        assert "for workdir_mode in workdir_modes:" in source_segment
+        assert 'bad_run_id = "../escape" if run_id_mode == "path_escape" else "a" * 129' in (
+            source_segment
+        )
+        assert 'assert "Invalid run_id" in output, context' in source_segment
+        assert 'assert "Invalid workdir" not in output, context' in source_segment
+        assert 'assert "Invalid home" not in output, context' in source_segment
+        assert 'assert "Run not found or broken" not in output, context' in source_segment
+        assert 'assert "Plan validation error" not in output, context' in source_segment
+        assert 'assert "run_id: [bold]" not in output, context' in source_segment
+        assert "side_effect_files" in source_segment
+        assert "for file_path in side_effect_files:" in source_segment
+        assert '"--workdir"' in source_segment
+        assert "*order" in source_segment
+
+        if expected["has_artifacts"]:
+            assert 'assert "state: [bold]" not in output, context' in source_segment
+            assert 'assert "report: [bold]" not in output, context' in source_segment
+        else:
+            assert 'assert "state:" not in output, context' in source_segment
+            assert 'assert "report:" not in output, context' in source_segment
+
+        if expected["preserves_entries"]:
+            assert f"assert {home_var}.exists(), context" in source_segment
+            assert f"{home_var}.iterdir()" in source_segment
+            assert '"keep.txt"' in source_segment
+            assert '"keep_dir"' in source_segment
+            assert (
+                'assert sentinel_file.read_text(encoding="utf-8") == "keep\\n", context'
+                in source_segment
+            )
+            assert "assert sentinel_dir.is_dir(), context" in source_segment
+            assert (
+                'assert nested_file.read_text(encoding="utf-8") == "nested\\n", context'
+                in source_segment
+            )
+            if expected["has_existing_runs"]:
+                assert '"runs"' in source_segment
+                assert "existing_run" in source_segment
+                assert f'({home_var} / "runs").iterdir()' in source_segment
+                assert '"keep_run"' in source_segment
+                assert '"cancel.request"' in source_segment
+                assert '"task.log"' in source_segment
+                assert '"plan.yaml"' in source_segment
+                assert 'read_text(encoding="utf-8") == "tasks: []\\n"' in source_segment
+                assert 'read_text(encoding="utf-8") == "lock\\n"' in source_segment
+                assert 'read_text(encoding="utf-8") == "cancel\\n"' in source_segment
+                assert 'read_text(encoding="utf-8") == "log\\n"' in source_segment
+            else:
+                assert f'assert not ({home_var} / "runs").exists(), context' in source_segment
+        else:
+            assert f"assert not {home_var}.exists(), context" in source_segment
+            assert f'assert not ({home_var} / "runs").exists(), context' in source_segment
+
+        if expected["has_cwd"]:
+            assert "cwd=case_root" in source_segment
+        else:
+            assert "cwd=case_root" not in source_segment
+
+        if expected["uses_home_flag"]:
+            assert '"--home"' in source_segment
+        else:
+            assert '"--home"' not in source_segment
+
+        matched.add(node.name)
+
+    assert matched == set(expectations)
+
+
 def test_cli_integration_resume_invalid_run_id_workdir_matrix_groups_keep_boundaries() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
