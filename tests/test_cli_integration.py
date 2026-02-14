@@ -2562,6 +2562,31 @@ def test_cli_cancel_rejects_run_with_symlink_ancestor_home(tmp_path: Path) -> No
     assert not (real_run_dir / "cancel.request").exists()
 
 
+def test_cli_cancel_rejects_home_with_symlink_ancestor_without_side_effect(
+    tmp_path: Path,
+) -> None:
+    run_id = "20260101_000000_abcdef"
+    real_parent = tmp_path / "real_parent"
+    nested_home_name = "orch_home"
+    real_run_dir = real_parent / nested_home_name / "runs" / run_id
+    real_run_dir.mkdir(parents=True)
+    (real_run_dir / "plan.yaml").write_text("tasks: []\n", encoding="utf-8")
+    symlink_parent = tmp_path / "home_parent_link"
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+    nested_home = symlink_parent / nested_home_name
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "cancel", run_id, "--home", str(nested_home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Run not found" in output
+    assert not (real_run_dir / "cancel.request").exists()
+
+
 def test_cli_cancel_rejects_home_file_without_side_effect(tmp_path: Path) -> None:
     home = tmp_path / "home_file"
     home.write_text("not a directory\n", encoding="utf-8")
