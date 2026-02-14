@@ -7520,6 +7520,42 @@ def test_cli_integration_preserve_entries_matrices_keep_error_branch_contracts()
     assert matched == set(expectations)
 
 
+def test_cli_integration_preserve_entries_matrices_keep_branch_and_workdir_conditionals() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    matrix_names = {
+        "test_cli_run_dry_run_both_toggles_existing_home_preserves_entries_plan_error_matrix",
+        "test_cli_run_dry_run_both_toggles_default_existing_home_preserves_entries_plan_error_matrix",
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in matrix_names:
+            continue
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+
+        assert 'if plan_kind == "invalid_plan":' in source_segment
+        assert "plan_path.write_text(" in source_segment
+        assert 'plan_path = case_root / "missing_plan.yaml"' in source_segment
+        assert "command = [" in source_segment
+        assert '"--dry-run"' in source_segment
+        assert "*order" in source_segment
+
+        assert "if needs_workdir:" in source_segment
+        assert 'invalid_workdir_file = case_root / "invalid_workdir"' in source_segment
+        assert 'command.extend(["--workdir", str(invalid_workdir_file)])' in source_segment
+
+        matched.add(node.name)
+
+    assert matched == matrix_names
+
+
 def test_cli_integration_existing_home_preserve_entries_matrices_keep_boundaries() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
