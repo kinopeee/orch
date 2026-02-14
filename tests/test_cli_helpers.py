@@ -371,6 +371,40 @@ def test_validate_home_or_exit_rejects_when_existing_component_is_not_directory(
     assert exc_info.value.exit_code == 2
 
 
+def test_validate_home_or_exit_rejects_symlink_to_directory(tmp_path: Path) -> None:
+    real_home = tmp_path / "real_home"
+    real_home.mkdir()
+    linked_home = tmp_path / "home_link"
+    linked_home.symlink_to(real_home, target_is_directory=True)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _validate_home_or_exit(linked_home)
+    assert exc_info.value.exit_code == 2
+
+
+def test_validate_home_or_exit_rejects_symlink_to_file(tmp_path: Path) -> None:
+    home_target_file = tmp_path / "home_target_file.txt"
+    home_target_file.write_text("not a directory\n", encoding="utf-8")
+    linked_home = tmp_path / "home_link"
+    linked_home.symlink_to(home_target_file)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _validate_home_or_exit(linked_home)
+    assert exc_info.value.exit_code == 2
+
+
+def test_validate_home_or_exit_rejects_when_existing_ancestor_is_not_directory(
+    tmp_path: Path,
+) -> None:
+    parent_file = tmp_path / "parent_file"
+    parent_file.write_text("not a directory\n", encoding="utf-8")
+    nested_home = parent_file / "home"
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _validate_home_or_exit(nested_home)
+    assert exc_info.value.exit_code == 2
+
+
 def test_resolve_workdir_or_exit_rejects_when_resolve_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
