@@ -406,6 +406,20 @@ def test_validate_home_or_exit_rejects_when_existing_ancestor_is_not_directory(
     assert exc_info.value.exit_code == 2
 
 
+def test_validate_home_or_exit_rejects_when_ancestor_component_is_symlink(
+    tmp_path: Path,
+) -> None:
+    real_parent = tmp_path / "real_parent"
+    real_parent.mkdir()
+    symlink_parent = tmp_path / "home_parent_link"
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+    nested_home = symlink_parent / "orch_home"
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _validate_home_or_exit(nested_home)
+    assert exc_info.value.exit_code == 2
+
+
 def test_validate_home_or_exit_accepts_existing_directory(tmp_path: Path) -> None:
     home = tmp_path / "home"
     home.mkdir()
@@ -769,6 +783,55 @@ tasks:
     home_parent_file = tmp_path / "home_parent_file"
     home_parent_file.write_text("not a dir\n", encoding="utf-8")
     home = home_parent_file / "orch_home"
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+    load_plan_called = False
+    resolve_workdir_called = False
+
+    def fake_load_plan(_path: Path) -> PlanSpec:
+        nonlocal load_plan_called
+        load_plan_called = True
+        raise AssertionError("load_plan should not be called")
+
+    def fake_resolve_workdir(_workdir: Path) -> Path:
+        nonlocal resolve_workdir_called
+        resolve_workdir_called = True
+        return _workdir
+
+    monkeypatch.setattr(cli_module, "load_plan", fake_load_plan)
+    monkeypatch.setattr(cli_module, "_resolve_workdir_or_exit", fake_resolve_workdir)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.run(
+            plan_path,
+            max_parallel=1,
+            home=home,
+            workdir=workdir,
+            fail_fast=False,
+            dry_run=False,
+        )
+    assert exc_info.value.exit_code == 2
+    assert load_plan_called is False
+    assert resolve_workdir_called is False
+
+
+def test_cli_run_home_symlink_ancestor_short_circuits_before_plan_load_and_workdir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    plan_path.write_text(
+        """
+tasks:
+  - id: t1
+    cmd: ["python3", "-c", "print('ok')"]
+""".strip(),
+        encoding="utf-8",
+    )
+    real_parent = tmp_path / "real_parent"
+    real_parent.mkdir()
+    symlink_parent = tmp_path / "home_parent_link"
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+    home = symlink_parent / "orch_home"
     workdir = tmp_path / "wd"
     workdir.mkdir()
     load_plan_called = False
@@ -2067,6 +2130,46 @@ def test_cli_resume_home_file_ancestor_short_circuits_before_workdir_and_run_dir
     assert run_dir_called is False
 
 
+def test_cli_resume_home_symlink_ancestor_short_circuits_before_workdir_and_run_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_parent = tmp_path / "real_parent"
+    real_parent.mkdir()
+    symlink_parent = tmp_path / "home_parent_link"
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+    home = symlink_parent / "orch_home"
+    workdir = tmp_path / "workdir"
+    workdir.mkdir()
+    resolve_workdir_called = False
+    run_dir_called = False
+
+    def fake_resolve_workdir(_workdir: Path) -> Path:
+        nonlocal resolve_workdir_called
+        resolve_workdir_called = True
+        return _workdir
+
+    def fake_run_dir(_home: Path, _run_id: str) -> Path:
+        nonlocal run_dir_called
+        run_dir_called = True
+        return _home / "runs" / "run1"
+
+    monkeypatch.setattr(cli_module, "_resolve_workdir_or_exit", fake_resolve_workdir)
+    monkeypatch.setattr(cli_module, "run_dir", fake_run_dir)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.resume(
+            "run1",
+            home=home,
+            max_parallel=1,
+            workdir=workdir,
+            fail_fast=False,
+            failed_only=False,
+        )
+    assert exc_info.value.exit_code == 2
+    assert resolve_workdir_called is False
+    assert run_dir_called is False
+
+
 def test_cli_status_symlink_home_short_circuits_before_run_dir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -2277,6 +2380,47 @@ def test_cli_resume_home_file_ancestor_short_circuits_before_lock_and_plan_load(
     home_parent_file = tmp_path / "home_parent_file"
     home_parent_file.write_text("not a directory\n", encoding="utf-8")
     home = home_parent_file / "orch_home"
+    workdir = tmp_path / "workdir"
+    workdir.mkdir()
+    lock_called = False
+    plan_load_called = False
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        nonlocal lock_called
+        lock_called = True
+        yield
+
+    def fake_load_plan(_path: Path) -> object:
+        nonlocal plan_load_called
+        plan_load_called = True
+        return object()
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_plan", fake_load_plan)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.resume(
+            "run1",
+            home=home,
+            max_parallel=1,
+            workdir=workdir,
+            fail_fast=False,
+            failed_only=False,
+        )
+    assert exc_info.value.exit_code == 2
+    assert lock_called is False
+    assert plan_load_called is False
+
+
+def test_cli_resume_home_symlink_ancestor_short_circuits_before_lock_and_plan_load(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_parent = tmp_path / "real_parent"
+    real_parent.mkdir()
+    symlink_parent = tmp_path / "home_parent_link"
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+    home = symlink_parent / "orch_home"
     workdir = tmp_path / "workdir"
     workdir.mkdir()
     lock_called = False

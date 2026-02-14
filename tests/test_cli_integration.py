@@ -592,6 +592,46 @@ def test_cli_run_home_symlink_directory_precedes_invalid_workdir(tmp_path: Path)
     assert not (real_home / "runs").exists()
 
 
+def test_cli_run_home_symlink_ancestor_precedes_invalid_workdir(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    real_parent = tmp_path / "real_parent"
+    real_parent.mkdir()
+    symlink_parent = tmp_path / "home_parent_link"
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+    nested_home = symlink_parent / "orch_home"
+    missing_workdir = tmp_path / "missing_workdir"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(nested_home),
+            "--workdir",
+            str(missing_workdir),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Invalid workdir" not in output
+    assert not (real_parent / "orch_home" / "runs").exists()
+
+
 def test_cli_run_invalid_plan_precedes_invalid_workdir(tmp_path: Path) -> None:
     plan_path = tmp_path / "plan_invalid.yaml"
     home = tmp_path / ".orch_cli"
@@ -854,6 +894,85 @@ def test_cli_dry_run_home_symlink_directory_precedes_invalid_plan(tmp_path: Path
     assert "Invalid home" in output
     assert "Plan validation error" not in output
     assert not (real_home / "runs").exists()
+
+
+def test_cli_run_home_symlink_ancestor_precedes_invalid_plan(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_invalid.yaml"
+    real_parent = tmp_path / "real_parent"
+    real_parent.mkdir()
+    symlink_parent = tmp_path / "home_parent_link"
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+    nested_home = symlink_parent / "orch_home"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+            depends_on: ["missing_dep"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(nested_home),
+            "--workdir",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Plan validation error" not in output
+    assert not (real_parent / "orch_home" / "runs").exists()
+
+
+def test_cli_dry_run_home_symlink_ancestor_precedes_invalid_plan(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_invalid_dry.yaml"
+    real_parent = tmp_path / "real_parent"
+    real_parent.mkdir()
+    symlink_parent = tmp_path / "home_parent_link"
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+    nested_home = symlink_parent / "orch_home"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+            depends_on: ["missing_dep"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--dry-run",
+            "--home",
+            str(nested_home),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Plan validation error" not in output
+    assert not (real_parent / "orch_home" / "runs").exists()
 
 
 def test_cli_dry_run_home_symlink_to_file_precedes_invalid_plan(tmp_path: Path) -> None:
@@ -1281,6 +1400,37 @@ def test_cli_resume_home_symlink_directory_precedes_invalid_workdir(tmp_path: Pa
     assert "Invalid home" in output
     assert "Invalid workdir" not in output
     assert not (real_home / "runs").exists()
+
+
+def test_cli_resume_home_symlink_ancestor_precedes_invalid_workdir(tmp_path: Path) -> None:
+    real_parent = tmp_path / "real_parent"
+    real_parent.mkdir()
+    symlink_parent = tmp_path / "home_parent_link"
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+    nested_home = symlink_parent / "orch_home"
+    missing_workdir = tmp_path / "missing_resume_wd"
+
+    resume_proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "resume",
+            "20260101_000000_abcdef",
+            "--home",
+            str(nested_home),
+            "--workdir",
+            str(missing_workdir),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = resume_proc.stdout + resume_proc.stderr
+    assert resume_proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Invalid workdir" not in output
+    assert not (real_parent / "orch_home" / "runs").exists()
 
 
 def test_cli_resume_rejects_symlink_file_workdir(tmp_path: Path) -> None:
