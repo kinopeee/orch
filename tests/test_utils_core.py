@@ -7380,6 +7380,34 @@ def test_cli_integration_existing_home_preserve_entries_invalid_workdir_keeps_to
         ("--no-fail-fast", "--fail-fast"),
     }
 
+    workdir_modes_assign = next(
+        (
+            stmt
+            for stmt in matrix_function.body
+            if isinstance(stmt, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "workdir_modes"
+                for target in stmt.targets
+            )
+            and isinstance(stmt.value, ast.Tuple)
+        ),
+        None,
+    )
+    assert workdir_modes_assign is not None
+    assert isinstance(workdir_modes_assign.value, ast.Tuple)
+    workdir_modes: set[str] = set()
+    for mode_node in workdir_modes_assign.value.elts:
+        assert isinstance(mode_node, ast.Constant)
+        assert isinstance(mode_node.value, str)
+        workdir_modes.add(mode_node.value)
+    assert workdir_modes == {
+        "file_path",
+        "file_ancestor",
+        "symlink_to_file",
+        "dangling_symlink",
+        "symlink_ancestor",
+    }
+
 
 def test_cli_integration_existing_home_preserve_entries_invalid_workdir_output_contract() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
@@ -7472,6 +7500,34 @@ def test_cli_integration_default_existing_home_invalid_workdir_keeps_toggles() -
     assert toggle_orders == {
         ("--fail-fast", "--no-fail-fast"),
         ("--no-fail-fast", "--fail-fast"),
+    }
+
+    workdir_modes_assign = next(
+        (
+            stmt
+            for stmt in matrix_function.body
+            if isinstance(stmt, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "workdir_modes"
+                for target in stmt.targets
+            )
+            and isinstance(stmt.value, ast.Tuple)
+        ),
+        None,
+    )
+    assert workdir_modes_assign is not None
+    assert isinstance(workdir_modes_assign.value, ast.Tuple)
+    workdir_modes: set[str] = set()
+    for mode_node in workdir_modes_assign.value.elts:
+        assert isinstance(mode_node, ast.Constant)
+        assert isinstance(mode_node.value, str)
+        workdir_modes.add(mode_node.value)
+    assert workdir_modes == {
+        "file_path",
+        "file_ancestor",
+        "symlink_to_file",
+        "dangling_symlink",
+        "symlink_ancestor",
     }
 
 
@@ -7572,6 +7628,8 @@ def test_cli_integration_preserve_entries_invalid_workdir_matrices_keep_boundari
             'assert nested_file.read_text(encoding="utf-8") == "nested\\n", context'
             in source_segment
         )
+        assert "workdir_modes" in source_segment
+        assert "for workdir_mode in workdir_modes:" in source_segment
 
         if expected["has_cwd"]:
             assert "cwd=case_root" in source_segment
@@ -7602,6 +7660,13 @@ def test_cli_integration_preserve_entries_invalid_workdir_matrices_keep_wiring()
     expected_toggle_orders = {
         ("--fail-fast", "--no-fail-fast"),
         ("--no-fail-fast", "--fail-fast"),
+    }
+    expected_workdir_modes = {
+        "file_path",
+        "file_ancestor",
+        "symlink_to_file",
+        "dangling_symlink",
+        "symlink_ancestor",
     }
 
     matched: set[str] = set()
@@ -7635,13 +7700,47 @@ def test_cli_integration_preserve_entries_invalid_workdir_matrices_keep_wiring()
             toggle_orders.add(tuple(order_values))
         assert toggle_orders == expected_toggle_orders
 
+        workdir_modes_assign = next(
+            (
+                stmt
+                for stmt in node.body
+                if isinstance(stmt, ast.Assign)
+                and any(
+                    isinstance(target, ast.Name) and target.id == "workdir_modes"
+                    for target in stmt.targets
+                )
+                and isinstance(stmt.value, ast.Tuple)
+            ),
+            None,
+        )
+        assert workdir_modes_assign is not None
+        assert isinstance(workdir_modes_assign.value, ast.Tuple)
+        workdir_modes: set[str] = set()
+        for mode_node in workdir_modes_assign.value.elts:
+            assert isinstance(mode_node, ast.Constant)
+            assert isinstance(mode_node.value, str)
+            workdir_modes.add(mode_node.value)
+        assert workdir_modes == expected_workdir_modes
+
         source_segment = ast.get_source_segment(integration_source, node)
         assert source_segment is not None
+        assert "for workdir_mode in workdir_modes:" in source_segment
         assert 'plan_path = case_root / "valid_plan.yaml"' in source_segment
         assert "plan_path.write_text(" in source_segment
         assert "cmd:" in source_segment
-        assert 'invalid_workdir_file = case_root / "invalid_workdir"' in source_segment
-        assert 'invalid_workdir_file.write_text("file\\n", encoding="utf-8")' in source_segment
+        assert 'if workdir_mode == "file_path":' in source_segment
+        assert 'invalid_workdir_path = case_root / "invalid_workdir_file"' in source_segment
+        assert 'elif workdir_mode == "file_ancestor":' in source_segment
+        assert 'workdir_parent_file = case_root / "workdir_parent_file"' in source_segment
+        assert 'invalid_workdir_path = workdir_parent_file / "child_workdir"' in source_segment
+        assert 'elif workdir_mode == "symlink_to_file":' in source_segment
+        assert 'workdir_target_file = case_root / "workdir_target_file"' in source_segment
+        assert 'invalid_workdir_path = case_root / "workdir_symlink_to_file"' in source_segment
+        assert 'elif workdir_mode == "dangling_symlink":' in source_segment
+        assert 'invalid_workdir_path = case_root / "workdir_dangling_symlink"' in source_segment
+        assert "invalid_workdir_path.symlink_to(" in source_segment
+        assert 'workdir_parent_link = case_root / "workdir_parent_link"' in source_segment
+        assert 'invalid_workdir_path = workdir_parent_link / "child_workdir"' in source_segment
         assert '"--dry-run"' in source_segment
         assert "*order" in source_segment
         assert 'nested_file = sentinel_dir / "nested.txt"' in source_segment
