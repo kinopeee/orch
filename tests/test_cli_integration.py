@@ -3157,6 +3157,79 @@ def test_cli_run_dry_run_both_toggles_missing_plan_path_precedes_invalid_workdir
             assert not (home / "runs").exists(), context
 
 
+def test_cli_run_dry_run_both_toggles_missing_plan_path_precedes_invalid_home_matrix(
+    tmp_path: Path,
+) -> None:
+    flag_orders: list[list[str]] = [
+        ["--fail-fast", "--no-fail-fast"],
+        ["--no-fail-fast", "--fail-fast"],
+    ]
+    plan_modes = ("missing_path", "dangling_symlink_path")
+    home_modes = ("home_file", "symlink_to_dir", "dangling_symlink")
+
+    for order in flag_orders:
+        order_label = "forward" if order[0] == "--fail-fast" else "reverse"
+        for plan_mode in plan_modes:
+            for home_mode in home_modes:
+                case_root = tmp_path / f"missing_plan_vs_home_{plan_mode}_{home_mode}_{order_label}"
+                case_root.mkdir()
+                side_effect_roots: list[Path] = []
+
+                if home_mode == "home_file":
+                    home_path = case_root / "home_file"
+                    home_path.write_text("not a dir\n", encoding="utf-8")
+                    side_effect_roots.append(case_root)
+                elif home_mode == "symlink_to_dir":
+                    real_home = case_root / "real_home"
+                    real_home.mkdir()
+                    home_path = case_root / "home_symlink_dir"
+                    home_path.symlink_to(real_home, target_is_directory=True)
+                    side_effect_roots.extend([case_root, real_home])
+                else:
+                    home_path = case_root / "home_dangling_symlink"
+                    home_path.symlink_to(
+                        case_root / "missing-home-target", target_is_directory=True
+                    )
+                    side_effect_roots.append(case_root)
+
+                if plan_mode == "missing_path":
+                    plan_path = case_root / "missing_plan.yaml"
+                else:
+                    plan_path = case_root / "dangling_plan_link.yaml"
+                    plan_path.symlink_to(case_root / "missing_plan_target.yaml")
+
+                proc = subprocess.run(
+                    [
+                        sys.executable,
+                        "-m",
+                        "orch.cli",
+                        "run",
+                        str(plan_path),
+                        "--home",
+                        str(home_path),
+                        "--dry-run",
+                        *order,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                output = proc.stdout + proc.stderr
+                context = f"{plan_mode}-{home_mode}-{order_label}"
+                assert proc.returncode == 2, context
+                assert "PLAN_PATH" in output, context
+                assert "Invalid value for 'PLAN_PATH'" in output, context
+                assert "Plan validation error" not in output, context
+                assert "Invalid home" not in output, context
+                assert "contains symlink component" not in output, context
+                assert "Dry Run" not in output, context
+                assert "run_id:" not in output, context
+                assert "state:" not in output, context
+                assert "report:" not in output, context
+                for root in side_effect_roots:
+                    assert not (root / "runs").exists(), context
+
+
 def test_cli_run_dry_run_both_fail_fast_toggles_reverse_order_invalid_home_precedes_invalid_plan(
     tmp_path: Path,
 ) -> None:
