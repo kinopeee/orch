@@ -7521,6 +7521,136 @@ def test_cli_integration_default_existing_home_invalid_workdir_output_contract()
     assert "cwd=case_root" in source_segment
 
 
+def test_cli_integration_preserve_entries_invalid_workdir_matrices_keep_boundaries() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    explicit_matrix = (
+        "test_cli_run_dry_run_both_toggles_existing_home_preserves_entries_invalid_workdir"
+    )
+    default_matrix = (
+        "test_cli_run_dry_run_both_toggles_default_existing_home_preserves_entries_invalid_workdir"
+    )
+    expectations = {
+        explicit_matrix: {"home_var": "home", "has_cwd": False, "uses_home_flag": True},
+        default_matrix: {"home_var": "default_home", "has_cwd": True, "uses_home_flag": False},
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expectations:
+            continue
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        expected = expectations[node.name]
+        home_var = expected["home_var"]
+
+        assert "assert proc.returncode == 0, context" in source_segment
+        assert 'assert "Dry Run" in output, context' in source_segment
+        assert 'assert "Invalid workdir" not in output, context' in source_segment
+        assert 'assert "Plan validation error" not in output, context' in source_segment
+        assert 'assert "PLAN_PATH" not in output, context' in source_segment
+        assert 'assert "Invalid home" not in output, context' in source_segment
+        assert 'assert "run_id:" not in output, context' in source_segment
+        assert 'assert "state:" not in output, context' in source_segment
+        assert 'assert "report:" not in output, context' in source_segment
+        assert f"assert {home_var}.exists(), context" in source_segment
+        assert f'assert not ({home_var} / "runs").exists(), context' in source_segment
+        assert f"{home_var}.iterdir()" in source_segment
+        assert '"keep.txt"' in source_segment
+        assert '"keep_dir"' in source_segment
+        assert (
+            'assert sentinel_file.read_text(encoding="utf-8") == "keep\\n", context'
+            in source_segment
+        )
+        assert "assert sentinel_dir.is_dir(), context" in source_segment
+        assert (
+            'assert nested_file.read_text(encoding="utf-8") == "nested\\n", context'
+            in source_segment
+        )
+
+        if expected["has_cwd"]:
+            assert "cwd=case_root" in source_segment
+        else:
+            assert "cwd=case_root" not in source_segment
+
+        if expected["uses_home_flag"]:
+            assert '"--home"' in source_segment
+        else:
+            assert '"--home"' not in source_segment
+
+        assert '"--workdir"' in source_segment
+        matched.add(node.name)
+
+    assert matched == set(expectations)
+
+
+def test_cli_integration_preserve_entries_invalid_workdir_matrices_keep_wiring() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    matrix_names = {
+        "test_cli_run_dry_run_both_toggles_existing_home_preserves_entries_invalid_workdir",
+        "test_cli_run_dry_run_both_toggles_default_existing_home_preserves_entries_invalid_workdir",
+    }
+
+    expected_toggle_orders = {
+        ("--fail-fast", "--no-fail-fast"),
+        ("--no-fail-fast", "--fail-fast"),
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in matrix_names:
+            continue
+
+        flag_orders_assign = next(
+            (
+                stmt
+                for stmt in node.body
+                if isinstance(stmt, ast.AnnAssign)
+                and isinstance(stmt.target, ast.Name)
+                and stmt.target.id == "flag_orders"
+                and isinstance(stmt.value, ast.List)
+            ),
+            None,
+        )
+        assert flag_orders_assign is not None
+        assert isinstance(flag_orders_assign.value, ast.List)
+        toggle_orders: set[tuple[str, ...]] = set()
+        for order_node in flag_orders_assign.value.elts:
+            assert isinstance(order_node, ast.List)
+            order_values: list[str] = []
+            for item in order_node.elts:
+                assert isinstance(item, ast.Constant)
+                assert isinstance(item.value, str)
+                order_values.append(item.value)
+            toggle_orders.add(tuple(order_values))
+        assert toggle_orders == expected_toggle_orders
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        assert 'plan_path = case_root / "valid_plan.yaml"' in source_segment
+        assert "plan_path.write_text(" in source_segment
+        assert "cmd:" in source_segment
+        assert 'invalid_workdir_file = case_root / "invalid_workdir"' in source_segment
+        assert 'invalid_workdir_file.write_text("file\\n", encoding="utf-8")' in source_segment
+        assert '"--dry-run"' in source_segment
+        assert "*order" in source_segment
+        assert 'nested_file = sentinel_dir / "nested.txt"' in source_segment
+        assert 'nested_file.write_text("nested\\n", encoding="utf-8")' in source_segment
+        matched.add(node.name)
+
+    assert matched == matrix_names
+
+
 def test_cli_integration_preserve_entries_matrices_keep_mode_and_toggle_contracts() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
