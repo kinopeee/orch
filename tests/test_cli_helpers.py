@@ -704,6 +704,16 @@ def test_run_exists_accepts_regular_plan_marker_without_state_marker(
     assert cli_module._run_exists(run_dir) is True
 
 
+def test_run_exists_accepts_regular_state_marker_without_plan_marker(
+    tmp_path: Path,
+) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run1"
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").write_text("{}", encoding="utf-8")
+
+    assert cli_module._run_exists(run_dir) is True
+
+
 def test_run_exists_rejects_symlink_only_markers(tmp_path: Path) -> None:
     run_dir = tmp_path / ".orch" / "runs" / "run1"
     run_dir.mkdir(parents=True)
