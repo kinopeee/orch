@@ -6511,37 +6511,75 @@ def test_cli_integration_existing_home_plan_error_groups_keep_home_and_cwd_bound
     )
 
     expectations = {
-        explicit_with_workdir: {"home_var": "home", "has_cwd": False, "needs_workdir": True},
-        explicit_without_workdir: {"home_var": "home", "has_cwd": False, "needs_workdir": False},
+        explicit_with_workdir: {
+            "home_var": "home",
+            "has_cwd": False,
+            "needs_workdir": True,
+            "anchor": '"Plan validation error" in output',
+            "present": [],
+            "absent": ['"PLAN_PATH" not in output'],
+        },
+        explicit_without_workdir: {
+            "home_var": "home",
+            "has_cwd": False,
+            "needs_workdir": False,
+            "anchor": '"Plan validation error" in output',
+            "present": [],
+            "absent": ['"PLAN_PATH" not in output'],
+        },
         explicit_missing_with_workdir: {
             "home_var": "home",
             "has_cwd": False,
             "needs_workdir": True,
+            "anchor": '"PLAN_PATH" in output',
+            "present": ["\"Invalid value for 'PLAN_PATH'\" in output"],
+            "absent": ['"Plan validation error" not in output'],
         },
         explicit_missing_without_workdir: {
             "home_var": "home",
             "has_cwd": False,
             "needs_workdir": False,
+            "anchor": '"PLAN_PATH" in output',
+            "present": ["\"Invalid value for 'PLAN_PATH'\" in output"],
+            "absent": ['"Plan validation error" not in output'],
         },
         default_with_workdir: {
             "home_var": "default_home",
             "has_cwd": True,
             "needs_workdir": True,
+            "anchor": '"Plan validation error" in output',
+            "present": [],
+            "absent": ['"PLAN_PATH" not in output'],
         },
         default_without_workdir: {
             "home_var": "default_home",
             "has_cwd": True,
             "needs_workdir": False,
+            "anchor": '"Plan validation error" in output',
+            "present": [],
+            "absent": ['"PLAN_PATH" not in output'],
         },
         default_missing_with_workdir: {
             "home_var": "default_home",
             "has_cwd": True,
             "needs_workdir": True,
+            "anchor": '"PLAN_PATH" in output',
+            "present": [
+                "\"Invalid value for 'PLAN_PATH'\" in output",
+                '"contains symlink component" not in output',
+            ],
+            "absent": ['"Plan validation error" not in output'],
         },
         default_missing_without_workdir: {
             "home_var": "default_home",
             "has_cwd": True,
             "needs_workdir": False,
+            "anchor": '"PLAN_PATH" in output',
+            "present": [
+                "\"Invalid value for 'PLAN_PATH'\" in output",
+                '"contains symlink component" not in output',
+            ],
+            "absent": ['"Plan validation error" not in output'],
         },
     }
 
@@ -6557,12 +6595,21 @@ def test_cli_integration_existing_home_plan_error_groups_keep_home_and_cwd_bound
         expected = expectations[node.name]
         home_var = expected["home_var"]
 
+        assert expected["anchor"] in source_segment
         assert f"assert {home_var}.exists(), context" in source_segment
         assert f'assert not ({home_var} / "runs").exists(), context' in source_segment
         assert (
             f"assert sorted(path.name for path in {home_var}.iterdir()) == [], context"
             in source_segment
         )
+        assert '"Dry Run" not in output' in source_segment
+        assert '"run_id:" not in output' in source_segment
+        assert '"state:" not in output' in source_segment
+        assert '"report:" not in output' in source_segment
+        for snippet in expected["present"]:
+            assert snippet in source_segment
+        for snippet in expected["absent"]:
+            assert snippet in source_segment
 
         if expected["has_cwd"]:
             assert "cwd=case_root" in source_segment
