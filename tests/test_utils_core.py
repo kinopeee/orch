@@ -1744,6 +1744,82 @@ def test_source_cli_cancel_catches_run_exists_oserror_and_runtimeerror() -> None
     assert matched
 
 
+def test_source_cli_cancel_reports_run_exists_inspection_failure_message() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    cancel_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "cancel"
+        ),
+        None,
+    )
+    assert cancel_function is not None
+
+    run_exists_try = next(
+        (
+            stmt
+            for stmt in cancel_function.body
+            if isinstance(stmt, ast.Try)
+            and any(
+                isinstance(body_stmt, ast.Assign)
+                and isinstance(body_stmt.value, ast.Call)
+                and isinstance(body_stmt.value.func, ast.Name)
+                and body_stmt.value.func.id == "_run_exists"
+                for body_stmt in stmt.body
+            )
+        ),
+        None,
+    )
+    assert run_exists_try is not None
+
+    message_found = False
+    for handler in run_exists_try.handlers:
+        if handler.type is None:
+            continue
+        names: set[str] = set()
+        if isinstance(handler.type, ast.Name):
+            names.add(handler.type.id)
+        elif isinstance(handler.type, ast.Tuple):
+            for elt in handler.type.elts:
+                if isinstance(elt, ast.Name):
+                    names.add(elt.id)
+        if not {"OSError", "RuntimeError"}.issubset(names):
+            continue
+        for stmt in handler.body:
+            if not isinstance(stmt, ast.Expr) or not isinstance(stmt.value, ast.Call):
+                continue
+            call = stmt.value
+            if (
+                not isinstance(call.func, ast.Attribute)
+                or not isinstance(call.func.value, ast.Name)
+                or call.func.value.id != "console"
+                or call.func.attr != "print"
+                or not call.args
+            ):
+                continue
+            message_arg = call.args[0]
+            if isinstance(message_arg, ast.JoinedStr):
+                has_prefix = any(
+                    isinstance(piece, ast.Constant)
+                    and isinstance(piece.value, str)
+                    and "Failed to inspect run" in piece.value
+                    for piece in message_arg.values
+                )
+            elif isinstance(message_arg, ast.Constant) and isinstance(message_arg.value, str):
+                has_prefix = "Failed to inspect run" in message_arg.value
+            else:
+                has_prefix = False
+            if has_prefix:
+                message_found = True
+                break
+        if message_found:
+            break
+
+    assert message_found
+
+
 def test_source_run_exists_checks_guard_sequence_before_marker_checks() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
