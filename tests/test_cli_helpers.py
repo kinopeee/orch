@@ -477,6 +477,46 @@ def test_resolve_workdir_or_exit_rejects_when_lstat_errors(
     assert exc_info.value.exit_code == 2
 
 
+def test_resolve_workdir_or_exit_accepts_existing_directory(tmp_path: Path) -> None:
+    workdir = tmp_path / "workdir"
+    workdir.mkdir()
+
+    resolved = _resolve_workdir_or_exit(workdir)
+
+    assert resolved == workdir.resolve()
+
+
+def test_resolve_workdir_or_exit_rejects_existing_file(tmp_path: Path) -> None:
+    workdir = tmp_path / "workdir_file"
+    workdir.write_text("not a directory\n", encoding="utf-8")
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _resolve_workdir_or_exit(workdir)
+    assert exc_info.value.exit_code == 2
+
+
+def test_resolve_workdir_or_exit_accepts_symlink_to_directory(tmp_path: Path) -> None:
+    target_workdir = tmp_path / "target_workdir"
+    target_workdir.mkdir()
+    linked_workdir = tmp_path / "linked_workdir"
+    linked_workdir.symlink_to(target_workdir, target_is_directory=True)
+
+    resolved = _resolve_workdir_or_exit(linked_workdir)
+
+    assert resolved == target_workdir.resolve()
+
+
+def test_resolve_workdir_or_exit_rejects_symlink_to_file(tmp_path: Path) -> None:
+    target_file = tmp_path / "target_file.txt"
+    target_file.write_text("not a directory\n", encoding="utf-8")
+    linked_workdir = tmp_path / "linked_workdir"
+    linked_workdir.symlink_to(target_file)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _resolve_workdir_or_exit(linked_workdir)
+    assert exc_info.value.exit_code == 2
+
+
 def test_cli_run_normalizes_runtime_initialize_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
