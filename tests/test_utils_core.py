@@ -204,6 +204,61 @@ def test_source_uses_path_guard_for_is_symlink_checks() -> None:
     )
 
 
+def _collect_except_type_names(handler_type: ast.expr | None) -> set[str]:
+    if handler_type is None:
+        return set()
+    if isinstance(handler_type, ast.Name):
+        return {handler_type.id}
+    if isinstance(handler_type, ast.Attribute):
+        return {handler_type.attr}
+    if isinstance(handler_type, ast.Tuple):
+        names: set[str] = set()
+        for elem in handler_type.elts:
+            names.update(_collect_except_type_names(elem))
+        return names
+    return set()
+
+
+def test_source_path_guard_is_symlink_path_catches_oserror_and_runtimeerror() -> None:
+    source_path = Path(__file__).resolve().parents[1] / "src" / "orch" / "util" / "path_guard.py"
+    module = ast.parse(source_path.read_text(encoding="utf-8"))
+    is_symlink_func = next(
+        node
+        for node in module.body
+        if isinstance(node, ast.FunctionDef) and node.name == "is_symlink_path"
+    )
+    try_nodes = [node for node in ast.walk(is_symlink_func) if isinstance(node, ast.Try)]
+    assert try_nodes, "is_symlink_path should wrap predicate in try/except"
+    except_type_names = {
+        name
+        for try_node in try_nodes
+        for handler in try_node.handlers
+        for name in _collect_except_type_names(handler.type)
+    }
+    assert "OSError" in except_type_names
+    assert "RuntimeError" in except_type_names
+
+
+def test_source_path_guard_has_symlink_ancestor_catches_oserror_and_runtimeerror() -> None:
+    source_path = Path(__file__).resolve().parents[1] / "src" / "orch" / "util" / "path_guard.py"
+    module = ast.parse(source_path.read_text(encoding="utf-8"))
+    has_ancestor_func = next(
+        node
+        for node in module.body
+        if isinstance(node, ast.FunctionDef) and node.name == "has_symlink_ancestor"
+    )
+    try_nodes = [node for node in ast.walk(has_ancestor_func) if isinstance(node, ast.Try)]
+    assert try_nodes, "has_symlink_ancestor should wrap ancestor walk in try/except"
+    except_type_names = {
+        name
+        for try_node in try_nodes
+        for handler in try_node.handlers
+        for name in _collect_except_type_names(handler.type)
+    }
+    assert "OSError" in except_type_names
+    assert "RuntimeError" in except_type_names
+
+
 def _collect_unguarded_calls(
     method_name: str,
     *,
