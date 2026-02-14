@@ -8475,6 +8475,128 @@ def test_cli_resume_rejects_invalid_workdir_modes_matrix(tmp_path: Path) -> None
                 assert not (real_workdir_parent / "child_workdir").exists(), context
 
 
+def test_cli_resume_default_home_rejects_invalid_workdir_modes_matrix(
+    tmp_path: Path,
+) -> None:
+    flag_orders: list[list[str]] = [
+        ["--fail-fast", "--no-fail-fast"],
+        ["--no-fail-fast", "--fail-fast"],
+    ]
+    workdir_modes = (
+        "missing_path",
+        "file_path",
+        "file_ancestor",
+        "symlink_to_file",
+        "dangling_symlink",
+        "symlink_ancestor",
+    )
+
+    for order in flag_orders:
+        order_label = "forward" if order[0] == "--fail-fast" else "reverse"
+        for workdir_mode in workdir_modes:
+            case_root = (
+                tmp_path / f"resume_default_home_invalid_workdir_modes_{workdir_mode}_{order_label}"
+            )
+            case_root.mkdir()
+            plan_path = case_root / "plan.yaml"
+            default_home = case_root / ".orch"
+            _write_plan(
+                plan_path,
+                """
+                tasks:
+                  - id: t1
+                    cmd: ["python3", "-c", "print('ok')"]
+                """,
+            )
+            run_proc = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "orch.cli",
+                    "run",
+                    str(plan_path),
+                    "--workdir",
+                    str(case_root),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+                cwd=case_root,
+            )
+            assert run_proc.returncode == 0
+            run_id = _extract_run_id(run_proc.stdout)
+            state_path = default_home / "runs" / run_id / "state.json"
+            baseline_state = state_path.read_text(encoding="utf-8")
+
+            side_effect_files: list[Path] = []
+            if workdir_mode == "missing_path":
+                invalid_workdir = case_root / "missing_workdir"
+            elif workdir_mode == "file_path":
+                invalid_workdir = case_root / "workdir_file"
+                invalid_workdir.write_text("not a directory\n", encoding="utf-8")
+                side_effect_files.append(invalid_workdir)
+            elif workdir_mode == "file_ancestor":
+                workdir_parent_file = case_root / "workdir_parent_file"
+                workdir_parent_file.write_text("not a directory\n", encoding="utf-8")
+                invalid_workdir = workdir_parent_file / "child_workdir"
+                side_effect_files.append(workdir_parent_file)
+            elif workdir_mode == "symlink_to_file":
+                workdir_target_file = case_root / "workdir_target_file"
+                workdir_target_file.write_text("not a directory\n", encoding="utf-8")
+                invalid_workdir = case_root / "workdir_symlink_to_file"
+                invalid_workdir.symlink_to(workdir_target_file)
+                side_effect_files.append(workdir_target_file)
+            elif workdir_mode == "dangling_symlink":
+                invalid_workdir = case_root / "workdir_dangling_symlink"
+                invalid_workdir.symlink_to(
+                    case_root / "missing_workdir_target", target_is_directory=True
+                )
+            else:
+                real_workdir_parent = case_root / "real_workdir_parent"
+                real_workdir_parent.mkdir()
+                workdir_parent_link = case_root / "workdir_parent_link"
+                workdir_parent_link.symlink_to(real_workdir_parent, target_is_directory=True)
+                invalid_workdir = workdir_parent_link / "child_workdir"
+
+            resume_proc = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "orch.cli",
+                    "resume",
+                    run_id,
+                    "--workdir",
+                    str(invalid_workdir),
+                    *order,
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+                cwd=case_root,
+            )
+            output = resume_proc.stdout + resume_proc.stderr
+            context = f"{workdir_mode}-{order_label}"
+            assert resume_proc.returncode == 2, context
+            assert "Invalid workdir" in output, context
+            assert "Invalid home" not in output, context
+            assert "Run not found or broken" not in output, context
+            assert "Plan validation error" not in output, context
+            assert "run_id:" not in output, context
+            assert "state:" not in output, context
+            assert "report:" not in output, context
+            assert state_path.read_text(encoding="utf-8") == baseline_state, context
+            assert sorted(path.name for path in (default_home / "runs").iterdir()) == [run_id], (
+                context
+            )
+
+            for file_path in side_effect_files:
+                assert file_path.read_text(encoding="utf-8") == "not a directory\n", context
+            if workdir_mode == "dangling_symlink":
+                assert not (case_root / "missing_workdir_target").exists(), context
+            if workdir_mode == "symlink_ancestor":
+                assert not (real_workdir_parent / "child_workdir").exists(), context
+
+
 def test_cli_resume_accepts_symlink_directory_workdir_and_persists_resolved(
     tmp_path: Path,
 ) -> None:
