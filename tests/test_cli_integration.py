@@ -1188,6 +1188,73 @@ def test_cli_cancel_accepts_regular_plan_with_directory_state_marker(tmp_path: P
     assert (run_dir / "cancel.request").exists()
 
 
+def test_cli_cancel_rejects_run_with_fifo_only_markers(tmp_path: Path) -> None:
+    if not hasattr(os, "mkfifo"):
+        return
+
+    home = tmp_path / ".orch_cli"
+    run_id = "20260101_000000_abcdef"
+    run_dir = home / "runs" / run_id
+    run_dir.mkdir(parents=True)
+    os.mkfifo(run_dir / "state.json")
+    os.mkfifo(run_dir / "plan.yaml")
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "cancel", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=5,
+    )
+    assert proc.returncode == 2
+    assert "Run not found" in proc.stdout
+    assert not (run_dir / "cancel.request").exists()
+
+
+def test_cli_cancel_accepts_regular_state_with_fifo_plan_marker(tmp_path: Path) -> None:
+    if not hasattr(os, "mkfifo"):
+        return
+
+    home = tmp_path / ".orch_cli"
+    run_id = "20260101_000000_abcdef"
+    run_dir = home / "runs" / run_id
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").write_text("{}", encoding="utf-8")
+    os.mkfifo(run_dir / "plan.yaml")
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "cancel", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=5,
+    )
+    assert proc.returncode == 0
+    assert (run_dir / "cancel.request").exists()
+
+
+def test_cli_cancel_accepts_regular_plan_with_fifo_state_marker(tmp_path: Path) -> None:
+    if not hasattr(os, "mkfifo"):
+        return
+
+    home = tmp_path / ".orch_cli"
+    run_id = "20260101_000000_abcdef"
+    run_dir = home / "runs" / run_id
+    run_dir.mkdir(parents=True)
+    os.mkfifo(run_dir / "state.json")
+    (run_dir / "plan.yaml").write_text("tasks: []\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "cancel", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=5,
+    )
+    assert proc.returncode == 0
+    assert (run_dir / "cancel.request").exists()
+
+
 def test_cli_cancel_rejects_run_with_symlink_ancestor_home(tmp_path: Path) -> None:
     run_id = "20260101_000000_abcdef"
     real_home = tmp_path / "real_home"
