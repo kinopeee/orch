@@ -4569,7 +4569,11 @@ def test_cli_integration_missing_plan_path_matrix_keeps_plan_modes_and_toggle_or
         assert isinstance(mode_node, ast.Constant)
         assert isinstance(mode_node.value, str)
         plan_modes.add(mode_node.value)
-    assert plan_modes == {"missing_path", "dangling_symlink_path"}
+    assert plan_modes == {
+        "missing_path",
+        "dangling_symlink_path",
+        "symlink_ancestor_missing_path",
+    }
 
 
 def test_cli_integration_single_plan_precedence_tests_assert_no_runtime_summary() -> None:
@@ -4761,7 +4765,11 @@ def test_cli_integration_missing_plan_vs_home_matrix_keeps_mode_and_toggle_sets(
         assert isinstance(mode_node, ast.Constant)
         assert isinstance(mode_node.value, str)
         plan_modes.add(mode_node.value)
-    assert plan_modes == {"missing_path", "dangling_symlink_path"}
+    assert plan_modes == {
+        "missing_path",
+        "dangling_symlink_path",
+        "symlink_ancestor_missing_path",
+    }
 
     home_modes_assign = next(
         (
@@ -4889,7 +4897,11 @@ def test_cli_integration_missing_plan_vs_home_workdir_matrix_keeps_mode_sets() -
         assert isinstance(mode_node, ast.Constant)
         assert isinstance(mode_node.value, str)
         plan_modes.add(mode_node.value)
-    assert plan_modes == {"missing_path", "dangling_symlink_path"}
+    assert plan_modes == {
+        "missing_path",
+        "dangling_symlink_path",
+        "symlink_ancestor_missing_path",
+    }
 
     home_modes_assign = next(
         (

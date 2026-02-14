@@ -3108,7 +3108,7 @@ def test_cli_run_dry_run_both_toggles_missing_plan_path_precedes_invalid_workdir
         ["--fail-fast", "--no-fail-fast"],
         ["--no-fail-fast", "--fail-fast"],
     ]
-    plan_modes = ("missing_path", "dangling_symlink_path")
+    plan_modes = ("missing_path", "dangling_symlink_path", "symlink_ancestor_missing_path")
 
     for order in flag_orders:
         order_label = "forward" if order[0] == "--fail-fast" else "reverse"
@@ -3121,9 +3121,15 @@ def test_cli_run_dry_run_both_toggles_missing_plan_path_precedes_invalid_workdir
 
             if plan_mode == "missing_path":
                 plan_path = case_root / "missing_plan.yaml"
-            else:
+            elif plan_mode == "dangling_symlink_path":
                 plan_path = case_root / "dangling_plan_link.yaml"
                 plan_path.symlink_to(case_root / "missing_plan_target.yaml")
+            else:
+                real_missing_parent = case_root / "real_missing_parent"
+                real_missing_parent.mkdir()
+                missing_parent_link = case_root / "missing_parent_link"
+                missing_parent_link.symlink_to(real_missing_parent, target_is_directory=True)
+                plan_path = missing_parent_link / "missing_plan.yaml"
 
             proc = subprocess.run(
                 [
@@ -3166,7 +3172,7 @@ def test_cli_run_dry_run_both_toggles_missing_plan_path_precedes_invalid_home_ma
         ["--fail-fast", "--no-fail-fast"],
         ["--no-fail-fast", "--fail-fast"],
     ]
-    plan_modes = ("missing_path", "dangling_symlink_path")
+    plan_modes = ("missing_path", "dangling_symlink_path", "symlink_ancestor_missing_path")
     home_modes = (
         "home_file",
         "file_ancestor",
@@ -3221,9 +3227,15 @@ def test_cli_run_dry_run_both_toggles_missing_plan_path_precedes_invalid_home_ma
 
                 if plan_mode == "missing_path":
                     plan_path = case_root / "missing_plan.yaml"
-                else:
+                elif plan_mode == "dangling_symlink_path":
                     plan_path = case_root / "dangling_plan_link.yaml"
                     plan_path.symlink_to(case_root / "missing_plan_target.yaml")
+                else:
+                    real_missing_parent = case_root / "real_missing_parent"
+                    real_missing_parent.mkdir()
+                    missing_parent_link = case_root / "missing_parent_link"
+                    missing_parent_link.symlink_to(real_missing_parent, target_is_directory=True)
+                    plan_path = missing_parent_link / "missing_plan.yaml"
 
                 proc = subprocess.run(
                     [
@@ -3265,7 +3277,7 @@ def test_cli_run_dry_run_both_toggles_missing_plan_path_precedes_home_and_workdi
         ["--fail-fast", "--no-fail-fast"],
         ["--no-fail-fast", "--fail-fast"],
     ]
-    plan_modes = ("missing_path", "dangling_symlink_path")
+    plan_modes = ("missing_path", "dangling_symlink_path", "symlink_ancestor_missing_path")
     home_modes = (
         "home_file",
         "file_ancestor",
@@ -3324,9 +3336,15 @@ def test_cli_run_dry_run_both_toggles_missing_plan_path_precedes_home_and_workdi
 
                 if plan_mode == "missing_path":
                     plan_path = case_root / "missing_plan.yaml"
-                else:
+                elif plan_mode == "dangling_symlink_path":
                     plan_path = case_root / "dangling_plan_link.yaml"
                     plan_path.symlink_to(case_root / "missing_plan_target.yaml")
+                else:
+                    real_missing_parent = case_root / "real_missing_parent"
+                    real_missing_parent.mkdir()
+                    missing_parent_link = case_root / "missing_parent_link"
+                    missing_parent_link.symlink_to(real_missing_parent, target_is_directory=True)
+                    plan_path = missing_parent_link / "missing_plan.yaml"
 
                 proc = subprocess.run(
                     [
