@@ -8718,9 +8718,41 @@ def test_cli_integration_resume_invalid_run_id_preserve_entries_matrices_keep_ax
         "test_cli_resume_default_home_invalid_run_id_precedes_invalid_workdir_"
         "preserve_entries_matrix"
     )
+    explicit_artifacts_matrix = (
+        "test_cli_resume_invalid_run_id_invalid_workdir_existing_home_run_artifacts_matrix"
+    )
+    default_artifacts_matrix = (
+        "test_cli_resume_default_home_invalid_run_id_invalid_workdir_run_artifacts_matrix"
+    )
     expectations = {
-        explicit_matrix: {"home_var": "home", "has_cwd": False, "uses_home_flag": True},
-        default_matrix: {"home_var": "default_home", "has_cwd": True, "uses_home_flag": False},
+        explicit_matrix: {
+            "home_var": "home",
+            "has_cwd": False,
+            "uses_home_flag": True,
+            "has_existing_runs": False,
+            "has_artifacts": False,
+        },
+        default_matrix: {
+            "home_var": "default_home",
+            "has_cwd": True,
+            "uses_home_flag": False,
+            "has_existing_runs": False,
+            "has_artifacts": False,
+        },
+        explicit_artifacts_matrix: {
+            "home_var": "home",
+            "has_cwd": False,
+            "uses_home_flag": True,
+            "has_existing_runs": True,
+            "has_artifacts": True,
+        },
+        default_artifacts_matrix: {
+            "home_var": "default_home",
+            "has_cwd": True,
+            "uses_home_flag": False,
+            "has_existing_runs": True,
+            "has_artifacts": True,
+        },
     }
     expected_toggle_orders = {
         ("--fail-fast", "--no-fail-fast"),
@@ -8817,7 +8849,6 @@ def test_cli_integration_resume_invalid_run_id_preserve_entries_matrices_keep_ax
         home_var = expected["home_var"]
 
         assert f"assert {home_var}.exists(), context" in source_segment
-        assert f'assert not ({home_var} / "runs").exists(), context' in source_segment
         assert f"{home_var}.iterdir()" in source_segment
         assert '"keep.txt"' in source_segment
         assert '"keep_dir"' in source_segment
@@ -8829,6 +8860,21 @@ def test_cli_integration_resume_invalid_run_id_preserve_entries_matrices_keep_ax
             'assert nested_file.read_text(encoding="utf-8") == "nested\\n", context'
             in source_segment
         )
+        if expected["has_existing_runs"]:
+            assert '"runs"' in source_segment
+            assert "existing_run" in source_segment
+            assert f'({home_var} / "runs").iterdir()' in source_segment
+            assert '"keep_run"' in source_segment
+            if expected["has_artifacts"]:
+                assert '"cancel.request"' in source_segment
+                assert '"task.log"' in source_segment
+                assert '"plan.yaml"' in source_segment
+                assert 'read_text(encoding="utf-8") == "tasks: []\\n"' in source_segment
+                assert 'read_text(encoding="utf-8") == "lock\\n"' in source_segment
+                assert 'read_text(encoding="utf-8") == "cancel\\n"' in source_segment
+                assert 'read_text(encoding="utf-8") == "log\\n"' in source_segment
+        else:
+            assert f'assert not ({home_var} / "runs").exists(), context' in source_segment
         assert "for run_id_mode in run_id_modes:" in source_segment
         assert "for workdir_mode in workdir_modes:" in source_segment
 
@@ -8856,6 +8902,8 @@ def test_cli_integration_resume_invalid_run_id_preserve_entries_matrices_output_
     matrix_names = {
         "test_cli_resume_invalid_run_id_precedes_invalid_workdir_existing_home_preserves_entries_matrix",
         "test_cli_resume_default_home_invalid_run_id_precedes_invalid_workdir_preserve_entries_matrix",
+        "test_cli_resume_invalid_run_id_invalid_workdir_existing_home_run_artifacts_matrix",
+        "test_cli_resume_default_home_invalid_run_id_invalid_workdir_run_artifacts_matrix",
     }
 
     matched: set[str] = set()
@@ -8873,8 +8921,20 @@ def test_cli_integration_resume_invalid_run_id_preserve_entries_matrices_output_
         assert 'assert "Run not found or broken" not in output, context' in source_segment
         assert 'assert "Plan validation error" not in output, context' in source_segment
         assert 'assert "run_id: [bold]" not in output, context' in source_segment
-        assert 'assert "state:" not in output, context' in source_segment
-        assert 'assert "report:" not in output, context' in source_segment
+        if "run_artifacts" in node.name:
+            assert 'assert "state: [bold]" not in output, context' in source_segment
+            assert 'assert "report: [bold]" not in output, context' in source_segment
+            assert "existing_run" in source_segment
+            assert '"cancel.request"' in source_segment
+            assert '"plan.yaml"' in source_segment
+            assert '"task.log"' in source_segment
+            assert 'read_text(encoding="utf-8") == "tasks: []\\n"' in source_segment
+            assert 'read_text(encoding="utf-8") == "lock\\n"' in source_segment
+            assert 'read_text(encoding="utf-8") == "cancel\\n"' in source_segment
+            assert 'read_text(encoding="utf-8") == "log\\n"' in source_segment
+        else:
+            assert 'assert "state:" not in output, context' in source_segment
+            assert 'assert "report:" not in output, context' in source_segment
         assert "side_effect_files" in source_segment
         assert "for file_path in side_effect_files:" in source_segment
         assert (
@@ -10401,6 +10461,12 @@ def test_cli_integration_resume_invalid_run_id_workdir_matrix_groups_keep_bounda
         "test_cli_resume_default_home_invalid_run_id_precedes_invalid_workdir_"
         "preserve_entries_matrix"
     )
+    explicit_artifacts_matrix = (
+        "test_cli_resume_invalid_run_id_invalid_workdir_existing_home_run_artifacts_matrix"
+    )
+    default_artifacts_matrix = (
+        "test_cli_resume_default_home_invalid_run_id_invalid_workdir_run_artifacts_matrix"
+    )
 
     expectations = {
         explicit_matrix: {
@@ -10408,24 +10474,48 @@ def test_cli_integration_resume_invalid_run_id_workdir_matrix_groups_keep_bounda
             "has_cwd": False,
             "uses_home_flag": True,
             "preserves_entries": False,
+            "has_existing_runs": False,
+            "has_artifacts": False,
         },
         default_matrix: {
             "home_var": "default_home",
             "has_cwd": True,
             "uses_home_flag": False,
             "preserves_entries": False,
+            "has_existing_runs": False,
+            "has_artifacts": False,
         },
         explicit_preserve_matrix: {
             "home_var": "home",
             "has_cwd": False,
             "uses_home_flag": True,
             "preserves_entries": True,
+            "has_existing_runs": False,
+            "has_artifacts": False,
         },
         default_preserve_matrix: {
             "home_var": "default_home",
             "has_cwd": True,
             "uses_home_flag": False,
             "preserves_entries": True,
+            "has_existing_runs": False,
+            "has_artifacts": False,
+        },
+        explicit_artifacts_matrix: {
+            "home_var": "home",
+            "has_cwd": False,
+            "uses_home_flag": True,
+            "preserves_entries": True,
+            "has_existing_runs": True,
+            "has_artifacts": True,
+        },
+        default_artifacts_matrix: {
+            "home_var": "default_home",
+            "has_cwd": True,
+            "uses_home_flag": False,
+            "preserves_entries": True,
+            "has_existing_runs": True,
+            "has_artifacts": True,
         },
     }
 
@@ -10452,14 +10542,17 @@ def test_cli_integration_resume_invalid_run_id_workdir_matrix_groups_keep_bounda
         assert 'assert "Run not found or broken" not in output, context' in source_segment
         assert 'assert "Plan validation error" not in output, context' in source_segment
         assert 'assert "run_id: [bold]" not in output, context' in source_segment
-        assert 'assert "state:" not in output, context' in source_segment
-        assert 'assert "report:" not in output, context' in source_segment
+        if expected["has_artifacts"]:
+            assert 'assert "state: [bold]" not in output, context' in source_segment
+            assert 'assert "report: [bold]" not in output, context' in source_segment
+        else:
+            assert 'assert "state:" not in output, context' in source_segment
+            assert 'assert "report:" not in output, context' in source_segment
         assert "side_effect_files" in source_segment
         assert "for file_path in side_effect_files:" in source_segment
 
         if expected["preserves_entries"]:
             assert f"assert {home_var}.exists(), context" in source_segment
-            assert f'assert not ({home_var} / "runs").exists(), context' in source_segment
             assert f"{home_var}.iterdir()" in source_segment
             assert '"keep.txt"' in source_segment
             assert '"keep_dir"' in source_segment
@@ -10472,6 +10565,21 @@ def test_cli_integration_resume_invalid_run_id_workdir_matrix_groups_keep_bounda
                 'assert nested_file.read_text(encoding="utf-8") == "nested\\n", context'
                 in source_segment
             )
+            if expected["has_existing_runs"]:
+                assert '"runs"' in source_segment
+                assert "existing_run" in source_segment
+                assert f'({home_var} / "runs").iterdir()' in source_segment
+                assert '"keep_run"' in source_segment
+                if expected["has_artifacts"]:
+                    assert '"cancel.request"' in source_segment
+                    assert '"task.log"' in source_segment
+                    assert '"plan.yaml"' in source_segment
+                    assert 'read_text(encoding="utf-8") == "tasks: []\\n"' in source_segment
+                    assert 'read_text(encoding="utf-8") == "lock\\n"' in source_segment
+                    assert 'read_text(encoding="utf-8") == "cancel\\n"' in source_segment
+                    assert 'read_text(encoding="utf-8") == "log\\n"' in source_segment
+            else:
+                assert f'assert not ({home_var} / "runs").exists(), context' in source_segment
         else:
             assert f"assert not {home_var}.exists(), context" in source_segment
             assert f'assert not ({home_var} / "runs").exists(), context' in source_segment
