@@ -754,6 +754,53 @@ tasks:
     assert resolve_workdir_called is False
 
 
+def test_cli_run_home_file_ancestor_short_circuits_before_plan_load_and_workdir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    plan_path.write_text(
+        """
+tasks:
+  - id: t1
+    cmd: ["python3", "-c", "print('ok')"]
+""".strip(),
+        encoding="utf-8",
+    )
+    home_parent_file = tmp_path / "home_parent_file"
+    home_parent_file.write_text("not a dir\n", encoding="utf-8")
+    home = home_parent_file / "orch_home"
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+    load_plan_called = False
+    resolve_workdir_called = False
+
+    def fake_load_plan(_path: Path) -> PlanSpec:
+        nonlocal load_plan_called
+        load_plan_called = True
+        raise AssertionError("load_plan should not be called")
+
+    def fake_resolve_workdir(_workdir: Path) -> Path:
+        nonlocal resolve_workdir_called
+        resolve_workdir_called = True
+        return _workdir
+
+    monkeypatch.setattr(cli_module, "load_plan", fake_load_plan)
+    monkeypatch.setattr(cli_module, "_resolve_workdir_or_exit", fake_resolve_workdir)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.run(
+            plan_path,
+            max_parallel=1,
+            home=home,
+            workdir=workdir,
+            fail_fast=False,
+            dry_run=False,
+        )
+    assert exc_info.value.exit_code == 2
+    assert load_plan_called is False
+    assert resolve_workdir_called is False
+
+
 def test_cli_run_plan_error_short_circuits_before_workdir_resolution_and_init(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

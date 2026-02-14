@@ -476,6 +476,83 @@ def test_cli_run_invalid_home_precedes_invalid_workdir(tmp_path: Path) -> None:
     assert home.read_text(encoding="utf-8") == "not a directory\n"
 
 
+def test_cli_run_home_file_ancestor_precedes_invalid_workdir(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    home_parent_file = tmp_path / "home_parent_file"
+    home_parent_file.write_text("not a dir\n", encoding="utf-8")
+    nested_home = home_parent_file / "orch_home"
+    missing_workdir = tmp_path / "missing_workdir"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(nested_home),
+            "--workdir",
+            str(missing_workdir),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Invalid workdir" not in output
+    assert home_parent_file.read_text(encoding="utf-8") == "not a dir\n"
+
+
+def test_cli_run_home_symlink_to_file_precedes_invalid_workdir(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    home_target_file = tmp_path / "home_target_file.txt"
+    home_target_file.write_text("not a home dir\n", encoding="utf-8")
+    home_link = tmp_path / "home_link"
+    home_link.symlink_to(home_target_file)
+    missing_workdir = tmp_path / "missing_workdir"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home_link),
+            "--workdir",
+            str(missing_workdir),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Invalid workdir" not in output
+    assert home_target_file.read_text(encoding="utf-8") == "not a home dir\n"
+
+
 def test_cli_run_invalid_plan_precedes_invalid_workdir(tmp_path: Path) -> None:
     plan_path = tmp_path / "plan_invalid.yaml"
     home = tmp_path / ".orch_cli"
