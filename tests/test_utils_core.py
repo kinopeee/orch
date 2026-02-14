@@ -4710,6 +4710,11 @@ def test_cli_integration_missing_plan_vs_home_matrix_asserts_planpath_and_home_e
     assert "\"Invalid value for 'PLAN_PATH'\" in output" in source_segment
     assert '"Invalid home" not in output' in source_segment
     assert '"Invalid workdir" not in output' in source_segment
+    assert '"contains symlink component" not in output' in source_segment
+    assert '"Dry Run" not in output' in source_segment
+    assert '"run_id:" not in output' in source_segment
+    assert '"state:" not in output' in source_segment
+    assert '"report:" not in output' in source_segment
 
 
 def test_cli_integration_missing_plan_vs_home_workdir_matrix_keeps_mode_sets() -> None:
@@ -4836,3 +4841,7 @@ def test_cli_integration_missing_plan_vs_home_workdir_matrix_asserts_priority_an
     assert '"Invalid home" not in output' in source_segment
     assert '"Invalid workdir" not in output' in source_segment
     assert '"contains symlink component" not in output' in source_segment
+    assert '"Dry Run" not in output' in source_segment
+    assert '"run_id:" not in output' in source_segment
+    assert '"state:" not in output' in source_segment
+    assert '"report:" not in output' in source_segment
