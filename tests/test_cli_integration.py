@@ -1050,6 +1050,27 @@ def test_cli_cancel_rejects_symlink_run_dir_without_side_effect(tmp_path: Path) 
     assert not (outside / "cancel.request").exists()
 
 
+def test_cli_cancel_rejects_symlink_run_dir_to_file_without_side_effect(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    run_id = "20260101_000000_abcdef"
+    runs_dir = home / "runs"
+    runs_dir.mkdir(parents=True)
+    outside_file = tmp_path / "outside_run_file.txt"
+    outside_file.write_text("outside\n", encoding="utf-8")
+    symlink_run_dir = runs_dir / run_id
+    symlink_run_dir.symlink_to(outside_file)
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "cancel", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "Run not found" in proc.stdout
+    assert outside_file.read_text(encoding="utf-8") == "outside\n"
+
+
 def test_cli_cancel_rejects_run_with_symlink_plan_marker(tmp_path: Path) -> None:
     home = tmp_path / ".orch_cli"
     run_id = "20260101_000000_abcdef"
