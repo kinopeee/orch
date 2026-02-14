@@ -3572,6 +3572,7 @@ def test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_default_exis
             assert "report:" not in output, context
             assert default_home.exists(), context
             assert not (default_home / "runs").exists(), context
+            assert sorted(path.name for path in default_home.iterdir()) == [], context
 
 
 def test_cli_run_dry_run_both_toggles_reject_invalid_plan_default_home_matrix(
@@ -3801,6 +3802,7 @@ def test_cli_run_dry_run_both_toggles_reject_invalid_plan_default_existing_home_
             assert "report:" not in output, context
             assert default_home.exists(), context
             assert not (default_home / "runs").exists(), context
+            assert sorted(path.name for path in default_home.iterdir()) == [], context
 
 
 def test_cli_run_dry_run_both_toggles_missing_plan_path_precedes_invalid_workdir_matrix(
@@ -4180,6 +4182,7 @@ def test_cli_run_dry_run_both_toggles_reject_missing_plan_default_existing_home_
             assert "report:" not in output, context
             assert default_home.exists(), context
             assert not (default_home / "runs").exists(), context
+            assert sorted(path.name for path in default_home.iterdir()) == [], context
 
 
 def test_cli_run_dry_run_both_toggles_missing_plan_default_home_precedes_workdir_matrix(
@@ -4311,6 +4314,7 @@ def test_cli_run_dry_run_both_toggles_missing_plan_default_existing_home_precede
             assert "report:" not in output, context
             assert default_home.exists(), context
             assert not (default_home / "runs").exists(), context
+            assert sorted(path.name for path in default_home.iterdir()) == [], context
 
 
 def test_cli_run_dry_run_both_toggles_missing_plan_path_precedes_invalid_home_matrix(

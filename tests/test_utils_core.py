@@ -4945,6 +4945,10 @@ def test_cli_integration_invalid_plan_defhome_existing_workdir_output_contract()
     assert '"report:" not in output' in source_segment
     assert "assert default_home.exists(), context" in source_segment
     assert 'assert not (default_home / "runs").exists(), context' in source_segment
+    assert (
+        "assert sorted(path.name for path in default_home.iterdir()) == [], context"
+        in source_segment
+    )
     assert '"--workdir"' in source_segment
     assert "cwd=case_root" in source_segment
 
@@ -5160,6 +5164,10 @@ def test_cli_integration_invalid_plan_defhome_existing_matrix_output_contract() 
     assert '"report:" not in output' in source_segment
     assert "assert default_home.exists(), context" in source_segment
     assert 'assert not (default_home / "runs").exists(), context' in source_segment
+    assert (
+        "assert sorted(path.name for path in default_home.iterdir()) == [], context"
+        in source_segment
+    )
     assert "cwd=case_root" in source_segment
 
 
@@ -5725,6 +5733,10 @@ def test_cli_integration_missing_plan_reject_defhome_existing_output_contract() 
     assert '"report:" not in output' in source_segment
     assert "assert default_home.exists(), context" in source_segment
     assert 'assert not (default_home / "runs").exists(), context' in source_segment
+    assert (
+        "assert sorted(path.name for path in default_home.iterdir()) == [], context"
+        in source_segment
+    )
     assert "cwd=case_root" in source_segment
 
 
@@ -5806,6 +5818,10 @@ def test_cli_integration_missing_plan_defhome_existing_workdir_output_contract()
     assert '"report:" not in output' in source_segment
     assert "assert default_home.exists(), context" in source_segment
     assert 'assert not (default_home / "runs").exists(), context' in source_segment
+    assert (
+        "assert sorted(path.name for path in default_home.iterdir()) == [], context"
+        in source_segment
+    )
     assert "cwd=case_root" in source_segment
     assert '"--workdir"' in source_segment
 
@@ -5833,18 +5849,22 @@ def test_cli_integration_missing_plan_default_home_cases_keep_cwd_and_home_contr
         reject_default_home: {
             "home_assert": "assert not default_home.exists(), context",
             "needs_workdir": False,
+            "expects_home_empty_assert": False,
         },
         workdir_default_home: {
             "home_assert": "assert not default_home.exists(), context",
             "needs_workdir": True,
+            "expects_home_empty_assert": False,
         },
         reject_default_existing_home: {
             "home_assert": "assert default_home.exists(), context",
             "needs_workdir": False,
+            "expects_home_empty_assert": True,
         },
         workdir_default_existing_home: {
             "home_assert": "assert default_home.exists(), context",
             "needs_workdir": True,
+            "expects_home_empty_assert": True,
         },
     }
 
@@ -5862,6 +5882,16 @@ def test_cli_integration_missing_plan_default_home_cases_keep_cwd_and_home_contr
         assert "cwd=case_root" in source_segment
         assert expected["home_assert"] in source_segment
         assert 'assert not (default_home / "runs").exists(), context' in source_segment
+        if expected["expects_home_empty_assert"]:
+            assert (
+                "assert sorted(path.name for path in default_home.iterdir()) == [], context"
+                in source_segment
+            )
+        else:
+            assert (
+                "assert sorted(path.name for path in default_home.iterdir()) == [], context"
+                not in source_segment
+            )
 
         if expected["needs_workdir"]:
             assert '"--workdir"' in source_segment
@@ -5896,18 +5926,22 @@ def test_cli_integration_invalid_plan_default_home_cases_keep_cwd_and_home_contr
         reject_default_home: {
             "home_assert": "assert not default_home.exists(), context",
             "needs_workdir": False,
+            "expects_home_empty_assert": False,
         },
         workdir_default_home: {
             "home_assert": "assert not default_home.exists(), context",
             "needs_workdir": True,
+            "expects_home_empty_assert": False,
         },
         reject_default_existing_home: {
             "home_assert": "assert default_home.exists(), context",
             "needs_workdir": False,
+            "expects_home_empty_assert": True,
         },
         workdir_default_existing_home: {
             "home_assert": "assert default_home.exists(), context",
             "needs_workdir": True,
+            "expects_home_empty_assert": True,
         },
     }
 
@@ -5925,6 +5959,16 @@ def test_cli_integration_invalid_plan_default_home_cases_keep_cwd_and_home_contr
         assert "cwd=case_root" in source_segment
         assert expected["home_assert"] in source_segment
         assert 'assert not (default_home / "runs").exists(), context' in source_segment
+        if expected["expects_home_empty_assert"]:
+            assert (
+                "assert sorted(path.name for path in default_home.iterdir()) == [], context"
+                in source_segment
+            )
+        else:
+            assert (
+                "assert sorted(path.name for path in default_home.iterdir()) == [], context"
+                not in source_segment
+            )
 
         if expected["needs_workdir"]:
             assert '"--workdir"' in source_segment
