@@ -140,6 +140,17 @@ def test_has_symlink_ancestor_detects_dangling_symlink_component(tmp_path: Path)
     assert has_symlink_ancestor(target) is True
 
 
+def test_has_symlink_ancestor_does_not_treat_self_symlink_as_ancestor(
+    tmp_path: Path,
+) -> None:
+    real_target = tmp_path / "real_target"
+    real_target.mkdir()
+    link = tmp_path / "home_link"
+    link.symlink_to(real_target, target_is_directory=True)
+
+    assert has_symlink_ancestor(link) is False
+
+
 def test_has_symlink_ancestor_returns_false_when_no_symlink_in_ancestors(
     tmp_path: Path,
 ) -> None:
