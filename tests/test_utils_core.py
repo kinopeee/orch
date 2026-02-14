@@ -2837,6 +2837,53 @@ def test_source_cli_run_dry_run_branch_is_independent_of_fail_fast_name() -> Non
     assert not fail_fast_name_nodes
 
 
+def test_source_cli_run_dry_run_branch_has_no_runtime_execution_calls() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    run_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "run"
+        ),
+        None,
+    )
+    assert run_function is not None
+
+    dry_run_if = next(
+        (
+            stmt
+            for stmt in run_function.body
+            if isinstance(stmt, ast.If)
+            and isinstance(stmt.test, ast.Name)
+            and stmt.test.id == "dry_run"
+        ),
+        None,
+    )
+    assert dry_run_if is not None
+
+    call_names: set[str] = set()
+    for node in ast.walk(dry_run_if):
+        if not isinstance(node, ast.Call):
+            continue
+        if isinstance(node.func, ast.Name):
+            call_names.add(node.func.id)
+        elif isinstance(node.func, ast.Attribute):
+            call_names.add(node.func.attr)
+
+    forbidden = {
+        "_resolve_workdir_or_exit",
+        "run_dir",
+        "ensure_run_layout",
+        "_write_plan_snapshot",
+        "run_plan",
+        "_write_report",
+        "new_run_id",
+        "_exit_code_for_state",
+    }
+    assert not (call_names & forbidden)
+
+
 def test_source_cli_run_has_dry_run_exit_before_run_dir_creation() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
