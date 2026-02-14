@@ -2092,6 +2092,60 @@ def test_source_cli_run_validates_home_before_plan_load_and_workdir_resolution()
     assert min(load_plan_lines) < min(resolve_workdir_lines)
 
 
+def test_source_cli_run_builds_dag_before_dry_run_branch() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    run_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "run"
+        ),
+        None,
+    )
+    assert run_function is not None
+
+    load_plan_lines = [
+        node.lineno
+        for node in ast.walk(run_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "load_plan"
+    ]
+    build_adjacency_lines = [
+        node.lineno
+        for node in ast.walk(run_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "build_adjacency"
+    ]
+    assert_acyclic_lines = [
+        node.lineno
+        for node in ast.walk(run_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "assert_acyclic"
+    ]
+    dry_run_if = next(
+        (
+            stmt
+            for stmt in run_function.body
+            if isinstance(stmt, ast.If)
+            and isinstance(stmt.test, ast.Name)
+            and stmt.test.id == "dry_run"
+        ),
+        None,
+    )
+
+    assert load_plan_lines
+    assert build_adjacency_lines
+    assert assert_acyclic_lines
+    assert dry_run_if is not None
+    assert min(load_plan_lines) < min(build_adjacency_lines)
+    assert min(build_adjacency_lines) < min(assert_acyclic_lines)
+    assert min(assert_acyclic_lines) < dry_run_if.lineno
+
+
 def test_source_cli_run_resolves_workdir_before_run_dir_creation() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
