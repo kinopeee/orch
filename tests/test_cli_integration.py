@@ -1077,6 +1077,46 @@ def test_cli_run_dry_run_both_toggles_reject_symlink_ancestor_home(
     assert "Dry Run" not in output
 
 
+def test_cli_run_dry_run_both_toggles_reject_file_ancestor_home(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "plan_both_toggles_file_ancestor_home_only.yaml"
+    home_parent_file = tmp_path / "home_parent_file_both_toggles_only"
+    nested_home = home_parent_file / "orch_home"
+    home_parent_file.write_text("not a dir\n", encoding="utf-8")
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(nested_home),
+            "--dry-run",
+            "--fail-fast",
+            "--no-fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Dry Run" not in output
+    assert home_parent_file.read_text(encoding="utf-8") == "not a dir\n"
+
+
 def test_cli_run_dry_run_both_toggles_dangling_symlink_home_precedes_invalid_plan(
     tmp_path: Path,
 ) -> None:
@@ -1442,6 +1482,51 @@ def test_cli_run_dry_run_both_toggles_file_ancestor_precedes_plan_and_workdir(
     assert home_parent_file.read_text(encoding="utf-8") == "not a dir\n"
 
 
+def test_cli_run_dry_run_both_toggles_file_ancestor_precedes_invalid_workdir(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "plan_both_toggles_file_ancestor_vs_workdir.yaml"
+    home_parent_file = tmp_path / "home_parent_file_both_toggles_workdir"
+    nested_home = home_parent_file / "orch_home"
+    invalid_workdir_file = tmp_path / "invalid_workdir_both_toggles_file_ancestor_only"
+    home_parent_file.write_text("not a dir\n", encoding="utf-8")
+    invalid_workdir_file.write_text("file\n", encoding="utf-8")
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(nested_home),
+            "--workdir",
+            str(invalid_workdir_file),
+            "--dry-run",
+            "--fail-fast",
+            "--no-fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Invalid workdir" not in output
+    assert "Dry Run" not in output
+    assert home_parent_file.read_text(encoding="utf-8") == "not a dir\n"
+
+
 def test_cli_run_dry_run_both_fail_fast_toggles_invalid_plan_precedes_invalid_workdir(
     tmp_path: Path,
 ) -> None:
@@ -1784,6 +1869,46 @@ def test_cli_run_dry_run_both_toggles_reverse_reject_symlink_ancestor_home(
     assert "Invalid home" in output
     assert "contains symlink component" not in output
     assert "Dry Run" not in output
+
+
+def test_cli_run_dry_run_both_toggles_reverse_reject_file_ancestor_home(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "plan_both_toggles_reverse_file_ancestor_home_only.yaml"
+    home_parent_file = tmp_path / "home_parent_file_both_toggles_reverse_only"
+    nested_home = home_parent_file / "orch_home"
+    home_parent_file.write_text("not a dir\n", encoding="utf-8")
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(nested_home),
+            "--dry-run",
+            "--no-fail-fast",
+            "--fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Dry Run" not in output
+    assert home_parent_file.read_text(encoding="utf-8") == "not a dir\n"
 
 
 def test_cli_run_dry_run_both_toggles_reverse_dangling_symlink_home_precedes_invalid_plan(
@@ -2230,6 +2355,51 @@ def test_cli_run_dry_run_both_toggles_reverse_file_ancestor_precedes_plan_and_wo
     assert proc.returncode == 2
     assert "Invalid home" in output
     assert "Plan validation error" not in output
+    assert "Invalid workdir" not in output
+    assert "Dry Run" not in output
+    assert home_parent_file.read_text(encoding="utf-8") == "not a dir\n"
+
+
+def test_cli_run_dry_run_both_toggles_reverse_file_ancestor_precedes_invalid_workdir(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "plan_both_toggles_reverse_file_ancestor_vs_workdir.yaml"
+    home_parent_file = tmp_path / "home_parent_file_both_toggles_reverse_workdir"
+    nested_home = home_parent_file / "orch_home"
+    invalid_workdir_file = tmp_path / "invalid_workdir_both_toggles_reverse_file_ancestor_only"
+    home_parent_file.write_text("not a dir\n", encoding="utf-8")
+    invalid_workdir_file.write_text("file\n", encoding="utf-8")
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(nested_home),
+            "--workdir",
+            str(invalid_workdir_file),
+            "--dry-run",
+            "--no-fail-fast",
+            "--fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
     assert "Invalid workdir" not in output
     assert "Dry Run" not in output
     assert home_parent_file.read_text(encoding="utf-8") == "not a dir\n"
