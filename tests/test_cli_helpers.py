@@ -405,6 +405,27 @@ def test_validate_home_or_exit_rejects_dangling_symlink(tmp_path: Path) -> None:
     assert not missing_home_target.exists()
 
 
+def test_validate_home_or_exit_dangling_symlink_short_circuits_before_ancestor_walk(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    missing_home_target = tmp_path / "missing_home_target"
+    home = tmp_path / "home_link"
+    home.symlink_to(missing_home_target, target_is_directory=True)
+    ancestor_checked = False
+
+    def fake_has_symlink_ancestor(_path: Path) -> bool:
+        nonlocal ancestor_checked
+        ancestor_checked = True
+        return False
+
+    monkeypatch.setattr(cli_module, "has_symlink_ancestor", fake_has_symlink_ancestor)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _validate_home_or_exit(home)
+    assert exc_info.value.exit_code == 2
+    assert ancestor_checked is False
+
+
 def test_validate_home_or_exit_rejects_when_existing_ancestor_is_not_directory(
     tmp_path: Path,
 ) -> None:
