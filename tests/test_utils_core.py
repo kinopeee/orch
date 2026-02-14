@@ -4616,6 +4616,7 @@ def test_cli_integration_invalid_plan_existing_home_workdir_matrix_asserts_outpu
     assert "assert home.exists(), context" in source_segment
     assert 'assert not (home / "runs").exists(), context' in source_segment
     assert "assert sorted(path.name for path in home.iterdir()) == [], context" in source_segment
+    assert "cwd=case_root" not in source_segment
     assert '"--home"' in source_segment
     assert '"--workdir"' in source_segment
 
@@ -4723,6 +4724,7 @@ def test_cli_integration_invalid_plan_existing_home_matrix_asserts_output_contra
     assert "assert home.exists(), context" in source_segment
     assert 'assert not (home / "runs").exists(), context' in source_segment
     assert "assert sorted(path.name for path in home.iterdir()) == [], context" in source_segment
+    assert "cwd=case_root" not in source_segment
     assert '"--home"' in source_segment
     assert '"--workdir"' not in source_segment
 
@@ -6616,6 +6618,7 @@ def test_cli_integration_missing_plan_workdir_existing_home_matrix_asserts_outpu
     assert "assert home.exists(), context" in source_segment
     assert 'assert not (home / "runs").exists(), context' in source_segment
     assert "assert sorted(path.name for path in home.iterdir()) == [], context" in source_segment
+    assert "cwd=case_root" not in source_segment
     assert '"--home"' in source_segment
     assert '"--workdir"' in source_segment
 
@@ -6722,6 +6725,7 @@ def test_cli_integration_missing_plan_existing_home_matrix_asserts_output_contra
     assert "assert home.exists(), context" in source_segment
     assert 'assert not (home / "runs").exists(), context' in source_segment
     assert "assert sorted(path.name for path in home.iterdir()) == [], context" in source_segment
+    assert "cwd=case_root" not in source_segment
     assert '"--home"' in source_segment
     assert '"--workdir"' not in source_segment
 
