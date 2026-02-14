@@ -109,6 +109,47 @@ def test_cli_run_dry_run_shows_dependency_chain_order(tmp_path: Path) -> None:
     assert not (home / "runs").exists()
 
 
+def test_cli_run_dry_run_ignores_fail_fast_flag_for_output(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_fail_fast_dry.yaml"
+    home = tmp_path / ".orch_cli"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: fail_first
+            cmd: ["python3", "-c", "import sys; sys.exit(1)"]
+          - id: after_fail
+            cmd: ["python3", "-c", "print('after')"]
+            depends_on: ["fail_first"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--dry-run",
+            "--fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 0
+    assert "Dry Run" in output
+    assert output.index("fail_first") < output.index("after_fail")
+    assert "run_id:" not in output
+    assert "state:" not in output
+    assert "report:" not in output
+    assert not (home / "runs").exists()
+
+
 def test_cli_run_rejects_non_positive_max_parallel(tmp_path: Path) -> None:
     plan_path = tmp_path / "plan.yaml"
     _write_plan(
