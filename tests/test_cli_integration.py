@@ -1050,6 +1050,93 @@ def test_cli_resume_rejects_missing_workdir(tmp_path: Path) -> None:
     assert "Invalid workdir" in output
 
 
+def test_cli_resume_invalid_home_precedes_invalid_workdir(tmp_path: Path) -> None:
+    home = tmp_path / "home_file"
+    home.write_text("not a dir\n", encoding="utf-8")
+    missing_workdir = tmp_path / "missing_resume_wd"
+
+    resume_proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "resume",
+            "20260101_000000_abcdef",
+            "--home",
+            str(home),
+            "--workdir",
+            str(missing_workdir),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = resume_proc.stdout + resume_proc.stderr
+    assert resume_proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Invalid workdir" not in output
+    assert home.read_text(encoding="utf-8") == "not a dir\n"
+
+
+def test_cli_resume_home_file_ancestor_precedes_invalid_workdir(tmp_path: Path) -> None:
+    home_parent_file = tmp_path / "home_parent_file"
+    home_parent_file.write_text("not a dir\n", encoding="utf-8")
+    nested_home = home_parent_file / "orch_home"
+    missing_workdir = tmp_path / "missing_resume_wd"
+
+    resume_proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "resume",
+            "20260101_000000_abcdef",
+            "--home",
+            str(nested_home),
+            "--workdir",
+            str(missing_workdir),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = resume_proc.stdout + resume_proc.stderr
+    assert resume_proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Invalid workdir" not in output
+    assert home_parent_file.read_text(encoding="utf-8") == "not a dir\n"
+
+
+def test_cli_resume_home_symlink_to_file_precedes_invalid_workdir(tmp_path: Path) -> None:
+    home_target_file = tmp_path / "home_target_file.txt"
+    home_target_file.write_text("not a home dir\n", encoding="utf-8")
+    home_link = tmp_path / "home_link"
+    home_link.symlink_to(home_target_file)
+    missing_workdir = tmp_path / "missing_resume_wd"
+
+    resume_proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "resume",
+            "20260101_000000_abcdef",
+            "--home",
+            str(home_link),
+            "--workdir",
+            str(missing_workdir),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = resume_proc.stdout + resume_proc.stderr
+    assert resume_proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Invalid workdir" not in output
+    assert home_target_file.read_text(encoding="utf-8") == "not a home dir\n"
+
+
 def test_cli_resume_rejects_symlink_file_workdir(tmp_path: Path) -> None:
     plan_path = tmp_path / "plan_resume_symlink_file_wd.yaml"
     home = tmp_path / ".orch_cli"

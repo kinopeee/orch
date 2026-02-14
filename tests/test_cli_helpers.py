@@ -2029,6 +2029,44 @@ def test_cli_resume_invalid_home_short_circuits_before_workdir_and_run_dir(
     assert run_dir_called is False
 
 
+def test_cli_resume_home_file_ancestor_short_circuits_before_workdir_and_run_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home_parent_file = tmp_path / "home_parent_file"
+    home_parent_file.write_text("not a directory\n", encoding="utf-8")
+    home = home_parent_file / "orch_home"
+    workdir = tmp_path / "workdir"
+    workdir.mkdir()
+    resolve_workdir_called = False
+    run_dir_called = False
+
+    def fake_resolve_workdir(_workdir: Path) -> Path:
+        nonlocal resolve_workdir_called
+        resolve_workdir_called = True
+        return _workdir
+
+    def fake_run_dir(_home: Path, _run_id: str) -> Path:
+        nonlocal run_dir_called
+        run_dir_called = True
+        return _home / "runs" / "run1"
+
+    monkeypatch.setattr(cli_module, "_resolve_workdir_or_exit", fake_resolve_workdir)
+    monkeypatch.setattr(cli_module, "run_dir", fake_run_dir)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.resume(
+            "run1",
+            home=home,
+            max_parallel=1,
+            workdir=workdir,
+            fail_fast=False,
+            failed_only=False,
+        )
+    assert exc_info.value.exit_code == 2
+    assert resolve_workdir_called is False
+    assert run_dir_called is False
+
+
 def test_cli_status_symlink_home_short_circuits_before_run_dir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
