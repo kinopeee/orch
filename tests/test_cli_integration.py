@@ -4487,6 +4487,142 @@ def test_cli_run_dry_run_both_toggles_default_existing_home_preserves_entries_pl
             assert nested_file.read_text(encoding="utf-8") == "nested\n", context
 
 
+def test_cli_run_dry_run_both_toggles_existing_home_preserves_entries_invalid_workdir(
+    tmp_path: Path,
+) -> None:
+    flag_orders: list[list[str]] = [
+        ["--fail-fast", "--no-fail-fast"],
+        ["--no-fail-fast", "--fail-fast"],
+    ]
+
+    for order in flag_orders:
+        order_label = "forward" if order[0] == "--fail-fast" else "reverse"
+        case_root = tmp_path / f"preserve_home_entries_invalid_workdir_{order_label}"
+        case_root.mkdir()
+        home = case_root / ".orch_cli"
+        home.mkdir()
+        sentinel_file = home / "keep.txt"
+        sentinel_file.write_text("keep\n", encoding="utf-8")
+        sentinel_dir = home / "keep_dir"
+        sentinel_dir.mkdir()
+        nested_file = sentinel_dir / "nested.txt"
+        nested_file.write_text("nested\n", encoding="utf-8")
+
+        plan_path = case_root / "valid_plan.yaml"
+        plan_path.write_text(
+            'tasks:\n  - id: t1\n    cmd: ["python3", "-c", "print(\'ok\')"]\n',
+            encoding="utf-8",
+        )
+        invalid_workdir_file = case_root / "invalid_workdir"
+        invalid_workdir_file.write_text("file\n", encoding="utf-8")
+
+        proc = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "orch.cli",
+                "run",
+                str(plan_path),
+                "--home",
+                str(home),
+                "--workdir",
+                str(invalid_workdir_file),
+                "--dry-run",
+                *order,
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5,
+        )
+        output = proc.stdout + proc.stderr
+        context = f"invalid_workdir-{order_label}"
+        assert proc.returncode == 0, context
+        assert "Dry Run" in output, context
+        assert "Invalid workdir" not in output, context
+        assert "Plan validation error" not in output, context
+        assert "PLAN_PATH" not in output, context
+        assert "Invalid home" not in output, context
+        assert "run_id:" not in output, context
+        assert "state:" not in output, context
+        assert "report:" not in output, context
+        assert home.exists(), context
+        assert not (home / "runs").exists(), context
+        assert sorted(path.name for path in home.iterdir()) == ["keep.txt", "keep_dir"], context
+        assert sentinel_file.read_text(encoding="utf-8") == "keep\n", context
+        assert sentinel_dir.is_dir(), context
+        assert nested_file.read_text(encoding="utf-8") == "nested\n", context
+
+
+def test_cli_run_dry_run_both_toggles_default_existing_home_preserves_entries_invalid_workdir(
+    tmp_path: Path,
+) -> None:
+    flag_orders: list[list[str]] = [
+        ["--fail-fast", "--no-fail-fast"],
+        ["--no-fail-fast", "--fail-fast"],
+    ]
+
+    for order in flag_orders:
+        order_label = "forward" if order[0] == "--fail-fast" else "reverse"
+        case_root = tmp_path / f"preserve_default_home_entries_invalid_workdir_{order_label}"
+        case_root.mkdir()
+        default_home = case_root / ".orch_cli"
+        default_home.mkdir()
+        sentinel_file = default_home / "keep.txt"
+        sentinel_file.write_text("keep\n", encoding="utf-8")
+        sentinel_dir = default_home / "keep_dir"
+        sentinel_dir.mkdir()
+        nested_file = sentinel_dir / "nested.txt"
+        nested_file.write_text("nested\n", encoding="utf-8")
+
+        plan_path = case_root / "valid_plan.yaml"
+        plan_path.write_text(
+            'tasks:\n  - id: t1\n    cmd: ["python3", "-c", "print(\'ok\')"]\n',
+            encoding="utf-8",
+        )
+        invalid_workdir_file = case_root / "invalid_workdir"
+        invalid_workdir_file.write_text("file\n", encoding="utf-8")
+
+        proc = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "orch.cli",
+                "run",
+                str(plan_path),
+                "--workdir",
+                str(invalid_workdir_file),
+                "--dry-run",
+                *order,
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5,
+            cwd=case_root,
+        )
+        output = proc.stdout + proc.stderr
+        context = f"invalid_workdir-{order_label}"
+        assert proc.returncode == 0, context
+        assert "Dry Run" in output, context
+        assert "Invalid workdir" not in output, context
+        assert "Plan validation error" not in output, context
+        assert "PLAN_PATH" not in output, context
+        assert "Invalid home" not in output, context
+        assert "run_id:" not in output, context
+        assert "state:" not in output, context
+        assert "report:" not in output, context
+        assert default_home.exists(), context
+        assert not (default_home / "runs").exists(), context
+        assert sorted(path.name for path in default_home.iterdir()) == [
+            "keep.txt",
+            "keep_dir",
+        ], context
+        assert sentinel_file.read_text(encoding="utf-8") == "keep\n", context
+        assert sentinel_dir.is_dir(), context
+        assert nested_file.read_text(encoding="utf-8") == "nested\n", context
+
+
 def test_cli_run_dry_run_both_toggles_missing_plan_path_precedes_invalid_home_matrix(
     tmp_path: Path,
 ) -> None:
