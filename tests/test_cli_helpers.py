@@ -1178,7 +1178,7 @@ def test_cli_cancel_skips_write_when_run_not_found(
 
 
 def test_cli_cancel_normalizes_runtime_run_exists_error_without_write(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     home = tmp_path / ".orch"
     write_called = False
@@ -1197,10 +1197,12 @@ def test_cli_cancel_normalizes_runtime_run_exists_error_without_write(
         cli_module.cancel("run1", home=home)
     assert exc_info.value.exit_code == 2
     assert write_called is False
+    captured = capsys.readouterr()
+    assert "Failed to inspect run" in captured.out
 
 
 def test_cli_cancel_normalizes_oserror_run_exists_error_without_write(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     home = tmp_path / ".orch"
     write_called = False
@@ -1219,6 +1221,8 @@ def test_cli_cancel_normalizes_oserror_run_exists_error_without_write(
         cli_module.cancel("run1", home=home)
     assert exc_info.value.exit_code == 2
     assert write_called is False
+    captured = capsys.readouterr()
+    assert "Failed to inspect run" in captured.out
 
 
 def test_cli_cancel_calls_write_when_run_exists(
