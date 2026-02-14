@@ -4454,6 +4454,34 @@ def test_cli_resume_rejects_symlink_home_path(tmp_path: Path) -> None:
     assert not (real_run_dir / ".lock").exists()
 
 
+def test_cli_status_logs_resume_reject_home_symlink_to_file_path(tmp_path: Path) -> None:
+    home_target_file = tmp_path / "home_target_file.txt"
+    home_target_file.write_text("not a home dir\n", encoding="utf-8")
+    home_link = tmp_path / "home_link"
+    home_link.symlink_to(home_target_file)
+
+    for command in ("status", "logs", "resume"):
+        proc = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "orch.cli",
+                command,
+                "20260101_000000_abcdef",
+                "--home",
+                str(home_link),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        output = proc.stdout + proc.stderr
+        assert proc.returncode == 2, command
+        assert "Invalid home" in output, command
+
+    assert home_target_file.read_text(encoding="utf-8") == "not a home dir\n"
+
+
 def test_cli_status_rejects_non_regular_state_file(tmp_path: Path) -> None:
     if not hasattr(os, "mkfifo"):
         return
