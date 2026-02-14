@@ -8491,10 +8491,36 @@ def test_cli_integration_run_and_resume_invalid_workdir_mode_matrices_keep_parit
     integration_module = ast.parse(integration_source)
 
     run_matrix = "test_cli_run_rejects_invalid_workdir_modes_without_creating_run_dir_matrix"
+    run_default_matrix = (
+        "test_cli_run_default_home_rejects_invalid_workdir_modes_without_creating_run_dir_matrix"
+    )
     resume_matrix = "test_cli_resume_rejects_invalid_workdir_modes_matrix"
+    resume_default_matrix = "test_cli_resume_default_home_rejects_invalid_workdir_modes_matrix"
     expectations = {
-        run_matrix: {"has_resume_state_guard": False},
-        resume_matrix: {"has_resume_state_guard": True},
+        run_matrix: {
+            "has_resume_state_guard": False,
+            "home_var": "home",
+            "has_cwd": False,
+            "uses_home_flag": True,
+        },
+        run_default_matrix: {
+            "has_resume_state_guard": False,
+            "home_var": "default_home",
+            "has_cwd": True,
+            "uses_home_flag": False,
+        },
+        resume_matrix: {
+            "has_resume_state_guard": True,
+            "home_var": "home",
+            "has_cwd": False,
+            "uses_home_flag": True,
+        },
+        resume_default_matrix: {
+            "has_resume_state_guard": True,
+            "home_var": "default_home",
+            "has_cwd": True,
+            "uses_home_flag": False,
+        },
     }
 
     matched: set[str] = set()
@@ -8507,6 +8533,7 @@ def test_cli_integration_run_and_resume_invalid_workdir_mode_matrices_keep_parit
         source_segment = ast.get_source_segment(integration_source, node)
         assert source_segment is not None
         expected = expectations[node.name]
+        home_var = expected["home_var"]
 
         assert "flag_orders" in source_segment
         assert "workdir_modes" in source_segment
@@ -8531,13 +8558,23 @@ def test_cli_integration_run_and_resume_invalid_workdir_mode_matrices_keep_parit
         assert 'if workdir_mode == "dangling_symlink":' in source_segment
         assert 'if workdir_mode == "symlink_ancestor":' in source_segment
 
+        if expected["has_cwd"]:
+            assert "cwd=case_root" in source_segment
+        else:
+            assert "cwd=case_root" not in source_segment
+
+        if expected["uses_home_flag"]:
+            assert '"--home"' in source_segment
+        else:
+            assert '"--home"' not in source_segment
+
         if expected["has_resume_state_guard"]:
             assert '"resume"' in source_segment
             assert "run_id = _extract_run_id(run_proc.stdout)" in source_segment
             assert 'assert "Run not found or broken" not in output, context' in source_segment
             assert "baseline_state" in source_segment
             assert 'state_path.read_text(encoding="utf-8") == baseline_state' in source_segment
-            assert 'sorted(path.name for path in (home / "runs").iterdir()) == [run_id]' in (
+            assert f'sorted(path.name for path in ({home_var} / "runs").iterdir()) == [run_id]' in (
                 source_segment
             )
         else:
@@ -8548,11 +8585,8 @@ def test_cli_integration_run_and_resume_invalid_workdir_mode_matrices_keep_parit
             assert 'state_path.read_text(encoding="utf-8") == baseline_state' not in (
                 source_segment
             )
-            assert 'sorted(path.name for path in (home / "runs").iterdir()) == [run_id]' not in (
-                source_segment
-            )
-            assert "assert not home.exists(), context" in source_segment
-            assert 'assert not (home / "runs").exists(), context' in source_segment
+            assert f"assert not {home_var}.exists(), context" in source_segment
+            assert f'assert not ({home_var} / "runs").exists(), context' in source_segment
 
         matched.add(node.name)
 
