@@ -1520,6 +1520,45 @@ def test_cli_run_dry_run_both_toggles_home_precedes_plan_and_workdir(
     assert home_file.read_text(encoding="utf-8") == "not a dir\n"
 
 
+def test_cli_run_dry_run_both_toggles_reject_home_file(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "plan_both_toggles_home_file_only.yaml"
+    home_file = tmp_path / "home_file_both_toggles_only"
+    home_file.write_text("not a dir\n", encoding="utf-8")
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home_file),
+            "--dry-run",
+            "--fail-fast",
+            "--no-fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Dry Run" not in output
+    assert home_file.read_text(encoding="utf-8") == "not a dir\n"
+
+
 def test_cli_run_dry_run_both_toggles_file_ancestor_precedes_plan_and_workdir(
     tmp_path: Path,
 ) -> None:
@@ -2471,6 +2510,45 @@ def test_cli_run_dry_run_both_toggles_reverse_home_precedes_plan_and_workdir(
     assert "Invalid home" in output
     assert "Plan validation error" not in output
     assert "Invalid workdir" not in output
+    assert "Dry Run" not in output
+    assert home_file.read_text(encoding="utf-8") == "not a dir\n"
+
+
+def test_cli_run_dry_run_both_toggles_reverse_reject_home_file(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "plan_both_toggles_reverse_home_file_only.yaml"
+    home_file = tmp_path / "home_file_both_toggles_reverse_only"
+    home_file.write_text("not a dir\n", encoding="utf-8")
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home_file),
+            "--dry-run",
+            "--no-fail-fast",
+            "--fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
     assert "Dry Run" not in output
     assert home_file.read_text(encoding="utf-8") == "not a dir\n"
 
