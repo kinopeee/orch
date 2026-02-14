@@ -1205,6 +1205,85 @@ def test_cli_dry_run_home_dangling_symlink_precedes_invalid_workdir(
     assert not missing_home_target.exists()
 
 
+def test_cli_dry_run_home_symlink_precedes_invalid_workdir(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_dry.yaml"
+    real_home = tmp_path / "real_home"
+    real_home.mkdir()
+    home_link = tmp_path / "home_link"
+    home_link.symlink_to(real_home, target_is_directory=True)
+    missing_workdir = tmp_path / "missing_workdir"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--dry-run",
+            "--home",
+            str(home_link),
+            "--workdir",
+            str(missing_workdir),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Invalid workdir" not in output
+    assert not (real_home / "runs").exists()
+
+
+def test_cli_dry_run_home_file_ancestor_precedes_invalid_workdir(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_dry.yaml"
+    home_parent_file = tmp_path / "home_parent_file"
+    home_parent_file.write_text("not a dir\n", encoding="utf-8")
+    nested_home = home_parent_file / "orch_home"
+    missing_workdir = tmp_path / "missing_workdir"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--dry-run",
+            "--home",
+            str(nested_home),
+            "--workdir",
+            str(missing_workdir),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Invalid workdir" not in output
+    assert home_parent_file.read_text(encoding="utf-8") == "not a dir\n"
+
+
 def test_cli_run_rejects_home_with_symlink_ancestor_without_side_effect(tmp_path: Path) -> None:
     plan_path = tmp_path / "plan.yaml"
     real_home = tmp_path / "real_home"
