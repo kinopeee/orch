@@ -1013,6 +1013,81 @@ def test_cli_dry_run_home_symlink_to_file_precedes_invalid_plan(tmp_path: Path) 
     assert home_target_file.read_text(encoding="utf-8") == "not a home dir\n"
 
 
+def test_cli_run_home_dangling_symlink_precedes_invalid_plan(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_invalid.yaml"
+    missing_home_target = tmp_path / "missing_home_target"
+    home_link = tmp_path / "home_link"
+    home_link.symlink_to(missing_home_target, target_is_directory=True)
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+            depends_on: ["missing_dep"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home_link),
+            "--workdir",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Plan validation error" not in output
+    assert not missing_home_target.exists()
+
+
+def test_cli_dry_run_home_dangling_symlink_precedes_invalid_plan(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_invalid_dry.yaml"
+    missing_home_target = tmp_path / "missing_home_target"
+    home_link = tmp_path / "home_link"
+    home_link.symlink_to(missing_home_target, target_is_directory=True)
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+            depends_on: ["missing_dep"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--dry-run",
+            "--home",
+            str(home_link),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Plan validation error" not in output
+    assert not missing_home_target.exists()
+
+
 def test_cli_dry_run_valid_plan_ignores_invalid_workdir(tmp_path: Path) -> None:
     plan_path = tmp_path / "plan_dry.yaml"
     home = tmp_path / ".orch_cli"
