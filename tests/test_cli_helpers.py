@@ -561,6 +561,51 @@ def test_cli_cancel_normalizes_runtime_write_error(
     assert exc_info.value.exit_code == 2
 
 
+def test_cli_cancel_skips_write_when_run_not_found(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / ".orch"
+    write_called = False
+
+    def fake_run_exists(_run_dir: Path) -> bool:
+        return False
+
+    def fake_write_cancel(_run_dir: Path) -> None:
+        nonlocal write_called
+        write_called = True
+
+    monkeypatch.setattr(cli_module, "_run_exists", fake_run_exists)
+    monkeypatch.setattr(cli_module, "write_cancel_request", fake_write_cancel)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.cancel("run1", home=home)
+    assert exc_info.value.exit_code == 2
+    assert write_called is False
+
+
+def test_cli_cancel_calls_write_when_run_exists(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / ".orch"
+    write_called = False
+    captured_run_dir: Path | None = None
+
+    def fake_run_exists(_run_dir: Path) -> bool:
+        return True
+
+    def fake_write_cancel(run_dir: Path) -> None:
+        nonlocal write_called, captured_run_dir
+        write_called = True
+        captured_run_dir = run_dir
+
+    monkeypatch.setattr(cli_module, "_run_exists", fake_run_exists)
+    monkeypatch.setattr(cli_module, "write_cancel_request", fake_write_cancel)
+
+    cli_module.cancel("run1", home=home)
+    assert write_called is True
+    assert captured_run_dir == home / "runs" / "run1"
+
+
 def test_cli_run_ignores_runtime_report_write_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
