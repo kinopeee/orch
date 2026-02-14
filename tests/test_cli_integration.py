@@ -1202,6 +1202,7 @@ def test_cli_dry_run_invalid_home_precedes_invalid_workdir(tmp_path: Path) -> No
     assert proc.returncode == 2
     assert "Invalid home" in output
     assert "Invalid workdir" not in output
+    assert "Dry Run" not in output
     assert home_file.read_text(encoding="utf-8") == "not a dir\n"
 
 
@@ -1670,6 +1671,7 @@ def test_cli_dry_run_rejects_home_file_path(tmp_path: Path) -> None:
     assert proc.returncode == 2
     assert "Invalid home" in output
     assert "contains symlink component" not in output
+    assert "Dry Run" not in output
     assert home_file.read_text(encoding="utf-8") == "not a dir\n"
 
 
