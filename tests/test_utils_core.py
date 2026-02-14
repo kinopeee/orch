@@ -4591,6 +4591,28 @@ def test_cli_integration_missing_plan_path_matrix_asserts_no_symlink_component_m
     assert '"contains symlink component" not in output' in source_segment
 
 
+def test_cli_integration_missing_plan_path_matrix_asserts_no_runs_side_effect_check() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    matrix_function = next(
+        (
+            node
+            for node in ast.walk(integration_module)
+            if isinstance(node, ast.FunctionDef)
+            and node.name
+            == "test_cli_run_dry_run_both_toggles_missing_plan_path_precedes_invalid_workdir_matrix"
+        ),
+        None,
+    )
+    assert matrix_function is not None
+
+    source_segment = ast.get_source_segment(integration_source, matrix_function)
+    assert source_segment is not None
+    assert 'assert not (home / "runs").exists(), context' in source_segment
+
+
 def test_cli_integration_missing_plan_vs_home_matrix_keeps_mode_and_toggle_sets() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_module = ast.parse(
