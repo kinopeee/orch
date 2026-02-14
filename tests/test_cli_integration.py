@@ -904,6 +904,82 @@ def test_cli_run_dry_run_both_toggles_reverse_rejects_plan_path_with_symlink_anc
     assert not (home / "runs").exists()
 
 
+def test_cli_run_dry_run_both_toggles_symlinked_plan_precedes_invalid_workdir(
+    tmp_path: Path,
+) -> None:
+    home = tmp_path / ".orch_cli"
+    flag_orders: list[list[str]] = [
+        ["--fail-fast", "--no-fail-fast"],
+        ["--no-fail-fast", "--fail-fast"],
+    ]
+    plan_modes = ("symlink_plan", "symlink_ancestor_plan")
+
+    for order in flag_orders:
+        order_label = "forward" if order[0] == "--fail-fast" else "reverse"
+        for plan_mode in plan_modes:
+            case_root = tmp_path / f"plan_vs_workdir_{plan_mode}_{order_label}"
+            case_root.mkdir()
+            invalid_workdir_file = case_root / "invalid_workdir_file"
+            invalid_workdir_file.write_text("file\n", encoding="utf-8")
+
+            if plan_mode == "symlink_plan":
+                real_plan = case_root / "real_plan.yaml"
+                _write_plan(
+                    real_plan,
+                    """
+                    tasks:
+                      - id: t1
+                        cmd: ["python3", "-c", "print('ok')"]
+                    """,
+                )
+                plan_path = case_root / "plan_symlink.yaml"
+                plan_path.symlink_to(real_plan)
+            else:
+                real_parent = case_root / "real_parent"
+                real_parent.mkdir()
+                real_plan = real_parent / "plan.yaml"
+                _write_plan(
+                    real_plan,
+                    """
+                    tasks:
+                      - id: t1
+                        cmd: ["python3", "-c", "print('ok')"]
+                    """,
+                )
+                symlink_parent = case_root / "plan_parent_link"
+                symlink_parent.symlink_to(real_parent, target_is_directory=True)
+                plan_path = symlink_parent / "plan.yaml"
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "orch.cli",
+                    "run",
+                    str(plan_path),
+                    "--home",
+                    str(home),
+                    "--workdir",
+                    str(invalid_workdir_file),
+                    "--dry-run",
+                    *order,
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            output = proc.stdout + proc.stderr
+            context = f"{plan_mode}-{order_label}"
+            assert proc.returncode == 2, context
+            assert "Plan validation error" in output, context
+            assert "Invalid workdir" not in output, context
+            assert "Dry Run" not in output, context
+            assert "run_id:" not in output, context
+            assert "state:" not in output, context
+            assert "report:" not in output, context
+            assert not (home / "runs").exists(), context
+
+
 def test_cli_run_dry_run_both_fail_fast_toggles_invalid_home_precedes_invalid_workdir(
     tmp_path: Path,
 ) -> None:
@@ -980,6 +1056,47 @@ def test_cli_run_dry_run_both_fail_fast_toggles_invalid_home_precedes_invalid_pl
     assert "Plan validation error" not in output
     assert "contains symlink component" not in output
     assert "Dry Run" not in output
+    assert home_file.read_text(encoding="utf-8") == "not a dir\n"
+
+
+def test_cli_run_dry_run_both_toggles_invalid_home_precedes_non_regular_plan(
+    tmp_path: Path,
+) -> None:
+    if not hasattr(os, "mkfifo"):
+        return
+
+    plan_path = tmp_path / "plan_fifo_both_toggles.yaml"
+    os.mkfifo(plan_path)
+    home_file = tmp_path / "home_file_both_toggles_fifo_plan"
+    home_file.write_text("not a dir\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home_file),
+            "--dry-run",
+            "--fail-fast",
+            "--no-fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=5,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Plan validation error" not in output
+    assert "contains symlink component" not in output
+    assert "Dry Run" not in output
+    assert "run_id:" not in output
+    assert "state:" not in output
+    assert "report:" not in output
     assert home_file.read_text(encoding="utf-8") == "not a dir\n"
 
 
@@ -2656,6 +2773,47 @@ def test_cli_run_dry_run_both_fail_fast_toggles_reverse_order_invalid_home_prece
     assert "Plan validation error" not in output
     assert "contains symlink component" not in output
     assert "Dry Run" not in output
+    assert home_file.read_text(encoding="utf-8") == "not a dir\n"
+
+
+def test_cli_run_dry_run_both_toggles_reverse_invalid_home_precedes_non_regular_plan(
+    tmp_path: Path,
+) -> None:
+    if not hasattr(os, "mkfifo"):
+        return
+
+    plan_path = tmp_path / "plan_fifo_both_toggles_reverse.yaml"
+    os.mkfifo(plan_path)
+    home_file = tmp_path / "home_file_both_toggles_reverse_fifo_plan"
+    home_file.write_text("not a dir\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home_file),
+            "--dry-run",
+            "--no-fail-fast",
+            "--fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=5,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Plan validation error" not in output
+    assert "contains symlink component" not in output
+    assert "Dry Run" not in output
+    assert "run_id:" not in output
+    assert "state:" not in output
+    assert "report:" not in output
     assert home_file.read_text(encoding="utf-8") == "not a dir\n"
 
 
