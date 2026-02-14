@@ -727,6 +727,28 @@ def test_run_exists_rejects_symlink_only_markers(tmp_path: Path) -> None:
     assert cli_module._run_exists(run_dir) is False
 
 
+def test_run_exists_accepts_regular_state_with_symlink_plan(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run1"
+    run_dir.mkdir(parents=True)
+    outside_plan = tmp_path / "outside_plan.yaml"
+    outside_plan.write_text("tasks: []\n", encoding="utf-8")
+    (run_dir / "state.json").write_text("{}", encoding="utf-8")
+    (run_dir / "plan.yaml").symlink_to(outside_plan)
+
+    assert cli_module._run_exists(run_dir) is True
+
+
+def test_run_exists_accepts_regular_plan_with_symlink_state(tmp_path: Path) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run1"
+    run_dir.mkdir(parents=True)
+    outside_state = tmp_path / "outside_state.json"
+    outside_state.write_text("{}", encoding="utf-8")
+    (run_dir / "state.json").symlink_to(outside_state)
+    (run_dir / "plan.yaml").write_text("tasks: []\n", encoding="utf-8")
+
+    assert cli_module._run_exists(run_dir) is True
+
+
 def test_cli_cancel_skips_write_when_run_not_found(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
