@@ -369,6 +369,32 @@ def test_source_path_guard_has_symlink_ancestor_ignores_filenotfound() -> None:
     assert isinstance(handler.body[0], ast.Pass)
 
 
+def test_source_path_guard_has_symlink_ancestor_starts_from_parent() -> None:
+    source_path = Path(__file__).resolve().parents[1] / "src" / "orch" / "util" / "path_guard.py"
+    module = ast.parse(source_path.read_text(encoding="utf-8"))
+    has_ancestor_func = next(
+        node
+        for node in module.body
+        if isinstance(node, ast.FunctionDef) and node.name == "has_symlink_ancestor"
+    )
+    assign_stmt = next(
+        (
+            stmt
+            for stmt in has_ancestor_func.body
+            if isinstance(stmt, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "current" for target in stmt.targets
+            )
+        ),
+        None,
+    )
+    assert assign_stmt is not None
+    assert isinstance(assign_stmt.value, ast.Attribute)
+    assert isinstance(assign_stmt.value.value, ast.Name)
+    assert assign_stmt.value.value.id == "path"
+    assert assign_stmt.value.attr == "parent"
+
+
 def _collect_unguarded_calls(
     method_name: str,
     *,
