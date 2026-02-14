@@ -439,6 +439,118 @@ def test_cli_run_rejects_missing_workdir_without_creating_run_dir(tmp_path: Path
     assert not (home / "runs").exists()
 
 
+def test_cli_run_invalid_home_precedes_invalid_workdir(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    home = tmp_path / "home_file"
+    home.write_text("not a directory\n", encoding="utf-8")
+    missing_workdir = tmp_path / "missing_workdir"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--workdir",
+            str(missing_workdir),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Invalid workdir" not in output
+    assert home.read_text(encoding="utf-8") == "not a directory\n"
+
+
+def test_cli_run_invalid_plan_precedes_invalid_workdir(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_invalid.yaml"
+    home = tmp_path / ".orch_cli"
+    missing_workdir = tmp_path / "missing_workdir"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+            depends_on: ["missing_dep"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--workdir",
+            str(missing_workdir),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Plan validation error" in output
+    assert "Invalid workdir" not in output
+    assert not (home / "runs").exists()
+
+
+def test_cli_dry_run_valid_plan_ignores_invalid_workdir(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_dry.yaml"
+    home = tmp_path / ".orch_cli"
+    missing_workdir = tmp_path / "missing_workdir"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--dry-run",
+            "--home",
+            str(home),
+            "--workdir",
+            str(missing_workdir),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 0
+    assert "task_id" in output
+    assert "t1" in output
+    assert "Invalid workdir" not in output
+    assert not (home / "runs").exists()
+
+
 def test_cli_run_rejects_home_with_symlink_ancestor_without_side_effect(tmp_path: Path) -> None:
     plan_path = tmp_path / "plan.yaml"
     real_home = tmp_path / "real_home"
