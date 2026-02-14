@@ -1029,6 +1029,54 @@ def test_cli_run_dry_run_both_toggles_invalid_home_precedes_symlink_plan_path(
     assert home_file.read_text(encoding="utf-8") == "not a dir\n"
 
 
+def test_cli_run_dry_run_both_toggles_invalid_home_precedes_symlink_ancestor_plan_path(
+    tmp_path: Path,
+) -> None:
+    real_parent = tmp_path / "real_plan_parent_both_toggles_home_vs_plan_ancestor"
+    real_parent.mkdir()
+    real_plan = real_parent / "plan.yaml"
+    symlink_parent = tmp_path / "plan_parent_link_both_toggles_home_vs_plan_ancestor"
+    home_file = tmp_path / "home_file_both_toggles_plan_ancestor"
+    _write_plan(
+        real_plan,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+    home_file.write_text("not a dir\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(symlink_parent / "plan.yaml"),
+            "--home",
+            str(home_file),
+            "--dry-run",
+            "--fail-fast",
+            "--no-fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Plan validation error" not in output
+    assert "contains symlink component" not in output
+    assert "Dry Run" not in output
+    assert "run_id:" not in output
+    assert "state:" not in output
+    assert "report:" not in output
+    assert home_file.read_text(encoding="utf-8") == "not a dir\n"
+
+
 def test_cli_run_dry_run_both_toggles_invalid_home_never_emits_runtime_summary(
     tmp_path: Path,
 ) -> None:
@@ -2397,6 +2445,54 @@ def test_cli_run_dry_run_both_toggles_reverse_invalid_home_precedes_symlink_plan
             "orch.cli",
             "run",
             str(symlink_plan),
+            "--home",
+            str(home_file),
+            "--dry-run",
+            "--no-fail-fast",
+            "--fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Plan validation error" not in output
+    assert "contains symlink component" not in output
+    assert "Dry Run" not in output
+    assert "run_id:" not in output
+    assert "state:" not in output
+    assert "report:" not in output
+    assert home_file.read_text(encoding="utf-8") == "not a dir\n"
+
+
+def test_cli_run_dry_run_both_toggles_reverse_invalid_home_precedes_symlink_ancestor_plan_path(
+    tmp_path: Path,
+) -> None:
+    real_parent = tmp_path / "real_plan_parent_both_toggles_reverse_home_vs_plan_ancestor"
+    real_parent.mkdir()
+    real_plan = real_parent / "plan.yaml"
+    symlink_parent = tmp_path / "plan_parent_link_both_toggles_reverse_home_vs_plan_ancestor"
+    home_file = tmp_path / "home_file_both_toggles_reverse_plan_ancestor"
+    _write_plan(
+        real_plan,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+    home_file.write_text("not a dir\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(symlink_parent / "plan.yaml"),
             "--home",
             str(home_file),
             "--dry-run",
