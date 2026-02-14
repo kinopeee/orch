@@ -1552,6 +1552,33 @@ def test_cli_cancel_rejects_home_file_without_side_effect(tmp_path: Path) -> Non
     assert home.read_text(encoding="utf-8") == "not a directory\n"
 
 
+def test_cli_cancel_rejects_home_with_file_ancestor_without_side_effect(
+    tmp_path: Path,
+) -> None:
+    home_parent_file = tmp_path / "home_parent_file"
+    home_parent_file.write_text("not a dir\n", encoding="utf-8")
+    nested_home = home_parent_file / "orch_home"
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "cancel",
+            "20260101_000000_abcdef",
+            "--home",
+            str(nested_home),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert home_parent_file.read_text(encoding="utf-8") == "not a dir\n"
+
+
 def test_cli_status_missing_run_returns_two(tmp_path: Path) -> None:
     home = tmp_path / ".orch_cli"
     proc = subprocess.run(
