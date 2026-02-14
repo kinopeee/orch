@@ -2313,6 +2313,49 @@ def test_source_cli_run_dry_run_branch_adds_expected_table_columns() -> None:
     assert {"#", "task_id"}.issubset(column_names)
 
 
+def test_source_cli_run_dry_run_branch_adds_columns_in_expected_order() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    run_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "run"
+        ),
+        None,
+    )
+    assert run_function is not None
+
+    dry_run_if = next(
+        (
+            stmt
+            for stmt in run_function.body
+            if isinstance(stmt, ast.If)
+            and isinstance(stmt.test, ast.Name)
+            and stmt.test.id == "dry_run"
+        ),
+        None,
+    )
+    assert dry_run_if is not None
+
+    add_column_calls = [
+        node
+        for node in ast.walk(dry_run_if)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "table"
+        and node.func.attr == "add_column"
+        and node.args
+        and isinstance(node.args[0], ast.Constant)
+        and isinstance(node.args[0].value, str)
+    ]
+    column_line_by_name = {node.args[0].value: node.lineno for node in add_column_calls}
+    assert "#" in column_line_by_name
+    assert "task_id" in column_line_by_name
+    assert column_line_by_name["#"] < column_line_by_name["task_id"]
+
+
 def test_source_cli_run_dry_run_branch_adds_row_with_index_and_task_id() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
