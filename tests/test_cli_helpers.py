@@ -1225,6 +1225,59 @@ def test_cli_cancel_normalizes_oserror_run_exists_error_without_write(
     assert "Failed to inspect run" in captured.out
 
 
+def test_cli_cancel_rejects_invalid_run_id_before_run_exists_or_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / ".orch"
+    run_exists_called = False
+    write_called = False
+
+    def fake_run_exists(_run_dir: Path) -> bool:
+        nonlocal run_exists_called
+        run_exists_called = True
+        return True
+
+    def fake_write_cancel(_run_dir: Path) -> None:
+        nonlocal write_called
+        write_called = True
+
+    monkeypatch.setattr(cli_module, "_run_exists", fake_run_exists)
+    monkeypatch.setattr(cli_module, "write_cancel_request", fake_write_cancel)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.cancel("../bad", home=home)
+    assert exc_info.value.exit_code == 2
+    assert run_exists_called is False
+    assert write_called is False
+
+
+def test_cli_cancel_rejects_invalid_home_before_run_exists_or_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "home_as_file"
+    home.write_text("not a directory\n", encoding="utf-8")
+    run_exists_called = False
+    write_called = False
+
+    def fake_run_exists(_run_dir: Path) -> bool:
+        nonlocal run_exists_called
+        run_exists_called = True
+        return True
+
+    def fake_write_cancel(_run_dir: Path) -> None:
+        nonlocal write_called
+        write_called = True
+
+    monkeypatch.setattr(cli_module, "_run_exists", fake_run_exists)
+    monkeypatch.setattr(cli_module, "write_cancel_request", fake_write_cancel)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.cancel("run1", home=home)
+    assert exc_info.value.exit_code == 2
+    assert run_exists_called is False
+    assert write_called is False
+
+
 def test_cli_cancel_calls_write_when_run_exists(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
