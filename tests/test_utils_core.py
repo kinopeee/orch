@@ -5882,6 +5882,7 @@ def test_cli_integration_missing_plan_default_home_cases_keep_cwd_and_home_contr
         assert "cwd=case_root" in source_segment
         assert expected["home_assert"] in source_segment
         assert 'assert not (default_home / "runs").exists(), context' in source_segment
+        assert '"--home"' not in source_segment
         if expected["expects_home_empty_assert"]:
             assert (
                 "assert sorted(path.name for path in default_home.iterdir()) == [], context"
@@ -5959,6 +5960,7 @@ def test_cli_integration_invalid_plan_default_home_cases_keep_cwd_and_home_contr
         assert "cwd=case_root" in source_segment
         assert expected["home_assert"] in source_segment
         assert 'assert not (default_home / "runs").exists(), context' in source_segment
+        assert '"--home"' not in source_segment
         if expected["expects_home_empty_assert"]:
             assert (
                 "assert sorted(path.name for path in default_home.iterdir()) == [], context"
