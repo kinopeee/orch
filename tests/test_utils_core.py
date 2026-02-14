@@ -9192,6 +9192,9 @@ def test_cli_integration_status_logs_resume_invalid_run_id_with_runs_boundaries(
             assert '"cancel.request"' in source_segment
             assert '"plan.yaml"' in source_segment
             assert '"task.log"' in source_segment
+            assert 'assert plan_file.read_text(encoding="utf-8") == "tasks: []\\n", context' in (
+                source_segment
+            )
             assert 'assert lock_file.read_text(encoding="utf-8") == "lock\\n", context' in (
                 source_segment
             )
@@ -9329,6 +9332,8 @@ def test_cli_integration_status_logs_resume_invalid_run_id_preserve_groups() -> 
             if expected["has_artifacts"]:
                 assert '"cancel.request"' in source_segment
                 assert '"task.log"' in source_segment
+                assert '"plan.yaml"' in source_segment
+                assert 'read_text(encoding="utf-8") == "tasks: []\\n"' in source_segment
                 assert 'read_text(encoding="utf-8") == "lock\\n"' in source_segment
                 assert 'read_text(encoding="utf-8") == "cancel\\n"' in source_segment
                 assert 'read_text(encoding="utf-8") == "log\\n"' in source_segment
@@ -9695,6 +9700,9 @@ def test_cli_integration_cancel_invalid_run_id_with_runs_preserve_boundaries() -
             assert '"cancel.request"' in source_segment
             assert '"plan.yaml"' in source_segment
             assert '"task.log"' in source_segment
+            assert 'assert plan_file.read_text(encoding="utf-8") == "tasks: []\\n", context' in (
+                source_segment
+            )
             assert 'assert lock_file.read_text(encoding="utf-8") == "lock\\n", context' in (
                 source_segment
             )
@@ -9838,6 +9846,7 @@ def test_cli_integration_cancel_invalid_run_id_preserve_matrix_groups_keep_bound
             if expected["has_artifacts"]:
                 assert '"task.log"' in source_segment
                 assert '"plan.yaml"' in source_segment
+                assert 'read_text(encoding="utf-8") == "tasks: []\\n"' in source_segment
                 assert 'read_text(encoding="utf-8") == "cancel\\n"' in source_segment
                 assert 'read_text(encoding="utf-8") == "lock\\n"' in source_segment
                 assert 'read_text(encoding="utf-8") == "log\\n"' in source_segment
@@ -10066,6 +10075,10 @@ def test_cli_integration_invalid_run_id_preserve_matrix_supergroup_boundaries() 
                 assert '"cancel.request"' in source_segment
                 assert '"task.log"' in source_segment
                 assert '"plan.yaml"' in source_segment
+                assert 'read_text(encoding="utf-8") == "tasks: []\\n"' in source_segment
+                assert 'read_text(encoding="utf-8") == "lock\\n"' in source_segment
+                assert 'read_text(encoding="utf-8") == "cancel\\n"' in source_segment
+                assert 'read_text(encoding="utf-8") == "log\\n"' in source_segment
         else:
             assert f'assert not ({home_var} / "runs").exists(), context' in source_segment
 
