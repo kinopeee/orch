@@ -6171,6 +6171,8 @@ def test_cli_integration_missing_plan_workdir_existing_home_matrix_asserts_outpu
     assert '"report:" not in output' in source_segment
     assert "assert home.exists(), context" in source_segment
     assert 'assert not (home / "runs").exists(), context' in source_segment
+    assert '"--home"' in source_segment
+    assert '"--workdir"' in source_segment
 
 
 def test_cli_integration_missing_plan_existing_home_matrix_keeps_modes_and_toggles() -> None:
