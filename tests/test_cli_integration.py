@@ -5777,6 +5777,24 @@ def test_cli_status_logs_resume_reject_path_like_run_id(tmp_path: Path) -> None:
         assert "Invalid run_id" in output, command
 
 
+def test_cli_status_logs_resume_run_id_precedes_invalid_home(tmp_path: Path) -> None:
+    home_file = tmp_path / "home_file"
+    home_file.write_text("not a dir\n", encoding="utf-8")
+    bad_run_id = "../escape"
+    for command in ("status", "logs", "resume"):
+        proc = subprocess.run(
+            [sys.executable, "-m", "orch.cli", command, bad_run_id, "--home", str(home_file)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        output = proc.stdout + proc.stderr
+        assert proc.returncode == 2, command
+        assert "Invalid run_id" in output, command
+        assert "Invalid home" not in output, command
+    assert home_file.read_text(encoding="utf-8") == "not a dir\n"
+
+
 def test_cli_cancel_rejects_absolute_run_id_without_side_effect(tmp_path: Path) -> None:
     home = tmp_path / ".orch_cli"
     outside_run_dir = tmp_path / "outside_run"
