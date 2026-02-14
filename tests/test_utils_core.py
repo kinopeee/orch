@@ -1908,3 +1908,60 @@ def test_source_run_exists_marker_helper_catches_oserror_and_runtimeerror_as_fal
             break
 
     assert matched
+
+
+def test_source_run_exists_run_dir_lstat_catches_oserror_and_runtimeerror_as_false() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    run_exists_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "_run_exists"
+        ),
+        None,
+    )
+    assert run_exists_function is not None
+
+    run_dir_try = next(
+        (
+            node
+            for node in run_exists_function.body
+            if isinstance(node, ast.Try)
+            and any(
+                isinstance(stmt, ast.Assign)
+                and any(
+                    isinstance(target, ast.Name) and target.id == "run_meta"
+                    for target in stmt.targets
+                )
+                for stmt in node.body
+            )
+        ),
+        None,
+    )
+    assert run_dir_try is not None
+
+    matched = False
+    for handler in run_dir_try.handlers:
+        if handler.type is None:
+            continue
+        names: set[str] = set()
+        if isinstance(handler.type, ast.Name):
+            names.add(handler.type.id)
+        elif isinstance(handler.type, ast.Tuple):
+            for elt in handler.type.elts:
+                if isinstance(elt, ast.Name):
+                    names.add(elt.id)
+        if {"OSError", "RuntimeError"}.issubset(names):
+            returns_false = any(
+                isinstance(stmt, ast.Return)
+                and isinstance(stmt.value, ast.Constant)
+                and stmt.value.value is False
+                for stmt in handler.body
+            )
+            assert returns_false
+            matched = True
+            break
+
+    assert matched
