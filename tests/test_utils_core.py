@@ -6219,6 +6219,111 @@ def test_cli_integration_explicit_existing_home_plan_error_cases_keep_modes_and_
     assert matched == set(expectations)
 
 
+def test_cli_integration_default_existing_home_plan_error_cases_keep_contracts() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    invalid_plan_with_workdir = (
+        "test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_"
+        "default_existing_home_matrix"
+    )
+    invalid_plan_only = (
+        "test_cli_run_dry_run_both_toggles_reject_invalid_plan_default_existing_home_matrix"
+    )
+    missing_plan_with_workdir = (
+        "test_cli_run_dry_run_both_toggles_missing_plan_default_existing_home_"
+        "precedes_workdir_matrix"
+    )
+    missing_plan_only = (
+        "test_cli_run_dry_run_both_toggles_reject_missing_plan_default_existing_home_matrix"
+    )
+
+    expectations = {
+        invalid_plan_with_workdir: {
+            "anchor": '"Plan validation error" in output',
+            "needs_workdir": True,
+            "present": [],
+            "absent": [
+                '"PLAN_PATH" not in output',
+                '"Invalid home" not in output',
+                '"Invalid workdir" not in output',
+            ],
+        },
+        invalid_plan_only: {
+            "anchor": '"Plan validation error" in output',
+            "needs_workdir": False,
+            "present": [],
+            "absent": [
+                '"PLAN_PATH" not in output',
+                '"Invalid home" not in output',
+                '"Invalid workdir" not in output',
+            ],
+        },
+        missing_plan_with_workdir: {
+            "anchor": '"PLAN_PATH" in output',
+            "needs_workdir": True,
+            "present": ["\"Invalid value for 'PLAN_PATH'\" in output"],
+            "absent": [
+                '"Plan validation error" not in output',
+                '"Invalid home" not in output',
+                '"Invalid workdir" not in output',
+                '"contains symlink component" not in output',
+            ],
+        },
+        missing_plan_only: {
+            "anchor": '"PLAN_PATH" in output',
+            "needs_workdir": False,
+            "present": ["\"Invalid value for 'PLAN_PATH'\" in output"],
+            "absent": [
+                '"Plan validation error" not in output',
+                '"Invalid home" not in output',
+                '"Invalid workdir" not in output',
+                '"contains symlink component" not in output',
+            ],
+        },
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expectations:
+            continue
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        expected = expectations[node.name]
+
+        assert expected["anchor"] in source_segment
+        assert "cwd=case_root" in source_segment
+        assert "assert default_home.exists(), context" in source_segment
+        assert 'assert not (default_home / "runs").exists(), context' in source_segment
+        assert (
+            "assert sorted(path.name for path in default_home.iterdir()) == [], context"
+            in source_segment
+        )
+        assert '"--home"' not in source_segment
+        assert '"Dry Run" not in output' in source_segment
+        assert '"run_id:" not in output' in source_segment
+        assert '"state:" not in output' in source_segment
+        assert '"report:" not in output' in source_segment
+
+        for snippet in expected["present"]:
+            assert snippet in source_segment
+        for snippet in expected["absent"]:
+            assert snippet in source_segment
+
+        if expected["needs_workdir"]:
+            assert '"--workdir"' in source_segment
+        else:
+            assert '"--workdir"' not in source_segment
+
+        matched.add(node.name)
+
+    assert matched == set(expectations)
+
+
 def test_cli_integration_missing_plan_workdir_matrix_asserts_output_contract() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
