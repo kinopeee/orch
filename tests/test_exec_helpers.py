@@ -1151,9 +1151,12 @@ def test_cancel_requested_symlink_run_dir_skips_target_lstat(
     real_cancel_path.write_text("cancel requested\n", encoding="utf-8")
     original_lstat = Path.lstat
     target_lstat_calls = 0
+    run_dir_lstat_calls = 0
 
     def capture_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
-        nonlocal target_lstat_calls
+        nonlocal target_lstat_calls, run_dir_lstat_calls
+        if path_obj == linked_run_dir:
+            run_dir_lstat_calls += 1
         if path_obj == target_cancel_path:
             target_lstat_calls += 1
         return original_lstat(path_obj, *args, **kwargs)
@@ -1161,6 +1164,7 @@ def test_cancel_requested_symlink_run_dir_skips_target_lstat(
     monkeypatch.setattr(Path, "lstat", capture_lstat)
 
     assert cancel_requested(linked_run_dir) is False
+    assert run_dir_lstat_calls == 1
     assert target_lstat_calls == 0
     assert real_cancel_path.exists()
 
@@ -1175,8 +1179,19 @@ def test_clear_cancel_request_symlink_run_dir_skips_target_unlink(
     target_cancel_path = linked_run_dir / "cancel.request"
     real_cancel_path = real_run_dir / "cancel.request"
     real_cancel_path.write_text("cancel requested\n", encoding="utf-8")
+    original_lstat = Path.lstat
     original_unlink = Path.unlink
+    run_dir_lstat_calls = 0
+    target_lstat_calls = 0
     target_unlink_calls = 0
+
+    def capture_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal run_dir_lstat_calls, target_lstat_calls
+        if path_obj == linked_run_dir:
+            run_dir_lstat_calls += 1
+        if path_obj == target_cancel_path:
+            target_lstat_calls += 1
+        return original_lstat(path_obj, *args, **kwargs)
 
     def capture_unlink(path_obj: Path, *args: object, **kwargs: object) -> None:
         nonlocal target_unlink_calls
@@ -1184,9 +1199,12 @@ def test_clear_cancel_request_symlink_run_dir_skips_target_unlink(
             target_unlink_calls += 1
         original_unlink(path_obj, *args, **kwargs)
 
+    monkeypatch.setattr(Path, "lstat", capture_lstat)
     monkeypatch.setattr(Path, "unlink", capture_unlink)
 
     clear_cancel_request(linked_run_dir)
+    assert run_dir_lstat_calls == 1
+    assert target_lstat_calls == 0
     assert target_unlink_calls == 0
     assert real_cancel_path.exists()
 
