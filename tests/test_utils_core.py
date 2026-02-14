@@ -6477,6 +6477,110 @@ def test_cli_integration_default_existing_home_plan_error_cases_keep_modes_and_t
     assert matched == set(expectations)
 
 
+def test_cli_integration_existing_home_plan_error_groups_keep_home_and_cwd_boundaries() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    explicit_with_workdir = (
+        "test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_existing_home_matrix"
+    )
+    explicit_without_workdir = (
+        "test_cli_run_dry_run_both_toggles_reject_invalid_plan_existing_home_matrix"
+    )
+    explicit_missing_with_workdir = (
+        "test_cli_run_dry_run_both_toggles_missing_plan_precedes_workdir_existing_home_matrix"
+    )
+    explicit_missing_without_workdir = (
+        "test_cli_run_dry_run_both_toggles_reject_missing_plan_path_existing_home_matrix"
+    )
+
+    default_with_workdir = (
+        "test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_"
+        "default_existing_home_matrix"
+    )
+    default_without_workdir = (
+        "test_cli_run_dry_run_both_toggles_reject_invalid_plan_default_existing_home_matrix"
+    )
+    default_missing_with_workdir = (
+        "test_cli_run_dry_run_both_toggles_missing_plan_default_existing_home_"
+        "precedes_workdir_matrix"
+    )
+    default_missing_without_workdir = (
+        "test_cli_run_dry_run_both_toggles_reject_missing_plan_default_existing_home_matrix"
+    )
+
+    expectations = {
+        explicit_with_workdir: {"home_var": "home", "has_cwd": False, "needs_workdir": True},
+        explicit_without_workdir: {"home_var": "home", "has_cwd": False, "needs_workdir": False},
+        explicit_missing_with_workdir: {
+            "home_var": "home",
+            "has_cwd": False,
+            "needs_workdir": True,
+        },
+        explicit_missing_without_workdir: {
+            "home_var": "home",
+            "has_cwd": False,
+            "needs_workdir": False,
+        },
+        default_with_workdir: {
+            "home_var": "default_home",
+            "has_cwd": True,
+            "needs_workdir": True,
+        },
+        default_without_workdir: {
+            "home_var": "default_home",
+            "has_cwd": True,
+            "needs_workdir": False,
+        },
+        default_missing_with_workdir: {
+            "home_var": "default_home",
+            "has_cwd": True,
+            "needs_workdir": True,
+        },
+        default_missing_without_workdir: {
+            "home_var": "default_home",
+            "has_cwd": True,
+            "needs_workdir": False,
+        },
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expectations:
+            continue
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        expected = expectations[node.name]
+        home_var = expected["home_var"]
+
+        assert f"assert {home_var}.exists(), context" in source_segment
+        assert f'assert not ({home_var} / "runs").exists(), context' in source_segment
+        assert (
+            f"assert sorted(path.name for path in {home_var}.iterdir()) == [], context"
+            in source_segment
+        )
+
+        if expected["has_cwd"]:
+            assert "cwd=case_root" in source_segment
+            assert '"--home"' not in source_segment
+        else:
+            assert "cwd=case_root" not in source_segment
+            assert '"--home"' in source_segment
+
+        if expected["needs_workdir"]:
+            assert '"--workdir"' in source_segment
+        else:
+            assert '"--workdir"' not in source_segment
+
+        matched.add(node.name)
+
+    assert matched == set(expectations)
+
+
 def test_cli_integration_missing_plan_workdir_matrix_asserts_output_contract() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
