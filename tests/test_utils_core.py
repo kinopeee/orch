@@ -2174,6 +2174,50 @@ def test_source_cli_run_has_dry_run_exit_before_workdir_resolution() -> None:
     assert dry_run_if.lineno < min(resolve_workdir_lines)
 
 
+def test_source_cli_run_dry_run_branch_builds_expected_table_title() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    run_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "run"
+        ),
+        None,
+    )
+    assert run_function is not None
+
+    dry_run_if = next(
+        (
+            stmt
+            for stmt in run_function.body
+            if isinstance(stmt, ast.If)
+            and isinstance(stmt.test, ast.Name)
+            and stmt.test.id == "dry_run"
+        ),
+        None,
+    )
+    assert dry_run_if is not None
+
+    table_calls = [
+        node
+        for node in ast.walk(dry_run_if)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "Table"
+    ]
+    assert table_calls
+    assert any(
+        any(
+            keyword.arg == "title"
+            and isinstance(keyword.value, ast.Constant)
+            and keyword.value.value == "Dry Run - Topological Order"
+            for keyword in table_call.keywords
+        )
+        for table_call in table_calls
+    )
+
+
 def test_source_cli_run_has_dry_run_exit_before_run_dir_creation() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
