@@ -1681,3 +1681,48 @@ def test_source_cli_cancel_checks_full_guard_sequence_before_cancel_write() -> N
     assert min(validate_home_lines) < min(run_dir_lines)
     assert min(run_dir_lines) < min(run_exists_lines)
     assert min(run_exists_lines) < min(write_cancel_lines)
+
+
+def test_source_run_exists_checks_guard_sequence_before_marker_checks() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    run_exists_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "_run_exists"
+        ),
+        None,
+    )
+    assert run_exists_function is not None
+
+    ancestor_guard_lines = [
+        node.lineno
+        for node in ast.walk(run_exists_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "has_symlink_ancestor"
+    ]
+    run_dir_lstat_lines = [
+        node.lineno
+        for node in ast.walk(run_exists_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "current_run_dir"
+        and node.func.attr == "lstat"
+    ]
+    marker_check_lines = [
+        node.lineno
+        for node in ast.walk(run_exists_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_is_regular_non_symlink"
+    ]
+
+    assert ancestor_guard_lines
+    assert run_dir_lstat_lines
+    assert marker_check_lines
+    assert min(ancestor_guard_lines) < min(run_dir_lstat_lines)
+    assert min(run_dir_lstat_lines) < min(marker_check_lines)
