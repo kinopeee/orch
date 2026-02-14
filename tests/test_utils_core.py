@@ -4589,3 +4589,92 @@ def test_cli_integration_missing_plan_path_matrix_asserts_no_symlink_component_m
     source_segment = ast.get_source_segment(integration_source, matrix_function)
     assert source_segment is not None
     assert '"contains symlink component" not in output' in source_segment
+
+
+def test_cli_integration_missing_plan_vs_home_matrix_keeps_mode_and_toggle_sets() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_module = ast.parse(
+        (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    )
+    matrix_function = next(
+        (
+            node
+            for node in ast.walk(integration_module)
+            if isinstance(node, ast.FunctionDef)
+            and node.name
+            == "test_cli_run_dry_run_both_toggles_missing_plan_path_precedes_invalid_home_matrix"
+        ),
+        None,
+    )
+    assert matrix_function is not None
+
+    flag_orders_assign = next(
+        (
+            stmt
+            for stmt in matrix_function.body
+            if isinstance(stmt, ast.AnnAssign)
+            and isinstance(stmt.target, ast.Name)
+            and stmt.target.id == "flag_orders"
+            and isinstance(stmt.value, ast.List)
+        ),
+        None,
+    )
+    assert flag_orders_assign is not None
+    assert isinstance(flag_orders_assign.value, ast.List)
+    toggle_orders: set[tuple[str, ...]] = set()
+    for order_node in flag_orders_assign.value.elts:
+        assert isinstance(order_node, ast.List)
+        order_values: list[str] = []
+        for item in order_node.elts:
+            assert isinstance(item, ast.Constant)
+            assert isinstance(item.value, str)
+            order_values.append(item.value)
+        toggle_orders.add(tuple(order_values))
+    assert toggle_orders == {
+        ("--fail-fast", "--no-fail-fast"),
+        ("--no-fail-fast", "--fail-fast"),
+    }
+
+    plan_modes_assign = next(
+        (
+            stmt
+            for stmt in matrix_function.body
+            if isinstance(stmt, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "plan_modes"
+                for target in stmt.targets
+            )
+            and isinstance(stmt.value, ast.Tuple)
+        ),
+        None,
+    )
+    assert plan_modes_assign is not None
+    assert isinstance(plan_modes_assign.value, ast.Tuple)
+    plan_modes: set[str] = set()
+    for mode_node in plan_modes_assign.value.elts:
+        assert isinstance(mode_node, ast.Constant)
+        assert isinstance(mode_node.value, str)
+        plan_modes.add(mode_node.value)
+    assert plan_modes == {"missing_path", "dangling_symlink_path"}
+
+    home_modes_assign = next(
+        (
+            stmt
+            for stmt in matrix_function.body
+            if isinstance(stmt, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "home_modes"
+                for target in stmt.targets
+            )
+            and isinstance(stmt.value, ast.Tuple)
+        ),
+        None,
+    )
+    assert home_modes_assign is not None
+    assert isinstance(home_modes_assign.value, ast.Tuple)
+    home_modes: set[str] = set()
+    for mode_node in home_modes_assign.value.elts:
+        assert isinstance(mode_node, ast.Constant)
+        assert isinstance(mode_node.value, str)
+        home_modes.add(mode_node.value)
+    assert home_modes == {"home_file", "symlink_to_dir", "dangling_symlink"}
