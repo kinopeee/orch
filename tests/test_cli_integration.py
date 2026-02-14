@@ -1529,6 +1529,29 @@ def test_cli_cancel_rejects_run_with_symlink_ancestor_home(tmp_path: Path) -> No
     assert not (real_run_dir / "cancel.request").exists()
 
 
+def test_cli_cancel_rejects_home_file_without_side_effect(tmp_path: Path) -> None:
+    home = tmp_path / "home_file"
+    home.write_text("not a directory\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "cancel",
+            "20260101_000000_abcdef",
+            "--home",
+            str(home),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "Invalid home" in proc.stdout
+    assert home.read_text(encoding="utf-8") == "not a directory\n"
+
+
 def test_cli_status_missing_run_returns_two(tmp_path: Path) -> None:
     home = tmp_path / ".orch_cli"
     proc = subprocess.run(
