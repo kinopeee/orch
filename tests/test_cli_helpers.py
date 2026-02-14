@@ -618,6 +618,40 @@ def test_run_exists_short_circuits_on_symlink_ancestor_without_run_dir_lstat(
     assert run_dir_lstat_calls == 0
 
 
+def test_run_exists_short_circuits_when_runs_component_is_symlink_ancestor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_runs = tmp_path / "real_runs"
+    real_run_dir = real_runs / "run1"
+    real_run_dir.mkdir(parents=True)
+    (real_run_dir / "state.json").write_text("{}", encoding="utf-8")
+
+    home = tmp_path / ".orch"
+    home.mkdir()
+    (home / "runs").symlink_to(real_runs, target_is_directory=True)
+    linked_run_dir = home / "runs" / "run1"
+    linked_state = linked_run_dir / "state.json"
+    linked_plan = linked_run_dir / "plan.yaml"
+
+    original_lstat = Path.lstat
+    run_dir_lstat_calls = 0
+    marker_lstat_calls = 0
+
+    def capture_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal run_dir_lstat_calls, marker_lstat_calls
+        if path_obj == linked_run_dir:
+            run_dir_lstat_calls += 1
+        if path_obj in {linked_state, linked_plan}:
+            marker_lstat_calls += 1
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", capture_lstat)
+
+    assert cli_module._run_exists(linked_run_dir) is False
+    assert run_dir_lstat_calls == 0
+    assert marker_lstat_calls == 0
+
+
 def test_run_exists_short_circuits_on_non_directory_without_marker_lstat(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
