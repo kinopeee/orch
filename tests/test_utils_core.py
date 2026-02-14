@@ -5934,6 +5934,49 @@ def test_cli_integration_invalid_plan_default_home_cases_keep_cwd_and_home_contr
     assert matched == set(expectations)
 
 
+def test_cli_integration_invalid_plan_existing_home_cases_keep_home_contracts() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    reject_existing_home = (
+        "test_cli_run_dry_run_both_toggles_reject_invalid_plan_existing_home_matrix"
+    )
+    workdir_existing_home = (
+        "test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_existing_home_matrix"
+    )
+
+    expectations = {
+        reject_existing_home: {"needs_workdir": False},
+        workdir_existing_home: {"needs_workdir": True},
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expectations:
+            continue
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        expected = expectations[node.name]
+
+        assert "cwd=case_root" not in source_segment
+        assert "assert home.exists(), context" in source_segment
+        assert 'assert not (home / "runs").exists(), context' in source_segment
+        assert '"--home"' in source_segment
+
+        if expected["needs_workdir"]:
+            assert '"--workdir"' in source_segment
+        else:
+            assert '"--workdir"' not in source_segment
+
+        matched.add(node.name)
+
+    assert matched == set(expectations)
+
+
 def test_cli_integration_missing_plan_workdir_matrix_asserts_output_contract() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
