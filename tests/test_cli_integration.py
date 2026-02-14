@@ -3149,6 +3149,7 @@ def test_cli_run_dry_run_both_toggles_missing_plan_path_precedes_invalid_workdir
             assert "Plan validation error" not in output, context
             assert "Invalid home" not in output, context
             assert "Invalid workdir" not in output, context
+            assert "contains symlink component" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
