@@ -5881,6 +5881,28 @@ def test_cli_cancel_invalid_run_id_takes_precedence_over_home_file_ancestor(
     assert home_parent_file.read_text(encoding="utf-8") == "not a dir\n"
 
 
+def test_cli_cancel_invalid_run_id_takes_precedence_over_home_symlink_to_file(
+    tmp_path: Path,
+) -> None:
+    home_target_file = tmp_path / "home_target_file.txt"
+    home_target_file.write_text("not a home dir\n", encoding="utf-8")
+    home_link = tmp_path / "home_link"
+    home_link.symlink_to(home_target_file)
+    bad_run_id = "../escape"
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "cancel", bad_run_id, "--home", str(home_link)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid run_id" in output
+    assert "Invalid home" not in output
+    assert home_target_file.read_text(encoding="utf-8") == "not a home dir\n"
+
+
 def test_cli_cancel_too_long_run_id_takes_precedence_over_symlink_home(tmp_path: Path) -> None:
     real_home = tmp_path / "real_home"
     real_run_dir = real_home / "runs" / "run1"
@@ -5901,6 +5923,28 @@ def test_cli_cancel_too_long_run_id_takes_precedence_over_symlink_home(tmp_path:
     assert "Invalid run_id" in output
     assert "Invalid home" not in output
     assert not (real_run_dir / "cancel.request").exists()
+
+
+def test_cli_cancel_too_long_run_id_takes_precedence_over_home_symlink_to_file(
+    tmp_path: Path,
+) -> None:
+    home_target_file = tmp_path / "home_target_file.txt"
+    home_target_file.write_text("not a home dir\n", encoding="utf-8")
+    home_link = tmp_path / "home_link"
+    home_link.symlink_to(home_target_file)
+    bad_run_id = "a" * 129
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "cancel", bad_run_id, "--home", str(home_link)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid run_id" in output
+    assert "Invalid home" not in output
+    assert home_target_file.read_text(encoding="utf-8") == "not a home dir\n"
 
 
 def test_cli_cancel_too_long_run_id_takes_precedence_over_home_file_ancestor(
