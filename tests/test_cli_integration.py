@@ -977,6 +977,7 @@ def test_cli_run_dry_run_both_toggles_symlinked_plan_precedes_invalid_workdir(
             assert "run_id:" not in output, context
             assert "state:" not in output, context
             assert "report:" not in output, context
+            assert not home.exists(), context
             assert not (home / "runs").exists(), context
 
 
@@ -3098,6 +3099,7 @@ def test_cli_run_dry_run_both_toggles_invalid_plan_precedes_invalid_workdir_matr
             assert "run_id:" not in output, context
             assert "state:" not in output, context
             assert "report:" not in output, context
+            assert not home.exists(), context
             assert not (home / "runs").exists(), context
 
 
@@ -3162,6 +3164,7 @@ def test_cli_run_dry_run_both_toggles_missing_plan_path_precedes_invalid_workdir
             assert "run_id:" not in output, context
             assert "state:" not in output, context
             assert "report:" not in output, context
+            assert not home.exists(), context
             assert not (home / "runs").exists(), context
 
 
@@ -3222,6 +3225,7 @@ def test_cli_run_dry_run_both_toggles_reject_missing_plan_path_matrix(
             assert "run_id:" not in output, context
             assert "state:" not in output, context
             assert "report:" not in output, context
+            assert not home.exists(), context
             assert not (home / "runs").exists(), context
 
 

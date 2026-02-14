@@ -4667,6 +4667,7 @@ def test_cli_integration_missing_plan_path_matrix_asserts_no_runs_side_effect_ch
 
     source_segment = ast.get_source_segment(integration_source, matrix_function)
     assert source_segment is not None
+    assert "assert not home.exists(), context" in source_segment
     assert 'assert not (home / "runs").exists(), context' in source_segment
 
 
@@ -4769,6 +4770,7 @@ def test_cli_integration_missing_plan_reject_matrix_asserts_output_contract() ->
     assert '"run_id:" not in output' in source_segment
     assert '"state:" not in output' in source_segment
     assert '"report:" not in output' in source_segment
+    assert "assert not home.exists(), context" in source_segment
     assert 'assert not (home / "runs").exists(), context' in source_segment
 
 
