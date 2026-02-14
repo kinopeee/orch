@@ -708,6 +708,42 @@ def test_cli_run_dry_run_both_fail_fast_toggles_invalid_home_precedes_invalid_pl
     assert home_file.read_text(encoding="utf-8") == "not a dir\n"
 
 
+def test_cli_run_dry_run_both_fail_fast_toggles_invalid_plan_precedes_invalid_workdir(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "plan_both_toggles_plan_vs_workdir.yaml"
+    home = tmp_path / ".orch_cli"
+    invalid_workdir_file = tmp_path / "invalid_workdir_both_toggles_plan"
+    invalid_workdir_file.write_text("file\n", encoding="utf-8")
+    plan_path.write_text("tasks:\n  - id: t1\n    cmd: [\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--workdir",
+            str(invalid_workdir_file),
+            "--dry-run",
+            "--fail-fast",
+            "--no-fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Plan validation error" in output
+    assert "Invalid workdir" not in output
+    assert "Dry Run" not in output
+    assert not (home / "runs").exists()
+
+
 def test_cli_run_dry_run_both_fail_fast_toggles_reverse_order_invalid_home_precedes_invalid_plan(
     tmp_path: Path,
 ) -> None:
