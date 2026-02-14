@@ -228,6 +228,37 @@ def test_cli_run_dry_run_fail_fast_skips_invalid_workdir(tmp_path: Path) -> None
     assert not (home / "runs").exists()
 
 
+def test_cli_run_dry_run_fail_fast_still_rejects_invalid_plan(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_fail_fast_invalid_plan.yaml"
+    home = tmp_path / ".orch_cli"
+    plan_path.write_text("tasks:\n  - id: t1\n    cmd: [\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--dry-run",
+            "--fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Plan validation error" in output
+    assert "Dry Run" not in output
+    assert "run_id:" not in output
+    assert "state:" not in output
+    assert "report:" not in output
+    assert not (home / "runs").exists()
+
+
 def test_cli_run_rejects_non_positive_max_parallel(tmp_path: Path) -> None:
     plan_path = tmp_path / "plan.yaml"
     _write_plan(
