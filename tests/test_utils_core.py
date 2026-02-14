@@ -7451,6 +7451,75 @@ def test_cli_integration_preserve_entries_matrices_keep_mode_and_toggle_contract
     assert matched == set(expectations)
 
 
+def test_cli_integration_preserve_entries_matrices_keep_error_branch_contracts() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    explicit_matrix = (
+        "test_cli_run_dry_run_both_toggles_existing_home_preserves_entries_plan_error_matrix"
+    )
+    default_matrix = (
+        "test_cli_run_dry_run_both_toggles_default_existing_home_"
+        "preserves_entries_plan_error_matrix"
+    )
+    expectations = {
+        explicit_matrix: {"home_var": "home", "has_cwd": False, "uses_home_flag": True},
+        default_matrix: {"home_var": "default_home", "has_cwd": True, "uses_home_flag": False},
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expectations:
+            continue
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        expected = expectations[node.name]
+        home_var = expected["home_var"]
+
+        assert 'if plan_kind == "invalid_plan":' in source_segment
+        assert 'assert "Plan validation error" in output, context' in source_segment
+        assert 'assert "PLAN_PATH" not in output, context' in source_segment
+        assert 'assert "PLAN_PATH" in output, context' in source_segment
+        assert "assert \"Invalid value for 'PLAN_PATH'\" in output, context" in source_segment
+        assert 'assert "Plan validation error" not in output, context' in source_segment
+        assert 'assert "contains symlink component" not in output, context' in source_segment
+        assert 'assert "Invalid home" not in output, context' in source_segment
+        assert 'assert "Invalid workdir" not in output, context' in source_segment
+        assert 'assert "Dry Run" not in output, context' in source_segment
+        assert 'assert "run_id:" not in output, context' in source_segment
+        assert 'assert "state:" not in output, context' in source_segment
+        assert 'assert "report:" not in output, context' in source_segment
+
+        assert f"assert {home_var}.exists(), context" in source_segment
+        assert f'assert not ({home_var} / "runs").exists(), context' in source_segment
+        assert f"{home_var}.iterdir()" in source_segment
+        assert '"keep.txt"' in source_segment
+        assert '"keep_dir"' in source_segment
+        assert 'assert sentinel_file.read_text(encoding="utf-8") == "keep\\n", context' in (
+            source_segment
+        )
+        assert "assert sentinel_dir.is_dir(), context" in source_segment
+
+        if expected["has_cwd"]:
+            assert "cwd=case_root" in source_segment
+        else:
+            assert "cwd=case_root" not in source_segment
+
+        if expected["uses_home_flag"]:
+            assert '"--home"' in source_segment
+        else:
+            assert '"--home"' not in source_segment
+
+        assert '"--workdir"' in source_segment
+        matched.add(node.name)
+
+    assert matched == set(expectations)
+
+
 def test_cli_integration_existing_home_preserve_entries_matrices_keep_boundaries() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
