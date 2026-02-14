@@ -323,6 +323,87 @@ def test_cli_run_with_relative_workdir_writes_absolute_state_workdir(tmp_path: P
     assert payload["workdir"] == str(tmp_path.resolve())
 
 
+def test_cli_run_rejects_symlink_file_workdir_without_creating_run_dir(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    home = tmp_path / ".orch_cli"
+    workdir_target_file = tmp_path / "workdir_target_file.txt"
+    workdir_target_file.write_text("not a directory\n", encoding="utf-8")
+    linked_workdir = tmp_path / "linked_workdir"
+    linked_workdir.symlink_to(workdir_target_file)
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--workdir",
+            str(linked_workdir),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid workdir" in output
+    assert not (home / "runs").exists()
+    assert workdir_target_file.read_text(encoding="utf-8") == "not a directory\n"
+
+
+def test_cli_run_accepts_symlink_directory_workdir_and_persists_resolved(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    home = tmp_path / ".orch_cli"
+    real_workdir = tmp_path / "real_workdir"
+    real_workdir.mkdir()
+    linked_workdir = tmp_path / "linked_workdir"
+    linked_workdir.symlink_to(real_workdir, target_is_directory=True)
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    run_proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--workdir",
+            str(linked_workdir),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert run_proc.returncode == 0
+    run_id = _extract_run_id(run_proc.stdout)
+
+    state_path = home / "runs" / run_id / "state.json"
+    payload = json.loads(state_path.read_text(encoding="utf-8"))
+    assert payload["workdir"] == str(real_workdir.resolve())
+
+
 def test_cli_run_rejects_missing_workdir_without_creating_run_dir(tmp_path: Path) -> None:
     plan_path = tmp_path / "plan.yaml"
     home = tmp_path / ".orch_cli"
