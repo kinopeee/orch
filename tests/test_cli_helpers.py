@@ -1641,6 +1641,40 @@ tasks:
     assert run_plan_called is False
 
 
+def test_cli_run_dry_run_with_fail_fast_short_circuits_before_run_id_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    plan_path.write_text(
+        """
+tasks:
+  - id: t1
+    cmd: ["python3", "-c", "print('ok')"]
+""".strip(),
+        encoding="utf-8",
+    )
+    run_id_generated = False
+
+    def fake_new_run_id(*_args: object, **_kwargs: object) -> str:
+        nonlocal run_id_generated
+        run_id_generated = True
+        return "20260101_000000_abcdef"
+
+    monkeypatch.setattr(cli_module, "new_run_id", fake_new_run_id)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.run(
+            plan_path,
+            max_parallel=1,
+            home=tmp_path / ".orch",
+            workdir=tmp_path / "wd",
+            fail_fast=True,
+            dry_run=True,
+        )
+    assert exc_info.value.exit_code == 0
+    assert run_id_generated is False
+
+
 def test_cli_run_dry_run_short_circuits_before_report_write(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
