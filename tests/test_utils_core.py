@@ -8056,6 +8056,80 @@ def test_cli_integration_resume_invalid_workdir_modes_matrix_wiring() -> None:
     assert '"--dry-run"' not in source_segment
 
 
+def test_cli_integration_run_and_resume_invalid_workdir_mode_matrices_keep_parity() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    run_matrix = "test_cli_run_rejects_invalid_workdir_modes_without_creating_run_dir_matrix"
+    resume_matrix = "test_cli_resume_rejects_invalid_workdir_modes_matrix"
+    expectations = {
+        run_matrix: {"has_resume_state_guard": False},
+        resume_matrix: {"has_resume_state_guard": True},
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expectations:
+            continue
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        expected = expectations[node.name]
+
+        assert "flag_orders" in source_segment
+        assert "workdir_modes" in source_segment
+        assert "for workdir_mode in workdir_modes:" in source_segment
+        assert 'if workdir_mode == "missing_path":' in source_segment
+        assert 'elif workdir_mode == "file_path":' in source_segment
+        assert 'elif workdir_mode == "file_ancestor":' in source_segment
+        assert 'elif workdir_mode == "symlink_to_file":' in source_segment
+        assert 'elif workdir_mode == "dangling_symlink":' in source_segment
+        assert "else:" in source_segment
+        assert 'assert "Invalid workdir" in output, context' in source_segment
+        assert 'assert "Invalid home" not in output, context' in source_segment
+        assert 'assert "Plan validation error" not in output, context' in source_segment
+        assert 'assert "run_id:" not in output, context' in source_segment
+        assert 'assert "state:" not in output, context' in source_segment
+        assert 'assert "report:" not in output, context' in source_segment
+        assert '"--workdir"' in source_segment
+        assert "*order" in source_segment
+        assert '"--dry-run"' not in source_segment
+        assert "side_effect_files" in source_segment
+        assert "for file_path in side_effect_files:" in source_segment
+        assert 'if workdir_mode == "dangling_symlink":' in source_segment
+        assert 'if workdir_mode == "symlink_ancestor":' in source_segment
+
+        if expected["has_resume_state_guard"]:
+            assert '"resume"' in source_segment
+            assert "run_id = _extract_run_id(run_proc.stdout)" in source_segment
+            assert 'assert "Run not found or broken" not in output, context' in source_segment
+            assert "baseline_state" in source_segment
+            assert 'state_path.read_text(encoding="utf-8") == baseline_state' in source_segment
+            assert 'sorted(path.name for path in (home / "runs").iterdir()) == [run_id]' in (
+                source_segment
+            )
+        else:
+            assert '"run"' in source_segment
+            assert "run_id = _extract_run_id(run_proc.stdout)" not in source_segment
+            assert 'assert "Run not found or broken" not in output, context' not in (source_segment)
+            assert "baseline_state" not in source_segment
+            assert 'state_path.read_text(encoding="utf-8") == baseline_state' not in (
+                source_segment
+            )
+            assert 'sorted(path.name for path in (home / "runs").iterdir()) == [run_id]' not in (
+                source_segment
+            )
+            assert "assert not home.exists(), context" in source_segment
+            assert 'assert not (home / "runs").exists(), context' in source_segment
+
+        matched.add(node.name)
+
+    assert matched == set(expectations)
+
+
 def test_cli_integration_preserve_entries_matrices_keep_mode_and_toggle_contracts() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
