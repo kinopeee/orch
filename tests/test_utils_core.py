@@ -1771,6 +1771,58 @@ def test_source_cli_status_logs_resume_validate_run_id_before_home_and_run_dir()
         assert min(validate_home_lines) < min(run_dir_lines), function_name
 
 
+def test_source_cli_resume_validates_and_resolves_workdir_before_run_dir() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    resume_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "resume"
+        ),
+        None,
+    )
+    assert resume_function is not None
+
+    validate_run_id_lines = [
+        node.lineno
+        for node in ast.walk(resume_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_validate_run_id_or_exit"
+    ]
+    validate_home_lines = [
+        node.lineno
+        for node in ast.walk(resume_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_validate_home_or_exit"
+    ]
+    resolve_workdir_lines = [
+        node.lineno
+        for node in ast.walk(resume_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_resolve_workdir_or_exit"
+    ]
+    run_dir_lines = [
+        node.lineno
+        for node in ast.walk(resume_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "run_dir"
+    ]
+
+    assert validate_run_id_lines
+    assert validate_home_lines
+    assert resolve_workdir_lines
+    assert run_dir_lines
+
+    assert min(validate_run_id_lines) < min(validate_home_lines)
+    assert min(validate_home_lines) < min(resolve_workdir_lines)
+    assert min(resolve_workdir_lines) < min(run_dir_lines)
+
+
 def test_source_cli_cancel_catches_run_exists_oserror_and_runtimeerror() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
