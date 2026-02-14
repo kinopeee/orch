@@ -1532,6 +1532,50 @@ tasks:
     assert init_called is False
 
 
+def test_cli_run_dry_run_with_fail_fast_short_circuits_before_workdir_resolution_and_init(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    plan_path.write_text(
+        """
+tasks:
+  - id: t1
+    cmd: ["python3", "-c", "print('ok')"]
+""".strip(),
+        encoding="utf-8",
+    )
+    home = tmp_path / ".orch"
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+    resolve_workdir_called = False
+    init_called = False
+
+    def fake_resolve_workdir(_workdir: Path) -> Path:
+        nonlocal resolve_workdir_called
+        resolve_workdir_called = True
+        return _workdir
+
+    def fake_ensure_layout(_run_dir: Path) -> None:
+        nonlocal init_called
+        init_called = True
+
+    monkeypatch.setattr(cli_module, "_resolve_workdir_or_exit", fake_resolve_workdir)
+    monkeypatch.setattr(cli_module, "ensure_run_layout", fake_ensure_layout)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.run(
+            plan_path,
+            max_parallel=1,
+            home=home,
+            workdir=workdir,
+            fail_fast=True,
+            dry_run=True,
+        )
+    assert exc_info.value.exit_code == 0
+    assert resolve_workdir_called is False
+    assert init_called is False
+
+
 def test_cli_run_dry_run_short_circuits_before_plan_snapshot_write(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
