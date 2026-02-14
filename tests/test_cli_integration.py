@@ -4027,6 +4027,8 @@ def test_cli_run_dry_run_both_toggles_existing_home_preserves_entries_plan_error
             sentinel_file.write_text("keep\n", encoding="utf-8")
             sentinel_dir = home / "keep_dir"
             sentinel_dir.mkdir()
+            nested_file = sentinel_dir / "nested.txt"
+            nested_file.write_text("nested\n", encoding="utf-8")
 
             if plan_kind == "invalid_plan":
                 plan_path = case_root / "invalid_plan.yaml"
@@ -4081,6 +4083,7 @@ def test_cli_run_dry_run_both_toggles_existing_home_preserves_entries_plan_error
             assert sorted(path.name for path in home.iterdir()) == ["keep.txt", "keep_dir"], context
             assert sentinel_file.read_text(encoding="utf-8") == "keep\n", context
             assert sentinel_dir.is_dir(), context
+            assert nested_file.read_text(encoding="utf-8") == "nested\n", context
 
 
 def test_cli_run_dry_run_both_toggles_reject_missing_plan_path_matrix(
@@ -4423,6 +4426,8 @@ def test_cli_run_dry_run_both_toggles_default_existing_home_preserves_entries_pl
             sentinel_file.write_text("keep\n", encoding="utf-8")
             sentinel_dir = default_home / "keep_dir"
             sentinel_dir.mkdir()
+            nested_file = sentinel_dir / "nested.txt"
+            nested_file.write_text("nested\n", encoding="utf-8")
 
             if plan_kind == "invalid_plan":
                 plan_path = case_root / "invalid_plan.yaml"
@@ -4479,6 +4484,7 @@ def test_cli_run_dry_run_both_toggles_default_existing_home_preserves_entries_pl
             ], context
             assert sentinel_file.read_text(encoding="utf-8") == "keep\n", context
             assert sentinel_dir.is_dir(), context
+            assert nested_file.read_text(encoding="utf-8") == "nested\n", context
 
 
 def test_cli_run_dry_run_both_toggles_missing_plan_path_precedes_invalid_home_matrix(

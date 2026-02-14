@@ -7180,6 +7180,9 @@ def test_cli_integration_existing_home_preserve_entries_matrix_output_contract()
         'assert sentinel_file.read_text(encoding="utf-8") == "keep\\n", context' in source_segment
     )
     assert "assert sentinel_dir.is_dir(), context" in source_segment
+    assert (
+        'assert nested_file.read_text(encoding="utf-8") == "nested\\n", context' in source_segment
+    )
     assert '"--home"' in source_segment
     assert '"--workdir"' in source_segment
     assert "cwd=case_root" not in source_segment
@@ -7323,6 +7326,9 @@ def test_cli_integration_default_existing_home_preserve_entries_matrix_output_co
         'assert sentinel_file.read_text(encoding="utf-8") == "keep\\n", context' in source_segment
     )
     assert "assert sentinel_dir.is_dir(), context" in source_segment
+    assert (
+        'assert nested_file.read_text(encoding="utf-8") == "nested\\n", context' in source_segment
+    )
     assert '"--home"' not in source_segment
     assert '"--workdir"' in source_segment
     assert "cwd=case_root" in source_segment
@@ -7503,6 +7509,10 @@ def test_cli_integration_preserve_entries_matrices_keep_error_branch_contracts()
             source_segment
         )
         assert "assert sentinel_dir.is_dir(), context" in source_segment
+        assert (
+            'assert nested_file.read_text(encoding="utf-8") == "nested\\n", context'
+            in source_segment
+        )
 
         if expected["has_cwd"]:
             assert "cwd=case_root" in source_segment
@@ -7550,6 +7560,8 @@ def test_cli_integration_preserve_entries_matrices_keep_branch_and_workdir_condi
         assert "if needs_workdir:" in source_segment
         assert 'invalid_workdir_file = case_root / "invalid_workdir"' in source_segment
         assert 'command.extend(["--workdir", str(invalid_workdir_file)])' in source_segment
+        assert 'nested_file = sentinel_dir / "nested.txt"' in source_segment
+        assert 'nested_file.write_text("nested\\n", encoding="utf-8")' in source_segment
 
         matched.add(node.name)
 
@@ -7604,6 +7616,10 @@ def test_cli_integration_existing_home_preserve_entries_matrices_keep_boundaries
             in source_segment
         )
         assert "assert sentinel_dir.is_dir(), context" in source_segment
+        assert (
+            'assert nested_file.read_text(encoding="utf-8") == "nested\\n", context'
+            in source_segment
+        )
         assert '"run_id:" not in output' in source_segment
         assert '"state:" not in output' in source_segment
         assert '"report:" not in output' in source_segment
