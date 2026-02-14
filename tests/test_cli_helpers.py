@@ -458,6 +458,32 @@ def test_validate_home_or_exit_symlink_path_short_circuits_before_ancestor_walk(
     assert ancestor_checked is False
 
 
+def test_validate_home_or_exit_path_guard_runtime_fail_closed_short_circuits_ancestor_walk(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "home"
+    ancestor_checked = False
+    original_is_symlink = Path.is_symlink
+
+    def flaky_is_symlink(path_obj: Path) -> bool:
+        if path_obj == home:
+            raise RuntimeError("simulated is_symlink runtime failure")
+        return original_is_symlink(path_obj)
+
+    def fake_has_symlink_ancestor(_path: Path) -> bool:
+        nonlocal ancestor_checked
+        ancestor_checked = True
+        return False
+
+    monkeypatch.setattr(Path, "is_symlink", flaky_is_symlink)
+    monkeypatch.setattr(cli_module, "has_symlink_ancestor", fake_has_symlink_ancestor)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _validate_home_or_exit(home)
+    assert exc_info.value.exit_code == 2
+    assert ancestor_checked is False
+
+
 def test_validate_home_or_exit_symlink_ancestor_short_circuits_before_lstat_loop(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

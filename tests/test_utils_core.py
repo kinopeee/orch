@@ -2120,6 +2120,70 @@ def test_source_validate_home_guard_reports_invalid_home_message() -> None:
     assert message_found
 
 
+def test_source_validate_home_guard_precedes_to_check_assignment_and_lstat_loop() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    validate_home_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "_validate_home_or_exit"
+        ),
+        None,
+    )
+    assert validate_home_function is not None
+
+    guard_if = next(
+        (
+            stmt
+            for stmt in validate_home_function.body
+            if isinstance(stmt, ast.If)
+            and isinstance(stmt.test, ast.BoolOp)
+            and isinstance(stmt.test.op, ast.Or)
+            and any(
+                isinstance(value, ast.Call)
+                and isinstance(value.func, ast.Name)
+                and value.func.id == "is_symlink_path"
+                for value in stmt.test.values
+            )
+            and any(
+                isinstance(value, ast.Call)
+                and isinstance(value.func, ast.Name)
+                and value.func.id == "has_symlink_ancestor"
+                for value in stmt.test.values
+            )
+        ),
+        None,
+    )
+    assert guard_if is not None
+
+    to_check_assign = next(
+        (
+            stmt
+            for stmt in validate_home_function.body
+            if isinstance(stmt, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "to_check" for target in stmt.targets
+            )
+        ),
+        None,
+    )
+    assert to_check_assign is not None
+
+    lstat_lines = [
+        node.lineno
+        for node in ast.walk(validate_home_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.attr == "lstat"
+    ]
+    assert lstat_lines
+    assert guard_if.lineno < to_check_assign.lineno
+    assert guard_if.lineno < min(lstat_lines)
+
+
 def test_source_cli_status_logs_validate_home_before_lock_and_load_state() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
