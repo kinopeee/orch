@@ -1853,6 +1853,8 @@ def test_source_run_exists_uses_ordered_or_for_state_then_plan_markers() -> None
         arg = call.args[0]
         assert isinstance(arg, ast.BinOp)
         assert isinstance(arg.op, ast.Div)
+        assert isinstance(arg.left, ast.Name)
+        assert arg.left.id == "current_run_dir"
         assert isinstance(arg.right, ast.Constant)
         assert isinstance(arg.right.value, str)
         marker_names.append(arg.right.value)
