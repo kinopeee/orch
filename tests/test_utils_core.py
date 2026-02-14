@@ -5588,6 +5588,69 @@ def test_cli_integration_missing_plan_defhome_existing_workdir_output_contract()
     assert '"--workdir"' in source_segment
 
 
+def test_cli_integration_missing_plan_default_home_cases_keep_cwd_and_home_contracts() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    reject_default_home = (
+        "test_cli_run_dry_run_both_toggles_reject_missing_plan_path_default_home_matrix"
+    )
+    reject_default_existing_home = (
+        "test_cli_run_dry_run_both_toggles_reject_missing_plan_default_existing_home_matrix"
+    )
+    workdir_default_home = (
+        "test_cli_run_dry_run_both_toggles_missing_plan_default_home_precedes_workdir_matrix"
+    )
+    workdir_default_existing_home = (
+        "test_cli_run_dry_run_both_toggles_missing_plan_default_existing_home_"
+        "precedes_workdir_matrix"
+    )
+
+    expectations = {
+        reject_default_home: {
+            "home_assert": "assert not default_home.exists(), context",
+            "needs_workdir": False,
+        },
+        workdir_default_home: {
+            "home_assert": "assert not default_home.exists(), context",
+            "needs_workdir": True,
+        },
+        reject_default_existing_home: {
+            "home_assert": "assert default_home.exists(), context",
+            "needs_workdir": False,
+        },
+        workdir_default_existing_home: {
+            "home_assert": "assert default_home.exists(), context",
+            "needs_workdir": True,
+        },
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expectations:
+            continue
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        expected = expectations[node.name]
+
+        assert "cwd=case_root" in source_segment
+        assert expected["home_assert"] in source_segment
+        assert 'assert not (default_home / "runs").exists(), context' in source_segment
+
+        if expected["needs_workdir"]:
+            assert '"--workdir"' in source_segment
+        else:
+            assert '"--workdir"' not in source_segment
+
+        matched.add(node.name)
+
+    assert matched == set(expectations)
+
+
 def test_cli_integration_missing_plan_workdir_matrix_asserts_output_contract() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
