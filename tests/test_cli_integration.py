@@ -55,6 +55,7 @@ def test_cli_run_dry_run_returns_zero(tmp_path: Path) -> None:
     )
     assert proc.returncode == 0
     assert "Dry Run" in proc.stdout
+    assert "task_id" in proc.stdout
     assert "t1" in proc.stdout
     assert "t2" in proc.stdout
     assert "run_id:" not in proc.stdout
