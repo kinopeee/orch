@@ -1980,29 +1980,25 @@ def test_source_validate_home_checks_symlink_guards_before_lstat_loop() -> None:
     assert lstat_lines
     assert min(symlink_guard_lines) < min(lstat_lines)
 
-    guard_if = next(
+    guard_try = next(
         (
             stmt
             for stmt in validate_home_function.body
-            if isinstance(stmt, ast.If)
-            and isinstance(stmt.test, ast.BoolOp)
-            and isinstance(stmt.test.op, ast.Or)
+            if isinstance(stmt, ast.Try)
             and any(
-                isinstance(value, ast.Call)
-                and isinstance(value.func, ast.Name)
-                and value.func.id == "is_symlink_path"
-                for value in stmt.test.values
-            )
-            and any(
-                isinstance(value, ast.Call)
-                and isinstance(value.func, ast.Name)
-                and value.func.id == "has_symlink_ancestor"
-                for value in stmt.test.values
+                isinstance(node, ast.Assign)
+                and any(
+                    isinstance(target, ast.Name) and target.id == "unsafe_home"
+                    for target in node.targets
+                )
+                and isinstance(node.value, ast.BoolOp)
+                and isinstance(node.value.op, ast.Or)
+                for node in stmt.body
             )
         ),
         None,
     )
-    assert guard_if is not None
+    assert guard_try is not None
 
     raises_exit_two = any(
         isinstance(node, ast.Raise)
@@ -2014,7 +2010,8 @@ def test_source_validate_home_checks_symlink_guards_before_lstat_loop() -> None:
         and len(node.exc.args) == 1
         and isinstance(node.exc.args[0], ast.Constant)
         and node.exc.args[0].value == 2
-        for node in ast.walk(guard_if)
+        for handler in guard_try.handlers
+        for node in ast.walk(handler)
     )
     assert raises_exit_two
 
@@ -2033,19 +2030,29 @@ def test_source_validate_home_guard_orders_is_symlink_before_ancestor_walk() -> 
     )
     assert validate_home_function is not None
 
-    guard_if = next(
+    guard_try = next(
+        (stmt for stmt in validate_home_function.body if isinstance(stmt, ast.Try)),
+        None,
+    )
+    assert guard_try is not None
+
+    guard_assign = next(
         (
             stmt
-            for stmt in validate_home_function.body
-            if isinstance(stmt, ast.If)
-            and isinstance(stmt.test, ast.BoolOp)
-            and isinstance(stmt.test.op, ast.Or)
+            for stmt in guard_try.body
+            if isinstance(stmt, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "unsafe_home"
+                for target in stmt.targets
+            )
+            and isinstance(stmt.value, ast.BoolOp)
+            and isinstance(stmt.value.op, ast.Or)
         ),
         None,
     )
-    assert guard_if is not None
+    assert guard_assign is not None
 
-    values = guard_if.test.values
+    values = guard_assign.value.values
     assert len(values) == 2
     first, second = values
     assert isinstance(first, ast.Call)
@@ -2082,8 +2089,8 @@ def test_source_validate_home_guard_reports_invalid_home_message() -> None:
             stmt
             for stmt in validate_home_function.body
             if isinstance(stmt, ast.If)
-            and isinstance(stmt.test, ast.BoolOp)
-            and isinstance(stmt.test.op, ast.Or)
+            and isinstance(stmt.test, ast.Name)
+            and stmt.test.id == "unsafe_home"
         ),
         None,
     )
@@ -2134,29 +2141,25 @@ def test_source_validate_home_guard_precedes_to_check_assignment_and_lstat_loop(
     )
     assert validate_home_function is not None
 
-    guard_if = next(
+    guard_try = next(
         (
             stmt
             for stmt in validate_home_function.body
-            if isinstance(stmt, ast.If)
-            and isinstance(stmt.test, ast.BoolOp)
-            and isinstance(stmt.test.op, ast.Or)
+            if isinstance(stmt, ast.Try)
             and any(
-                isinstance(value, ast.Call)
-                and isinstance(value.func, ast.Name)
-                and value.func.id == "is_symlink_path"
-                for value in stmt.test.values
-            )
-            and any(
-                isinstance(value, ast.Call)
-                and isinstance(value.func, ast.Name)
-                and value.func.id == "has_symlink_ancestor"
-                for value in stmt.test.values
+                isinstance(node, ast.Assign)
+                and any(
+                    isinstance(target, ast.Name) and target.id == "unsafe_home"
+                    for target in node.targets
+                )
+                and isinstance(node.value, ast.BoolOp)
+                and isinstance(node.value.op, ast.Or)
+                for node in stmt.body
             )
         ),
         None,
     )
-    assert guard_if is not None
+    assert guard_try is not None
 
     to_check_assign = next(
         (
@@ -2180,8 +2183,69 @@ def test_source_validate_home_guard_precedes_to_check_assignment_and_lstat_loop(
         and node.func.attr == "lstat"
     ]
     assert lstat_lines
-    assert guard_if.lineno < to_check_assign.lineno
-    assert guard_if.lineno < min(lstat_lines)
+    assert guard_try.lineno < to_check_assign.lineno
+    assert guard_try.lineno < min(lstat_lines)
+
+
+def test_source_validate_home_wraps_guard_calls_with_oserror_runtimeerror_handler() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    validate_home_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "_validate_home_or_exit"
+        ),
+        None,
+    )
+    assert validate_home_function is not None
+
+    guard_try = next(
+        (
+            stmt
+            for stmt in validate_home_function.body
+            if isinstance(stmt, ast.Try)
+            and any(
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id in {"is_symlink_path", "has_symlink_ancestor"}
+                for node in ast.walk(stmt)
+            )
+        ),
+        None,
+    )
+    assert guard_try is not None
+
+    catches_expected = False
+    for handler in guard_try.handlers:
+        if handler.type is None:
+            continue
+        names: set[str] = set()
+        if isinstance(handler.type, ast.Name):
+            names.add(handler.type.id)
+        elif isinstance(handler.type, ast.Tuple):
+            for elt in handler.type.elts:
+                if isinstance(elt, ast.Name):
+                    names.add(elt.id)
+        if {"OSError", "RuntimeError"}.issubset(names):
+            raises_exit_two = any(
+                isinstance(node, ast.Raise)
+                and isinstance(node.exc, ast.Call)
+                and isinstance(node.exc.func, ast.Attribute)
+                and isinstance(node.exc.func.value, ast.Name)
+                and node.exc.func.value.id == "typer"
+                and node.exc.func.attr == "Exit"
+                and len(node.exc.args) == 1
+                and isinstance(node.exc.args[0], ast.Constant)
+                and node.exc.args[0].value == 2
+                for node in ast.walk(handler)
+            )
+            assert raises_exit_two
+            catches_expected = True
+            break
+
+    assert catches_expected
 
 
 def test_source_cli_status_logs_validate_home_before_lock_and_load_state() -> None:
