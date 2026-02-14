@@ -3263,7 +3263,14 @@ def test_cli_run_dry_run_both_toggles_missing_plan_path_precedes_home_and_workdi
         ["--no-fail-fast", "--fail-fast"],
     ]
     plan_modes = ("missing_path", "dangling_symlink_path")
-    home_modes = ("home_file", "symlink_to_dir", "dangling_symlink")
+    home_modes = (
+        "home_file",
+        "file_ancestor",
+        "symlink_to_dir",
+        "symlink_to_file",
+        "dangling_symlink",
+        "symlink_ancestor",
+    )
 
     for order in flag_orders:
         order_label = "forward" if order[0] == "--fail-fast" else "reverse"
@@ -3281,18 +3288,36 @@ def test_cli_run_dry_run_both_toggles_missing_plan_path_precedes_home_and_workdi
                     home_path = case_root / "home_file"
                     home_path.write_text("not a dir\n", encoding="utf-8")
                     side_effect_roots.append(case_root)
+                elif home_mode == "file_ancestor":
+                    parent_file = case_root / "home_parent_file"
+                    parent_file.write_text("not a dir\n", encoding="utf-8")
+                    home_path = parent_file / "orch_home"
+                    side_effect_roots.append(case_root)
                 elif home_mode == "symlink_to_dir":
                     real_home = case_root / "real_home"
                     real_home.mkdir()
                     home_path = case_root / "home_symlink_dir"
                     home_path.symlink_to(real_home, target_is_directory=True)
                     side_effect_roots.extend([case_root, real_home])
-                else:
+                elif home_mode == "symlink_to_file":
+                    target_file = case_root / "home_target_file"
+                    target_file.write_text("not a dir\n", encoding="utf-8")
+                    home_path = case_root / "home_symlink_file"
+                    home_path.symlink_to(target_file)
+                    side_effect_roots.append(case_root)
+                elif home_mode == "dangling_symlink":
                     home_path = case_root / "home_dangling_symlink"
                     home_path.symlink_to(
                         case_root / "missing-home-target", target_is_directory=True
                     )
                     side_effect_roots.append(case_root)
+                else:
+                    real_parent = case_root / "real_parent"
+                    real_parent.mkdir()
+                    symlink_parent = case_root / "symlink_parent"
+                    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+                    home_path = symlink_parent / "orch_home"
+                    side_effect_roots.extend([case_root, real_parent])
 
                 if plan_mode == "missing_path":
                     plan_path = case_root / "missing_plan.yaml"

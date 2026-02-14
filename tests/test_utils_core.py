@@ -4798,7 +4798,14 @@ def test_cli_integration_missing_plan_vs_home_workdir_matrix_keeps_mode_sets() -
         assert isinstance(mode_node, ast.Constant)
         assert isinstance(mode_node.value, str)
         home_modes.add(mode_node.value)
-    assert home_modes == {"home_file", "symlink_to_dir", "dangling_symlink"}
+    assert home_modes == {
+        "home_file",
+        "file_ancestor",
+        "symlink_to_dir",
+        "symlink_to_file",
+        "dangling_symlink",
+        "symlink_ancestor",
+    }
 
 
 def test_cli_integration_missing_plan_vs_home_workdir_matrix_asserts_priority_and_exclusion() -> (
