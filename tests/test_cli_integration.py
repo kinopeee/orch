@@ -590,6 +590,79 @@ def test_cli_run_invalid_plan_precedes_invalid_workdir(tmp_path: Path) -> None:
     assert not (home / "runs").exists()
 
 
+def test_cli_run_invalid_home_precedes_invalid_plan(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_invalid.yaml"
+    home = tmp_path / "home_file"
+    home.write_text("not a dir\n", encoding="utf-8")
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+            depends_on: ["missing_dep"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--workdir",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Plan validation error" not in output
+    assert home.read_text(encoding="utf-8") == "not a dir\n"
+
+
+def test_cli_dry_run_invalid_home_precedes_invalid_plan(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_invalid_dry.yaml"
+    home = tmp_path / "home_file"
+    home.write_text("not a dir\n", encoding="utf-8")
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+            depends_on: ["missing_dep"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--dry-run",
+            "--home",
+            str(home),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Plan validation error" not in output
+    assert home.read_text(encoding="utf-8") == "not a dir\n"
+
+
 def test_cli_dry_run_valid_plan_ignores_invalid_workdir(tmp_path: Path) -> None:
     plan_path = tmp_path / "plan_dry.yaml"
     home = tmp_path / ".orch_cli"
