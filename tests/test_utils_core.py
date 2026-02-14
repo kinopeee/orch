@@ -395,6 +395,42 @@ def test_source_path_guard_has_symlink_ancestor_starts_from_parent() -> None:
     assert assign_stmt.value.attr == "parent"
 
 
+def test_source_path_guard_has_symlink_ancestor_has_root_termination_guard() -> None:
+    source_path = Path(__file__).resolve().parents[1] / "src" / "orch" / "util" / "path_guard.py"
+    module = ast.parse(source_path.read_text(encoding="utf-8"))
+    has_ancestor_func = next(
+        node
+        for node in module.body
+        if isinstance(node, ast.FunctionDef) and node.name == "has_symlink_ancestor"
+    )
+
+    termination_if = next(
+        (
+            stmt
+            for stmt in ast.walk(has_ancestor_func)
+            if isinstance(stmt, ast.If)
+            and isinstance(stmt.test, ast.Compare)
+            and len(stmt.test.ops) == 1
+            and isinstance(stmt.test.ops[0], ast.Eq)
+            and isinstance(stmt.test.left, ast.Name)
+            and stmt.test.left.id == "current"
+            and len(stmt.test.comparators) == 1
+            and isinstance(stmt.test.comparators[0], ast.Attribute)
+            and isinstance(stmt.test.comparators[0].value, ast.Name)
+            and stmt.test.comparators[0].value.id == "current"
+            and stmt.test.comparators[0].attr == "parent"
+        ),
+        None,
+    )
+    assert termination_if is not None
+    assert any(
+        isinstance(node, ast.Return)
+        and isinstance(node.value, ast.Constant)
+        and node.value.value is False
+        for node in termination_if.body
+    )
+
+
 def _collect_unguarded_calls(
     method_name: str,
     *,
