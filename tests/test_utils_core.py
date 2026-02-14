@@ -2402,6 +2402,41 @@ def test_source_cli_run_dry_run_branch_assigns_table_variable_from_table_ctor() 
     assert table_assignments
 
 
+def test_source_cli_run_dry_run_branch_has_single_table_constructor_call() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    run_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "run"
+        ),
+        None,
+    )
+    assert run_function is not None
+
+    dry_run_if = next(
+        (
+            stmt
+            for stmt in run_function.body
+            if isinstance(stmt, ast.If)
+            and isinstance(stmt.test, ast.Name)
+            and stmt.test.id == "dry_run"
+        ),
+        None,
+    )
+    assert dry_run_if is not None
+
+    table_ctor_calls = [
+        node
+        for node in ast.walk(dry_run_if)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "Table"
+    ]
+    assert len(table_ctor_calls) == 1
+
+
 def test_source_cli_run_dry_run_branch_starts_with_table_assignment() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
