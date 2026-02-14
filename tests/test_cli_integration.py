@@ -1164,6 +1164,44 @@ def test_cli_dry_run_valid_plan_ignores_invalid_workdir(tmp_path: Path) -> None:
     assert not (home / "runs").exists()
 
 
+def test_cli_dry_run_invalid_home_precedes_invalid_workdir(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_dry.yaml"
+    home_file = tmp_path / "home_file"
+    home_file.write_text("not a dir\n", encoding="utf-8")
+    missing_workdir = tmp_path / "missing_workdir"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--dry-run",
+            "--home",
+            str(home_file),
+            "--workdir",
+            str(missing_workdir),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Invalid workdir" not in output
+    assert home_file.read_text(encoding="utf-8") == "not a dir\n"
+
+
 def test_cli_dry_run_home_dangling_symlink_precedes_invalid_workdir(
     tmp_path: Path,
 ) -> None:
