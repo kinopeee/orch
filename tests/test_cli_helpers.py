@@ -776,6 +776,39 @@ def test_run_exists_accepts_regular_plan_with_directory_state(tmp_path: Path) ->
     assert cli_module._run_exists(run_dir) is True
 
 
+def test_run_exists_rejects_fifo_only_markers(tmp_path: Path) -> None:
+    if not hasattr(os, "mkfifo"):
+        pytest.skip("mkfifo is not supported on this platform")
+    run_dir = tmp_path / ".orch" / "runs" / "run1"
+    run_dir.mkdir(parents=True)
+    os.mkfifo(run_dir / "state.json")
+    os.mkfifo(run_dir / "plan.yaml")
+
+    assert cli_module._run_exists(run_dir) is False
+
+
+def test_run_exists_accepts_regular_state_with_fifo_plan(tmp_path: Path) -> None:
+    if not hasattr(os, "mkfifo"):
+        pytest.skip("mkfifo is not supported on this platform")
+    run_dir = tmp_path / ".orch" / "runs" / "run1"
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").write_text("{}", encoding="utf-8")
+    os.mkfifo(run_dir / "plan.yaml")
+
+    assert cli_module._run_exists(run_dir) is True
+
+
+def test_run_exists_accepts_regular_plan_with_fifo_state(tmp_path: Path) -> None:
+    if not hasattr(os, "mkfifo"):
+        pytest.skip("mkfifo is not supported on this platform")
+    run_dir = tmp_path / ".orch" / "runs" / "run1"
+    run_dir.mkdir(parents=True)
+    os.mkfifo(run_dir / "state.json")
+    (run_dir / "plan.yaml").write_text("tasks: []\n", encoding="utf-8")
+
+    assert cli_module._run_exists(run_dir) is True
+
+
 def test_cli_cancel_skips_write_when_run_not_found(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
