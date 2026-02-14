@@ -1683,6 +1683,67 @@ def test_source_cli_cancel_checks_full_guard_sequence_before_cancel_write() -> N
     assert min(run_exists_lines) < min(write_cancel_lines)
 
 
+def test_source_cli_cancel_catches_run_exists_oserror_and_runtimeerror() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    cancel_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "cancel"
+        ),
+        None,
+    )
+    assert cancel_function is not None
+
+    run_exists_try = next(
+        (
+            stmt
+            for stmt in cancel_function.body
+            if isinstance(stmt, ast.Try)
+            and any(
+                isinstance(body_stmt, ast.Assign)
+                and isinstance(body_stmt.value, ast.Call)
+                and isinstance(body_stmt.value.func, ast.Name)
+                and body_stmt.value.func.id == "_run_exists"
+                for body_stmt in stmt.body
+            )
+        ),
+        None,
+    )
+    assert run_exists_try is not None
+
+    matched = False
+    for handler in run_exists_try.handlers:
+        if handler.type is None:
+            continue
+        names: set[str] = set()
+        if isinstance(handler.type, ast.Name):
+            names.add(handler.type.id)
+        elif isinstance(handler.type, ast.Tuple):
+            for elt in handler.type.elts:
+                if isinstance(elt, ast.Name):
+                    names.add(elt.id)
+        if {"OSError", "RuntimeError"}.issubset(names):
+            raises_exit_two = any(
+                isinstance(stmt, ast.Raise)
+                and isinstance(stmt.exc, ast.Call)
+                and isinstance(stmt.exc.func, ast.Attribute)
+                and isinstance(stmt.exc.func.value, ast.Name)
+                and stmt.exc.func.value.id == "typer"
+                and stmt.exc.func.attr == "Exit"
+                and len(stmt.exc.args) == 1
+                and isinstance(stmt.exc.args[0], ast.Constant)
+                and stmt.exc.args[0].value == 2
+                for stmt in handler.body
+            )
+            assert raises_exit_two
+            matched = True
+            break
+
+    assert matched
+
+
 def test_source_run_exists_checks_guard_sequence_before_marker_checks() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
