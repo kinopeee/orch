@@ -197,6 +197,9 @@ def _resolve_workdir_or_exit(workdir: Path) -> Path:
 
 
 def _validate_home_or_exit(home: Path) -> None:
+    if is_symlink_path(home) or has_symlink_ancestor(home):
+        console.print(f"[red]Invalid home:[/red] {home}")
+        raise typer.Exit(2)
     to_check = [home, *home.parents]
     for candidate in to_check:
         try:

@@ -2583,7 +2583,7 @@ def test_cli_cancel_rejects_home_with_symlink_ancestor_without_side_effect(
     )
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
-    assert "Run not found" in output
+    assert "Invalid home" in output
     assert not (real_run_dir / "cancel.request").exists()
 
 
@@ -5616,7 +5616,7 @@ def test_cli_status_logs_resume_reject_home_with_symlink_ancestor_without_lock_s
         )
         output = proc.stdout + proc.stderr
         assert proc.returncode == 2, command
-        assert "contains symlink component" in output, command
+        assert "Invalid home" in output, command
 
     assert not (real_run_dir / ".lock").exists()
 

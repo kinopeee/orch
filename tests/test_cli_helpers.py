@@ -420,6 +420,20 @@ def test_validate_home_or_exit_rejects_when_ancestor_component_is_symlink(
     assert exc_info.value.exit_code == 2
 
 
+def test_validate_home_or_exit_rejects_existing_path_with_symlink_ancestor(
+    tmp_path: Path,
+) -> None:
+    real_parent = tmp_path / "real_parent"
+    (real_parent / "orch_home").mkdir(parents=True)
+    symlink_parent = tmp_path / "home_parent_link"
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+    nested_home = symlink_parent / "orch_home"
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _validate_home_or_exit(nested_home)
+    assert exc_info.value.exit_code == 2
+
+
 def test_validate_home_or_exit_accepts_existing_directory(tmp_path: Path) -> None:
     home = tmp_path / "home"
     home.mkdir()
@@ -449,6 +463,8 @@ def test_validate_home_or_exit_stops_at_first_existing_directory(
             raise RuntimeError("must not inspect ancestors past first existing directory")
         return original_lstat(path_obj, *args, **kwargs)
 
+    monkeypatch.setattr(cli_module, "is_symlink_path", lambda _path: False)
+    monkeypatch.setattr(cli_module, "has_symlink_ancestor", lambda _path: False)
     monkeypatch.setattr(Path, "lstat", capture_lstat)
 
     _validate_home_or_exit(home)
