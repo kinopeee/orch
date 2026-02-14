@@ -4949,6 +4949,7 @@ def test_cli_integration_invalid_plan_defhome_existing_workdir_output_contract()
         "assert sorted(path.name for path in default_home.iterdir()) == [], context"
         in source_segment
     )
+    assert '"--home"' not in source_segment
     assert '"--workdir"' in source_segment
     assert "cwd=case_root" in source_segment
 
@@ -5168,6 +5169,7 @@ def test_cli_integration_invalid_plan_defhome_existing_matrix_output_contract() 
         "assert sorted(path.name for path in default_home.iterdir()) == [], context"
         in source_segment
     )
+    assert '"--home"' not in source_segment
     assert "cwd=case_root" in source_segment
 
 
@@ -5737,6 +5739,7 @@ def test_cli_integration_missing_plan_reject_defhome_existing_output_contract() 
         "assert sorted(path.name for path in default_home.iterdir()) == [], context"
         in source_segment
     )
+    assert '"--home"' not in source_segment
     assert "cwd=case_root" in source_segment
 
 
@@ -5822,6 +5825,7 @@ def test_cli_integration_missing_plan_defhome_existing_workdir_output_contract()
         "assert sorted(path.name for path in default_home.iterdir()) == [], context"
         in source_segment
     )
+    assert '"--home"' not in source_segment
     assert "cwd=case_root" in source_segment
     assert '"--workdir"' in source_segment
 
