@@ -526,6 +526,28 @@ def test_validate_home_or_exit_rejects_when_is_symlink_guard_raises_runtime_erro
     assert exc_info.value.exit_code == 2
 
 
+def test_validate_home_or_exit_rejects_when_is_symlink_guard_raises_oserror(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "home"
+    monkeypatch.setattr(
+        cli_module,
+        "is_symlink_path",
+        lambda _path: (_ for _ in ()).throw(OSError("simulated guard failure")),
+    )
+    monkeypatch.setattr(
+        Path,
+        "lstat",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("lstat loop should not run when guard raises")
+        ),
+    )
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _validate_home_or_exit(home)
+    assert exc_info.value.exit_code == 2
+
+
 def test_validate_home_or_exit_rejects_when_ancestor_guard_raises_runtime_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -535,6 +557,29 @@ def test_validate_home_or_exit_rejects_when_ancestor_guard_raises_runtime_error(
         cli_module,
         "has_symlink_ancestor",
         lambda _path: (_ for _ in ()).throw(RuntimeError("simulated guard failure")),
+    )
+    monkeypatch.setattr(
+        Path,
+        "lstat",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("lstat loop should not run when guard raises")
+        ),
+    )
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _validate_home_or_exit(home)
+    assert exc_info.value.exit_code == 2
+
+
+def test_validate_home_or_exit_rejects_when_ancestor_guard_raises_oserror(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "home"
+    monkeypatch.setattr(cli_module, "is_symlink_path", lambda _path: False)
+    monkeypatch.setattr(
+        cli_module,
+        "has_symlink_ancestor",
+        lambda _path: (_ for _ in ()).throw(OSError("simulated guard failure")),
     )
     monkeypatch.setattr(
         Path,
