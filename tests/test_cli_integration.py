@@ -1100,6 +1100,52 @@ def test_cli_run_dry_run_both_toggles_invalid_home_precedes_non_regular_plan(
     assert home_file.read_text(encoding="utf-8") == "not a dir\n"
 
 
+def test_cli_run_dry_run_both_toggles_invalid_home_precedes_non_regular_plan_and_workdir(
+    tmp_path: Path,
+) -> None:
+    if not hasattr(os, "mkfifo"):
+        return
+
+    plan_path = tmp_path / "plan_fifo_both_toggles_with_workdir.yaml"
+    os.mkfifo(plan_path)
+    home_file = tmp_path / "home_file_both_toggles_fifo_plan_workdir"
+    invalid_workdir_file = tmp_path / "invalid_workdir_both_toggles_fifo_plan_home"
+    home_file.write_text("not a dir\n", encoding="utf-8")
+    invalid_workdir_file.write_text("file\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home_file),
+            "--workdir",
+            str(invalid_workdir_file),
+            "--dry-run",
+            "--fail-fast",
+            "--no-fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=5,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Plan validation error" not in output
+    assert "Invalid workdir" not in output
+    assert "contains symlink component" not in output
+    assert "Dry Run" not in output
+    assert "run_id:" not in output
+    assert "state:" not in output
+    assert "report:" not in output
+    assert home_file.read_text(encoding="utf-8") == "not a dir\n"
+
+
 def test_cli_run_dry_run_both_toggles_invalid_home_precedes_symlink_plan_path(
     tmp_path: Path,
 ) -> None:
@@ -2809,6 +2855,52 @@ def test_cli_run_dry_run_both_toggles_reverse_invalid_home_precedes_non_regular_
     assert proc.returncode == 2
     assert "Invalid home" in output
     assert "Plan validation error" not in output
+    assert "contains symlink component" not in output
+    assert "Dry Run" not in output
+    assert "run_id:" not in output
+    assert "state:" not in output
+    assert "report:" not in output
+    assert home_file.read_text(encoding="utf-8") == "not a dir\n"
+
+
+def test_cli_run_dry_run_both_toggles_reverse_invalid_home_precedes_non_regular_plan_and_workdir(
+    tmp_path: Path,
+) -> None:
+    if not hasattr(os, "mkfifo"):
+        return
+
+    plan_path = tmp_path / "plan_fifo_both_toggles_reverse_with_workdir.yaml"
+    os.mkfifo(plan_path)
+    home_file = tmp_path / "home_file_both_toggles_reverse_fifo_plan_workdir"
+    invalid_workdir_file = tmp_path / "invalid_workdir_both_toggles_reverse_fifo_plan_home"
+    home_file.write_text("not a dir\n", encoding="utf-8")
+    invalid_workdir_file.write_text("file\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home_file),
+            "--workdir",
+            str(invalid_workdir_file),
+            "--dry-run",
+            "--no-fail-fast",
+            "--fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=5,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Plan validation error" not in output
+    assert "Invalid workdir" not in output
     assert "contains symlink component" not in output
     assert "Dry Run" not in output
     assert "run_id:" not in output
