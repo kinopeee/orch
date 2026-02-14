@@ -1387,6 +1387,101 @@ def test_cli_resume_invalid_run_id_short_circuits_before_home_workdir_and_run_di
     assert run_dir_called is False
 
 
+def test_cli_status_too_long_run_id_short_circuits_before_home_and_run_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / ".orch"
+    validate_home_called = False
+    run_dir_called = False
+
+    def fake_validate_home(_home: Path) -> None:
+        nonlocal validate_home_called
+        validate_home_called = True
+
+    def fake_run_dir(_home: Path, _run_id: str) -> Path:
+        nonlocal run_dir_called
+        run_dir_called = True
+        return _home / "runs" / "run1"
+
+    monkeypatch.setattr(cli_module, "_validate_home_or_exit", fake_validate_home)
+    monkeypatch.setattr(cli_module, "run_dir", fake_run_dir)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.status("a" * 129, home=home, as_json=False)
+    assert exc_info.value.exit_code == 2
+    assert validate_home_called is False
+    assert run_dir_called is False
+
+
+def test_cli_logs_too_long_run_id_short_circuits_before_home_and_run_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / ".orch"
+    validate_home_called = False
+    run_dir_called = False
+
+    def fake_validate_home(_home: Path) -> None:
+        nonlocal validate_home_called
+        validate_home_called = True
+
+    def fake_run_dir(_home: Path, _run_id: str) -> Path:
+        nonlocal run_dir_called
+        run_dir_called = True
+        return _home / "runs" / "run1"
+
+    monkeypatch.setattr(cli_module, "_validate_home_or_exit", fake_validate_home)
+    monkeypatch.setattr(cli_module, "run_dir", fake_run_dir)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.logs("a" * 129, home=home, task=None, tail=10)
+    assert exc_info.value.exit_code == 2
+    assert validate_home_called is False
+    assert run_dir_called is False
+
+
+def test_cli_resume_too_long_run_id_short_circuits_before_home_workdir_and_run_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / ".orch"
+    workdir = tmp_path / "workdir"
+    workdir.mkdir()
+    validate_home_called = False
+    resolve_workdir_called = False
+    run_dir_called = False
+
+    def fake_validate_home(_home: Path) -> None:
+        nonlocal validate_home_called
+        validate_home_called = True
+
+    def fake_resolve_workdir(_workdir: Path) -> Path:
+        nonlocal resolve_workdir_called
+        resolve_workdir_called = True
+        return _workdir
+
+    def fake_run_dir(_home: Path, _run_id: str) -> Path:
+        nonlocal run_dir_called
+        run_dir_called = True
+        return _home / "runs" / "run1"
+
+    monkeypatch.setattr(cli_module, "_validate_home_or_exit", fake_validate_home)
+    monkeypatch.setattr(cli_module, "_resolve_workdir_or_exit", fake_resolve_workdir)
+    monkeypatch.setattr(cli_module, "run_dir", fake_run_dir)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.resume(
+            "a" * 129,
+            home=home,
+            max_parallel=1,
+            workdir=workdir,
+            fail_fast=False,
+            failed_only=False,
+        )
+    assert exc_info.value.exit_code == 2
+    assert validate_home_called is False
+    assert resolve_workdir_called is False
+    assert run_dir_called is False
+
+
 def test_cli_cancel_too_long_run_id_short_circuits_before_home_and_run_dir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
