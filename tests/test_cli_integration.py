@@ -66,6 +66,49 @@ def test_cli_run_dry_run_returns_zero(tmp_path: Path) -> None:
     assert not (home / "runs").exists()
 
 
+def test_cli_run_dry_run_shows_dependency_chain_order(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_chain.yaml"
+    home = tmp_path / ".orch_cli"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('a')"]
+          - id: t2
+            cmd: ["python3", "-c", "print('b')"]
+            depends_on: ["t1"]
+          - id: t3
+            cmd: ["python3", "-c", "print('c')"]
+            depends_on: ["t2"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--dry-run",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 0
+    assert "Dry Run" in output
+    assert output.index("t1") < output.index("t2") < output.index("t3")
+    assert "run_id:" not in output
+    assert "state:" not in output
+    assert "report:" not in output
+    assert not (home / "runs").exists()
+
+
 def test_cli_run_rejects_non_positive_max_parallel(tmp_path: Path) -> None:
     plan_path = tmp_path / "plan.yaml"
     _write_plan(
