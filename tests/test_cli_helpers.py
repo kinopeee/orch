@@ -1934,6 +1934,43 @@ def test_cli_cancel_symlink_home_short_circuits_before_run_dir_and_write(
     assert write_called is False
 
 
+def test_cli_cancel_symlink_file_home_short_circuits_before_run_dir_and_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home_target_file = tmp_path / "home_target_file.txt"
+    home_target_file.write_text("not a home dir\n", encoding="utf-8")
+    home = tmp_path / "home_link"
+    home.symlink_to(home_target_file)
+    run_dir_called = False
+    run_exists_called = False
+    write_called = False
+
+    def fake_run_dir(_home: Path, _run_id: str) -> Path:
+        nonlocal run_dir_called
+        run_dir_called = True
+        return _home / "runs" / "run1"
+
+    def fake_run_exists(_run_dir: Path) -> bool:
+        nonlocal run_exists_called
+        run_exists_called = True
+        return True
+
+    def fake_write_cancel(_run_dir: Path) -> None:
+        nonlocal write_called
+        write_called = True
+
+    monkeypatch.setattr(cli_module, "run_dir", fake_run_dir)
+    monkeypatch.setattr(cli_module, "_run_exists", fake_run_exists)
+    monkeypatch.setattr(cli_module, "write_cancel_request", fake_write_cancel)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.cancel("run1", home=home)
+    assert exc_info.value.exit_code == 2
+    assert run_dir_called is False
+    assert run_exists_called is False
+    assert write_called is False
+
+
 def test_cli_cancel_calls_write_when_run_exists(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
