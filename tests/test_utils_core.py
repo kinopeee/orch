@@ -4495,6 +4495,7 @@ def test_cli_integration_invalid_plan_workdir_matrix_asserts_output_contract() -
     source_segment = ast.get_source_segment(integration_source, matrix_function)
     assert source_segment is not None
     assert '"Plan validation error" in output' in source_segment
+    assert '"PLAN_PATH" not in output' in source_segment
     assert '"Invalid home" not in output' in source_segment
     assert '"Invalid workdir" not in output' in source_segment
     assert '"Dry Run" not in output' in source_segment
