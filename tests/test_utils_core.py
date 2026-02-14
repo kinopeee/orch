@@ -2362,6 +2362,51 @@ def test_source_cli_run_dry_run_branch_adds_row_with_index_and_task_id() -> None
     )
 
 
+def test_source_cli_run_dry_run_branch_enumerates_order_with_start_one() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    run_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "run"
+        ),
+        None,
+    )
+    assert run_function is not None
+
+    dry_run_if = next(
+        (
+            stmt
+            for stmt in run_function.body
+            if isinstance(stmt, ast.If)
+            and isinstance(stmt.test, ast.Name)
+            and stmt.test.id == "dry_run"
+        ),
+        None,
+    )
+    assert dry_run_if is not None
+
+    enumerate_calls = [
+        node
+        for node in ast.walk(dry_run_if)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "enumerate"
+    ]
+    assert enumerate_calls
+    assert any(
+        (len(call.args) >= 2 and isinstance(call.args[1], ast.Constant) and call.args[1].value == 1)
+        or any(
+            keyword.arg == "start"
+            and isinstance(keyword.value, ast.Constant)
+            and keyword.value.value == 1
+            for keyword in call.keywords
+        )
+        for call in enumerate_calls
+    )
+
+
 def test_source_cli_run_has_dry_run_exit_before_run_dir_creation() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
