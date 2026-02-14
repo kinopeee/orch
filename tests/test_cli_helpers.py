@@ -860,6 +860,46 @@ def test_run_exists_short_circuits_plan_marker_when_state_is_regular(
     assert plan_lstat_calls == 0
 
 
+def test_run_exists_accepts_regular_state_when_plan_lstat_raises_runtime_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run1"
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").write_text("{}", encoding="utf-8")
+    plan_marker = run_dir / "plan.yaml"
+
+    original_lstat = Path.lstat
+
+    def capture_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        if path_obj == plan_marker:
+            raise RuntimeError("simulated plan marker runtime failure")
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", capture_lstat)
+
+    assert cli_module._run_exists(run_dir) is True
+
+
+def test_run_exists_accepts_regular_state_when_plan_lstat_raises_oserror(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run1"
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").write_text("{}", encoding="utf-8")
+    plan_marker = run_dir / "plan.yaml"
+
+    original_lstat = Path.lstat
+
+    def capture_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        if path_obj == plan_marker:
+            raise OSError("simulated plan marker os failure")
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", capture_lstat)
+
+    assert cli_module._run_exists(run_dir) is True
+
+
 def test_run_exists_accepts_regular_plan_when_state_lstat_raises_runtime_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
