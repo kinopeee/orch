@@ -14630,6 +14630,201 @@ def test_cli_resume_too_long_run_id_precedes_invalid_workdir(tmp_path: Path) -> 
     assert not (home / "runs").exists()
 
 
+def test_cli_resume_invalid_run_id_precedes_invalid_workdir_modes_matrix(
+    tmp_path: Path,
+) -> None:
+    flag_orders: list[list[str]] = [
+        ["--fail-fast", "--no-fail-fast"],
+        ["--no-fail-fast", "--fail-fast"],
+    ]
+    run_id_modes = ("path_escape", "too_long")
+    workdir_modes = (
+        "missing_path",
+        "file_path",
+        "file_ancestor",
+        "symlink_to_file",
+        "dangling_symlink",
+        "symlink_ancestor",
+    )
+
+    for order in flag_orders:
+        order_label = "forward" if order[0] == "--fail-fast" else "reverse"
+        for run_id_mode in run_id_modes:
+            bad_run_id = "../escape" if run_id_mode == "path_escape" else "a" * 129
+            for workdir_mode in workdir_modes:
+                case_root = (
+                    tmp_path
+                    / f"resume_invalid_run_id_vs_workdir_{run_id_mode}_{workdir_mode}_{order_label}"
+                )
+                case_root.mkdir()
+                home = case_root / ".orch_cli"
+
+                side_effect_files: list[Path] = []
+                if workdir_mode == "missing_path":
+                    invalid_workdir = case_root / "missing_workdir"
+                elif workdir_mode == "file_path":
+                    invalid_workdir = case_root / "workdir_file"
+                    invalid_workdir.write_text("not a directory\n", encoding="utf-8")
+                    side_effect_files.append(invalid_workdir)
+                elif workdir_mode == "file_ancestor":
+                    workdir_parent_file = case_root / "workdir_parent_file"
+                    workdir_parent_file.write_text("not a directory\n", encoding="utf-8")
+                    invalid_workdir = workdir_parent_file / "child_workdir"
+                    side_effect_files.append(workdir_parent_file)
+                elif workdir_mode == "symlink_to_file":
+                    workdir_target_file = case_root / "workdir_target_file"
+                    workdir_target_file.write_text("not a directory\n", encoding="utf-8")
+                    invalid_workdir = case_root / "workdir_symlink_to_file"
+                    invalid_workdir.symlink_to(workdir_target_file)
+                    side_effect_files.append(workdir_target_file)
+                elif workdir_mode == "dangling_symlink":
+                    invalid_workdir = case_root / "workdir_dangling_symlink"
+                    invalid_workdir.symlink_to(
+                        case_root / "missing_workdir_target", target_is_directory=True
+                    )
+                else:
+                    real_workdir_parent = case_root / "real_workdir_parent"
+                    real_workdir_parent.mkdir()
+                    workdir_parent_link = case_root / "workdir_parent_link"
+                    workdir_parent_link.symlink_to(real_workdir_parent, target_is_directory=True)
+                    invalid_workdir = workdir_parent_link / "child_workdir"
+
+                proc = subprocess.run(
+                    [
+                        sys.executable,
+                        "-m",
+                        "orch.cli",
+                        "resume",
+                        bad_run_id,
+                        "--home",
+                        str(home),
+                        "--workdir",
+                        str(invalid_workdir),
+                        *order,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                output = proc.stdout + proc.stderr
+                context = f"{run_id_mode}-{workdir_mode}-{order_label}"
+                assert proc.returncode == 2, context
+                assert "Invalid run_id" in output, context
+                assert "Invalid workdir" not in output, context
+                assert "Invalid home" not in output, context
+                assert "Run not found or broken" not in output, context
+                assert "Plan validation error" not in output, context
+                assert "run_id: [bold]" not in output, context
+                assert "state:" not in output, context
+                assert "report:" not in output, context
+                assert not home.exists(), context
+                assert not (home / "runs").exists(), context
+
+                for file_path in side_effect_files:
+                    assert file_path.read_text(encoding="utf-8") == "not a directory\n", context
+                if workdir_mode == "dangling_symlink":
+                    assert not (case_root / "missing_workdir_target").exists(), context
+                if workdir_mode == "symlink_ancestor":
+                    assert not (real_workdir_parent / "child_workdir").exists(), context
+
+
+def test_cli_resume_default_home_invalid_run_id_precedes_invalid_workdir_modes_matrix(
+    tmp_path: Path,
+) -> None:
+    flag_orders: list[list[str]] = [
+        ["--fail-fast", "--no-fail-fast"],
+        ["--no-fail-fast", "--fail-fast"],
+    ]
+    run_id_modes = ("path_escape", "too_long")
+    workdir_modes = (
+        "missing_path",
+        "file_path",
+        "file_ancestor",
+        "symlink_to_file",
+        "dangling_symlink",
+        "symlink_ancestor",
+    )
+
+    for order in flag_orders:
+        order_label = "forward" if order[0] == "--fail-fast" else "reverse"
+        for run_id_mode in run_id_modes:
+            bad_run_id = "../escape" if run_id_mode == "path_escape" else "a" * 129
+            for workdir_mode in workdir_modes:
+                case_root = (
+                    tmp_path / "resume_default_home_invalid_run_id_vs_workdir_"
+                    f"{run_id_mode}_{workdir_mode}_{order_label}"
+                )
+                case_root.mkdir()
+                default_home = case_root / ".orch"
+
+                side_effect_files: list[Path] = []
+                if workdir_mode == "missing_path":
+                    invalid_workdir = case_root / "missing_workdir"
+                elif workdir_mode == "file_path":
+                    invalid_workdir = case_root / "workdir_file"
+                    invalid_workdir.write_text("not a directory\n", encoding="utf-8")
+                    side_effect_files.append(invalid_workdir)
+                elif workdir_mode == "file_ancestor":
+                    workdir_parent_file = case_root / "workdir_parent_file"
+                    workdir_parent_file.write_text("not a directory\n", encoding="utf-8")
+                    invalid_workdir = workdir_parent_file / "child_workdir"
+                    side_effect_files.append(workdir_parent_file)
+                elif workdir_mode == "symlink_to_file":
+                    workdir_target_file = case_root / "workdir_target_file"
+                    workdir_target_file.write_text("not a directory\n", encoding="utf-8")
+                    invalid_workdir = case_root / "workdir_symlink_to_file"
+                    invalid_workdir.symlink_to(workdir_target_file)
+                    side_effect_files.append(workdir_target_file)
+                elif workdir_mode == "dangling_symlink":
+                    invalid_workdir = case_root / "workdir_dangling_symlink"
+                    invalid_workdir.symlink_to(
+                        case_root / "missing_workdir_target", target_is_directory=True
+                    )
+                else:
+                    real_workdir_parent = case_root / "real_workdir_parent"
+                    real_workdir_parent.mkdir()
+                    workdir_parent_link = case_root / "workdir_parent_link"
+                    workdir_parent_link.symlink_to(real_workdir_parent, target_is_directory=True)
+                    invalid_workdir = workdir_parent_link / "child_workdir"
+
+                proc = subprocess.run(
+                    [
+                        sys.executable,
+                        "-m",
+                        "orch.cli",
+                        "resume",
+                        bad_run_id,
+                        "--workdir",
+                        str(invalid_workdir),
+                        *order,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    cwd=case_root,
+                )
+                output = proc.stdout + proc.stderr
+                context = f"{run_id_mode}-{workdir_mode}-{order_label}"
+                assert proc.returncode == 2, context
+                assert "Invalid run_id" in output, context
+                assert "Invalid workdir" not in output, context
+                assert "Invalid home" not in output, context
+                assert "Run not found or broken" not in output, context
+                assert "Plan validation error" not in output, context
+                assert "run_id: [bold]" not in output, context
+                assert "state:" not in output, context
+                assert "report:" not in output, context
+                assert not default_home.exists(), context
+                assert not (default_home / "runs").exists(), context
+
+                for file_path in side_effect_files:
+                    assert file_path.read_text(encoding="utf-8") == "not a directory\n", context
+                if workdir_mode == "dangling_symlink":
+                    assert not (case_root / "missing_workdir_target").exists(), context
+                if workdir_mode == "symlink_ancestor":
+                    assert not (real_workdir_parent / "child_workdir").exists(), context
+
+
 def test_cli_cancel_rejects_absolute_run_id_without_side_effect(tmp_path: Path) -> None:
     home = tmp_path / ".orch_cli"
     outside_run_dir = tmp_path / "outside_run"
