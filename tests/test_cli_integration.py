@@ -2977,6 +2977,9 @@ def test_cli_run_dry_run_both_fail_fast_toggles_invalid_plan_precedes_invalid_wo
     assert "Invalid home" not in output
     assert "Invalid workdir" not in output
     assert "Dry Run" not in output
+    assert "run_id:" not in output
+    assert "state:" not in output
+    assert "report:" not in output
     assert not (home / "runs").exists()
 
 
@@ -4099,6 +4102,9 @@ def test_cli_run_dry_run_both_fail_fast_toggles_reverse_order_invalid_plan_prece
     assert "Invalid home" not in output
     assert "Invalid workdir" not in output
     assert "Dry Run" not in output
+    assert "run_id:" not in output
+    assert "state:" not in output
+    assert "report:" not in output
     assert not (home / "runs").exists()
 
 
