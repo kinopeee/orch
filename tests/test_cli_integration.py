@@ -728,6 +728,182 @@ def test_cli_run_dry_run_both_fail_fast_toggles_reverse_order_preserve_dependenc
     assert not (home / "runs").exists()
 
 
+def test_cli_run_dry_run_both_toggles_rejects_symlink_plan_path(
+    tmp_path: Path,
+) -> None:
+    real_plan = tmp_path / "real_plan_both_toggles.yaml"
+    home = tmp_path / ".orch_cli"
+    _write_plan(
+        real_plan,
+        """
+        tasks:
+          - id: a
+            cmd: ["python3", "-c", "print('a')"]
+        """,
+    )
+    symlink_plan = tmp_path / "plan_symlink_both_toggles.yaml"
+    symlink_plan.symlink_to(real_plan)
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(symlink_plan),
+            "--home",
+            str(home),
+            "--dry-run",
+            "--fail-fast",
+            "--no-fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Plan validation error" in output
+    assert "Dry Run" not in output
+    assert "run_id:" not in output
+    assert "state:" not in output
+    assert "report:" not in output
+    assert not (home / "runs").exists()
+
+
+def test_cli_run_dry_run_both_toggles_reverse_rejects_symlink_plan_path(
+    tmp_path: Path,
+) -> None:
+    real_plan = tmp_path / "real_plan_both_toggles_reverse.yaml"
+    home = tmp_path / ".orch_cli"
+    _write_plan(
+        real_plan,
+        """
+        tasks:
+          - id: a
+            cmd: ["python3", "-c", "print('a')"]
+        """,
+    )
+    symlink_plan = tmp_path / "plan_symlink_both_toggles_reverse.yaml"
+    symlink_plan.symlink_to(real_plan)
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(symlink_plan),
+            "--home",
+            str(home),
+            "--dry-run",
+            "--no-fail-fast",
+            "--fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Plan validation error" in output
+    assert "Dry Run" not in output
+    assert "run_id:" not in output
+    assert "state:" not in output
+    assert "report:" not in output
+    assert not (home / "runs").exists()
+
+
+def test_cli_run_dry_run_both_toggles_rejects_plan_path_with_symlink_ancestor(
+    tmp_path: Path,
+) -> None:
+    real_parent = tmp_path / "real_plan_parent_both_toggles"
+    real_parent.mkdir()
+    real_plan = real_parent / "plan.yaml"
+    home = tmp_path / ".orch_cli"
+    _write_plan(
+        real_plan,
+        """
+        tasks:
+          - id: a
+            cmd: ["python3", "-c", "print('a')"]
+        """,
+    )
+    symlink_parent = tmp_path / "plan_parent_link_both_toggles"
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(symlink_parent / "plan.yaml"),
+            "--home",
+            str(home),
+            "--dry-run",
+            "--fail-fast",
+            "--no-fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Plan validation error" in output
+    assert "Dry Run" not in output
+    assert "run_id:" not in output
+    assert "state:" not in output
+    assert "report:" not in output
+    assert not (home / "runs").exists()
+
+
+def test_cli_run_dry_run_both_toggles_reverse_rejects_plan_path_with_symlink_ancestor(
+    tmp_path: Path,
+) -> None:
+    real_parent = tmp_path / "real_plan_parent_both_toggles_reverse"
+    real_parent.mkdir()
+    real_plan = real_parent / "plan.yaml"
+    home = tmp_path / ".orch_cli"
+    _write_plan(
+        real_plan,
+        """
+        tasks:
+          - id: a
+            cmd: ["python3", "-c", "print('a')"]
+        """,
+    )
+    symlink_parent = tmp_path / "plan_parent_link_both_toggles_reverse"
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(symlink_parent / "plan.yaml"),
+            "--home",
+            str(home),
+            "--dry-run",
+            "--no-fail-fast",
+            "--fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Plan validation error" in output
+    assert "Dry Run" not in output
+    assert "run_id:" not in output
+    assert "state:" not in output
+    assert "report:" not in output
+    assert not (home / "runs").exists()
+
+
 def test_cli_run_dry_run_both_fail_fast_toggles_invalid_home_precedes_invalid_workdir(
     tmp_path: Path,
 ) -> None:
