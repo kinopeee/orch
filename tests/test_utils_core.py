@@ -7185,6 +7185,218 @@ def test_cli_integration_existing_home_preserve_entries_matrix_output_contract()
     assert "cwd=case_root" not in source_segment
 
 
+def test_cli_integration_default_existing_home_preserve_entries_matrix_keeps_axes_and_toggles() -> (
+    None
+):
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_module = ast.parse(
+        (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    )
+    matrix_name = (
+        "test_cli_run_dry_run_both_toggles_default_existing_home_"
+        "preserves_entries_plan_error_matrix"
+    )
+
+    matrix_function = next(
+        (
+            node
+            for node in ast.walk(integration_module)
+            if isinstance(node, ast.FunctionDef) and node.name == matrix_name
+        ),
+        None,
+    )
+    assert matrix_function is not None
+
+    flag_orders_assign = next(
+        (
+            stmt
+            for stmt in matrix_function.body
+            if isinstance(stmt, ast.AnnAssign)
+            and isinstance(stmt.target, ast.Name)
+            and stmt.target.id == "flag_orders"
+            and isinstance(stmt.value, ast.List)
+        ),
+        None,
+    )
+    assert flag_orders_assign is not None
+    assert isinstance(flag_orders_assign.value, ast.List)
+    toggle_orders: set[tuple[str, ...]] = set()
+    for order_node in flag_orders_assign.value.elts:
+        assert isinstance(order_node, ast.List)
+        order_values: list[str] = []
+        for item in order_node.elts:
+            assert isinstance(item, ast.Constant)
+            assert isinstance(item.value, str)
+            order_values.append(item.value)
+        toggle_orders.add(tuple(order_values))
+    assert toggle_orders == {
+        ("--fail-fast", "--no-fail-fast"),
+        ("--no-fail-fast", "--fail-fast"),
+    }
+
+    case_modes_assign = next(
+        (
+            stmt
+            for stmt in matrix_function.body
+            if isinstance(stmt, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "case_modes"
+                for target in stmt.targets
+            )
+            and isinstance(stmt.value, ast.Tuple)
+        ),
+        None,
+    )
+    assert case_modes_assign is not None
+    assert isinstance(case_modes_assign.value, ast.Tuple)
+
+    case_names: set[str] = set()
+    plan_kinds: set[str] = set()
+    workdir_modes: set[bool] = set()
+    for case_node in case_modes_assign.value.elts:
+        assert isinstance(case_node, ast.Tuple)
+        assert len(case_node.elts) == 3
+
+        name_node = case_node.elts[0]
+        kind_node = case_node.elts[1]
+        workdir_node = case_node.elts[2]
+
+        assert isinstance(name_node, ast.Constant)
+        assert isinstance(name_node.value, str)
+        case_names.add(name_node.value)
+
+        assert isinstance(kind_node, ast.Constant)
+        assert isinstance(kind_node.value, str)
+        plan_kinds.add(kind_node.value)
+
+        assert isinstance(workdir_node, ast.Constant)
+        assert isinstance(workdir_node.value, bool)
+        workdir_modes.add(workdir_node.value)
+
+    assert case_names == {
+        "invalid_only",
+        "invalid_with_workdir",
+        "missing_only",
+        "missing_with_workdir",
+    }
+    assert plan_kinds == {"invalid_plan", "missing_plan"}
+    assert workdir_modes == {False, True}
+
+
+def test_cli_integration_default_existing_home_preserve_entries_matrix_output_contract() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+    matrix_name = (
+        "test_cli_run_dry_run_both_toggles_default_existing_home_"
+        "preserves_entries_plan_error_matrix"
+    )
+
+    matrix_function = next(
+        (
+            node
+            for node in ast.walk(integration_module)
+            if isinstance(node, ast.FunctionDef) and node.name == matrix_name
+        ),
+        None,
+    )
+    assert matrix_function is not None
+
+    source_segment = ast.get_source_segment(integration_source, matrix_function)
+    assert source_segment is not None
+    assert '"Plan validation error" in output' in source_segment
+    assert '"PLAN_PATH" in output' in source_segment
+    assert "\"Invalid value for 'PLAN_PATH'\" in output" in source_segment
+    assert '"contains symlink component" not in output' in source_segment
+    assert '"Invalid home" not in output' in source_segment
+    assert '"Invalid workdir" not in output' in source_segment
+    assert '"Dry Run" not in output' in source_segment
+    assert '"run_id:" not in output' in source_segment
+    assert '"state:" not in output' in source_segment
+    assert '"report:" not in output' in source_segment
+    assert "assert default_home.exists(), context" in source_segment
+    assert 'assert not (default_home / "runs").exists(), context' in source_segment
+    assert "default_home.iterdir()" in source_segment
+    assert '"keep.txt"' in source_segment
+    assert '"keep_dir"' in source_segment
+    assert (
+        'assert sentinel_file.read_text(encoding="utf-8") == "keep\\n", context' in source_segment
+    )
+    assert "assert sentinel_dir.is_dir(), context" in source_segment
+    assert '"--home"' not in source_segment
+    assert '"--workdir"' in source_segment
+    assert "cwd=case_root" in source_segment
+
+
+def test_cli_integration_existing_home_preserve_entries_matrices_keep_boundaries() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    explicit_matrix = (
+        "test_cli_run_dry_run_both_toggles_existing_home_preserves_entries_plan_error_matrix"
+    )
+    default_matrix = (
+        "test_cli_run_dry_run_both_toggles_default_existing_home_"
+        "preserves_entries_plan_error_matrix"
+    )
+
+    expectations = {
+        explicit_matrix: {
+            "home_var": "home",
+            "has_cwd": False,
+            "uses_home_flag": True,
+        },
+        default_matrix: {
+            "home_var": "default_home",
+            "has_cwd": True,
+            "uses_home_flag": False,
+        },
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expectations:
+            continue
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        expected = expectations[node.name]
+        home_var = expected["home_var"]
+
+        assert f"assert {home_var}.exists(), context" in source_segment
+        assert f'assert not ({home_var} / "runs").exists(), context' in source_segment
+        assert f"{home_var}.iterdir()" in source_segment
+        assert '"keep.txt"' in source_segment
+        assert '"keep_dir"' in source_segment
+        assert (
+            'assert sentinel_file.read_text(encoding="utf-8") == "keep\\n", context'
+            in source_segment
+        )
+        assert "assert sentinel_dir.is_dir(), context" in source_segment
+        assert '"run_id:" not in output' in source_segment
+        assert '"state:" not in output' in source_segment
+        assert '"report:" not in output' in source_segment
+
+        if expected["has_cwd"]:
+            assert "cwd=case_root" in source_segment
+        else:
+            assert "cwd=case_root" not in source_segment
+
+        if expected["uses_home_flag"]:
+            assert '"--home"' in source_segment
+        else:
+            assert '"--home"' not in source_segment
+
+        assert '"--workdir"' in source_segment
+
+        matched.add(node.name)
+
+    assert matched == set(expectations)
+
+
 def test_cli_integration_missing_plan_existing_home_cases_keep_home_contracts() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
