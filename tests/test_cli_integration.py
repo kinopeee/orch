@@ -839,33 +839,40 @@ def test_cli_run_dry_run_both_toggles_invalid_home_never_emits_runtime_summary(
         for case_name in case_names:
             case_root = tmp_path / f"{case_name}_{order_label}"
             case_root.mkdir()
+            side_effect_roots: list[Path] = []
 
             if case_name == "home_file":
                 home_path = case_root / "home_file"
                 home_path.write_text("not a dir\n", encoding="utf-8")
+                side_effect_roots.append(case_root)
             elif case_name == "file_ancestor":
                 parent_file = case_root / "home_parent_file"
                 parent_file.write_text("not a dir\n", encoding="utf-8")
                 home_path = parent_file / "orch_home"
+                side_effect_roots.append(case_root)
             elif case_name == "symlink_to_dir":
                 real_home = case_root / "real_home"
                 real_home.mkdir()
                 home_path = case_root / "home_symlink_dir"
                 home_path.symlink_to(real_home, target_is_directory=True)
+                side_effect_roots.extend([case_root, real_home])
             elif case_name == "symlink_to_file":
                 target_file = case_root / "home_target_file"
                 target_file.write_text("not a dir\n", encoding="utf-8")
                 home_path = case_root / "home_symlink_file"
                 home_path.symlink_to(target_file)
+                side_effect_roots.append(case_root)
             elif case_name == "dangling_symlink":
                 home_path = case_root / "home_dangling_symlink"
                 home_path.symlink_to(case_root / "missing-target", target_is_directory=True)
+                side_effect_roots.append(case_root)
             else:
                 real_parent = case_root / "real_parent"
                 real_parent.mkdir()
                 symlink_parent = case_root / "symlink_parent"
                 symlink_parent.symlink_to(real_parent, target_is_directory=True)
                 home_path = symlink_parent / "orch_home"
+                side_effect_roots.extend([case_root, real_parent])
 
             proc = subprocess.run(
                 [
@@ -892,6 +899,8 @@ def test_cli_run_dry_run_both_toggles_invalid_home_never_emits_runtime_summary(
             assert "run_id:" not in output, context
             assert "state:" not in output, context
             assert "report:" not in output, context
+            for root in side_effect_roots:
+                assert not (root / "runs").exists(), context
 
 
 def test_cli_run_dry_run_both_toggles_symlink_home_precedes_invalid_plan(
