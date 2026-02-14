@@ -394,6 +394,17 @@ def test_validate_home_or_exit_rejects_symlink_to_file(tmp_path: Path) -> None:
     assert exc_info.value.exit_code == 2
 
 
+def test_validate_home_or_exit_rejects_dangling_symlink(tmp_path: Path) -> None:
+    missing_home_target = tmp_path / "missing_home_target"
+    linked_home = tmp_path / "home_link"
+    linked_home.symlink_to(missing_home_target, target_is_directory=True)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _validate_home_or_exit(linked_home)
+    assert exc_info.value.exit_code == 2
+    assert not missing_home_target.exists()
+
+
 def test_validate_home_or_exit_rejects_when_existing_ancestor_is_not_directory(
     tmp_path: Path,
 ) -> None:
