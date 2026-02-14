@@ -4002,6 +4002,87 @@ def test_cli_run_dry_run_both_toggles_reject_missing_plan_path_existing_home_mat
             assert sorted(path.name for path in home.iterdir()) == [], context
 
 
+def test_cli_run_dry_run_both_toggles_existing_home_preserves_entries_plan_error_matrix(
+    tmp_path: Path,
+) -> None:
+    flag_orders: list[list[str]] = [
+        ["--fail-fast", "--no-fail-fast"],
+        ["--no-fail-fast", "--fail-fast"],
+    ]
+    case_modes = (
+        ("invalid_only", "invalid_plan", False),
+        ("invalid_with_workdir", "invalid_plan", True),
+        ("missing_only", "missing_plan", False),
+        ("missing_with_workdir", "missing_plan", True),
+    )
+
+    for order in flag_orders:
+        order_label = "forward" if order[0] == "--fail-fast" else "reverse"
+        for case_name, plan_kind, needs_workdir in case_modes:
+            case_root = tmp_path / f"preserve_home_entries_{case_name}_{order_label}"
+            case_root.mkdir()
+            home = case_root / ".orch_cli"
+            home.mkdir()
+            sentinel_file = home / "keep.txt"
+            sentinel_file.write_text("keep\n", encoding="utf-8")
+            sentinel_dir = home / "keep_dir"
+            sentinel_dir.mkdir()
+
+            if plan_kind == "invalid_plan":
+                plan_path = case_root / "invalid_plan.yaml"
+                plan_path.write_text("tasks:\n  - id: t1\n    cmd: [\n", encoding="utf-8")
+            else:
+                plan_path = case_root / "missing_plan.yaml"
+
+            command = [
+                sys.executable,
+                "-m",
+                "orch.cli",
+                "run",
+                str(plan_path),
+                "--home",
+                str(home),
+                "--dry-run",
+                *order,
+            ]
+            if needs_workdir:
+                invalid_workdir_file = case_root / "invalid_workdir"
+                invalid_workdir_file.write_text("file\n", encoding="utf-8")
+                command.extend(["--workdir", str(invalid_workdir_file)])
+
+            proc = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=5,
+            )
+            output = proc.stdout + proc.stderr
+            context = f"{case_name}-{order_label}"
+            assert proc.returncode == 2, context
+
+            if plan_kind == "invalid_plan":
+                assert "Plan validation error" in output, context
+                assert "PLAN_PATH" not in output, context
+            else:
+                assert "PLAN_PATH" in output, context
+                assert "Invalid value for 'PLAN_PATH'" in output, context
+                assert "Plan validation error" not in output, context
+                assert "contains symlink component" not in output, context
+
+            assert "Invalid home" not in output, context
+            assert "Invalid workdir" not in output, context
+            assert "Dry Run" not in output, context
+            assert "run_id:" not in output, context
+            assert "state:" not in output, context
+            assert "report:" not in output, context
+            assert home.exists(), context
+            assert not (home / "runs").exists(), context
+            assert sorted(path.name for path in home.iterdir()) == ["keep.txt", "keep_dir"], context
+            assert sentinel_file.read_text(encoding="utf-8") == "keep\n", context
+            assert sentinel_dir.is_dir(), context
+
+
 def test_cli_run_dry_run_both_toggles_reject_missing_plan_path_matrix(
     tmp_path: Path,
 ) -> None:
