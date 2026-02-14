@@ -5977,6 +5977,60 @@ def test_cli_integration_invalid_plan_existing_home_cases_keep_home_contracts() 
     assert matched == set(expectations)
 
 
+def test_cli_integration_explicit_existing_home_plan_error_cases_keep_contracts() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    expectations = {
+        "test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_existing_home_matrix": {
+            "anchor": '"Plan validation error" in output',
+            "needs_workdir": True,
+        },
+        "test_cli_run_dry_run_both_toggles_reject_invalid_plan_existing_home_matrix": {
+            "anchor": '"Plan validation error" in output',
+            "needs_workdir": False,
+        },
+        "test_cli_run_dry_run_both_toggles_missing_plan_precedes_workdir_existing_home_matrix": {
+            "anchor": '"PLAN_PATH" in output',
+            "needs_workdir": True,
+        },
+        "test_cli_run_dry_run_both_toggles_reject_missing_plan_path_existing_home_matrix": {
+            "anchor": '"PLAN_PATH" in output',
+            "needs_workdir": False,
+        },
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expectations:
+            continue
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        expected = expectations[node.name]
+
+        assert expected["anchor"] in source_segment
+        assert "cwd=case_root" not in source_segment
+        assert "assert home.exists(), context" in source_segment
+        assert 'assert not (home / "runs").exists(), context' in source_segment
+        assert '"--home"' in source_segment
+        assert '"run_id:" not in output' in source_segment
+        assert '"state:" not in output' in source_segment
+        assert '"report:" not in output' in source_segment
+
+        if expected["needs_workdir"]:
+            assert '"--workdir"' in source_segment
+        else:
+            assert '"--workdir"' not in source_segment
+
+        matched.add(node.name)
+
+    assert matched == set(expectations)
+
+
 def test_cli_integration_missing_plan_workdir_matrix_asserts_output_contract() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
