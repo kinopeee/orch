@@ -1823,6 +1823,130 @@ def test_source_cli_resume_validates_and_resolves_workdir_before_run_dir() -> No
     assert min(resolve_workdir_lines) < min(run_dir_lines)
 
 
+def test_source_cli_run_validates_home_before_plan_load_and_workdir_resolution() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    run_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "run"
+        ),
+        None,
+    )
+    assert run_function is not None
+
+    validate_home_lines = [
+        node.lineno
+        for node in ast.walk(run_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_validate_home_or_exit"
+    ]
+    load_plan_lines = [
+        node.lineno
+        for node in ast.walk(run_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "load_plan"
+    ]
+    resolve_workdir_lines = [
+        node.lineno
+        for node in ast.walk(run_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_resolve_workdir_or_exit"
+    ]
+
+    assert validate_home_lines
+    assert load_plan_lines
+    assert resolve_workdir_lines
+    assert min(validate_home_lines) < min(load_plan_lines)
+    assert min(load_plan_lines) < min(resolve_workdir_lines)
+
+
+def test_source_cli_run_resolves_workdir_before_run_dir_creation() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    run_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "run"
+        ),
+        None,
+    )
+    assert run_function is not None
+
+    resolve_workdir_lines = [
+        node.lineno
+        for node in ast.walk(run_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_resolve_workdir_or_exit"
+    ]
+    run_dir_lines = [
+        node.lineno
+        for node in ast.walk(run_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "run_dir"
+    ]
+    assert resolve_workdir_lines
+    assert run_dir_lines
+    assert min(resolve_workdir_lines) < min(run_dir_lines)
+
+
+def test_source_cli_run_has_dry_run_exit_before_workdir_resolution() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    run_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "run"
+        ),
+        None,
+    )
+    assert run_function is not None
+
+    dry_run_if = next(
+        (
+            stmt
+            for stmt in run_function.body
+            if isinstance(stmt, ast.If)
+            and isinstance(stmt.test, ast.Name)
+            and stmt.test.id == "dry_run"
+        ),
+        None,
+    )
+    assert dry_run_if is not None
+
+    has_exit_zero = any(
+        isinstance(node, ast.Raise)
+        and isinstance(node.exc, ast.Call)
+        and isinstance(node.exc.func, ast.Attribute)
+        and isinstance(node.exc.func.value, ast.Name)
+        and node.exc.func.value.id == "typer"
+        and node.exc.func.attr == "Exit"
+        and len(node.exc.args) == 1
+        and isinstance(node.exc.args[0], ast.Constant)
+        and node.exc.args[0].value == 0
+        for node in ast.walk(dry_run_if)
+    )
+    assert has_exit_zero
+
+    resolve_workdir_lines = [
+        node.lineno
+        for node in ast.walk(run_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_resolve_workdir_or_exit"
+    ]
+    assert resolve_workdir_lines
+    assert dry_run_if.lineno < min(resolve_workdir_lines)
+
+
 def test_source_cli_status_logs_validate_home_before_lock_and_load_state() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
