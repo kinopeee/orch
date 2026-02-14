@@ -436,7 +436,12 @@ def cancel(
     _validate_run_id_or_exit(run_id)
     _validate_home_or_exit(home)
     current_run_dir = run_dir(home, run_id)
-    if not _run_exists(current_run_dir):
+    try:
+        exists = _run_exists(current_run_dir)
+    except (OSError, RuntimeError) as exc:
+        console.print(f"[red]Failed to inspect run:[/red] {exc}")
+        raise typer.Exit(2) from exc
+    if not exists:
         console.print(f"[red]Run not found:[/red] {run_id}")
         raise typer.Exit(2)
     try:
