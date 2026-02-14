@@ -15172,6 +15172,104 @@ def test_cli_cancel_rejects_absolute_run_id_without_side_effect(tmp_path: Path) 
     assert not (outside_run_dir / "cancel.request").exists()
 
 
+def test_cli_cancel_invalid_run_id_existing_home_preserves_entries_matrix(
+    tmp_path: Path,
+) -> None:
+    run_id_modes = ("path_escape", "too_long")
+
+    for run_id_mode in run_id_modes:
+        bad_run_id = "../escape" if run_id_mode == "path_escape" else "a" * 129
+        case_root = tmp_path / f"cancel_invalid_run_id_existing_home_{run_id_mode}"
+        case_root.mkdir()
+        home = case_root / ".orch_cli"
+        home.mkdir()
+        sentinel_file = home / "keep.txt"
+        sentinel_file.write_text("keep\n", encoding="utf-8")
+        sentinel_dir = home / "keep_dir"
+        sentinel_dir.mkdir()
+        nested_file = sentinel_dir / "nested.txt"
+        nested_file.write_text("nested\n", encoding="utf-8")
+
+        proc = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "orch.cli",
+                "cancel",
+                bad_run_id,
+                "--home",
+                str(home),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        output = proc.stdout + proc.stderr
+        context = run_id_mode
+        assert proc.returncode == 2, context
+        assert "Invalid run_id" in output, context
+        assert "Invalid home" not in output, context
+        assert "Run not found or broken" not in output, context
+        assert "Plan validation error" not in output, context
+        assert "Cancel request written" not in output, context
+        assert home.exists(), context
+        assert not (home / "runs").exists(), context
+        assert sorted(path.name for path in home.iterdir()) == ["keep.txt", "keep_dir"], context
+        assert sentinel_file.read_text(encoding="utf-8") == "keep\n", context
+        assert sentinel_dir.is_dir(), context
+        assert nested_file.read_text(encoding="utf-8") == "nested\n", context
+
+
+def test_cli_cancel_invalid_run_id_default_home_preserves_entries_matrix(
+    tmp_path: Path,
+) -> None:
+    run_id_modes = ("path_escape", "too_long")
+
+    for run_id_mode in run_id_modes:
+        bad_run_id = "../escape" if run_id_mode == "path_escape" else "a" * 129
+        case_root = tmp_path / f"cancel_invalid_run_id_default_home_{run_id_mode}"
+        case_root.mkdir()
+        default_home = case_root / ".orch"
+        default_home.mkdir()
+        sentinel_file = default_home / "keep.txt"
+        sentinel_file.write_text("keep\n", encoding="utf-8")
+        sentinel_dir = default_home / "keep_dir"
+        sentinel_dir.mkdir()
+        nested_file = sentinel_dir / "nested.txt"
+        nested_file.write_text("nested\n", encoding="utf-8")
+
+        proc = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "orch.cli",
+                "cancel",
+                bad_run_id,
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            cwd=case_root,
+        )
+        output = proc.stdout + proc.stderr
+        context = run_id_mode
+        assert proc.returncode == 2, context
+        assert "Invalid run_id" in output, context
+        assert "Invalid home" not in output, context
+        assert "Run not found or broken" not in output, context
+        assert "Plan validation error" not in output, context
+        assert "Cancel request written" not in output, context
+        assert default_home.exists(), context
+        assert not (default_home / "runs").exists(), context
+        assert sorted(path.name for path in default_home.iterdir()) == [
+            "keep.txt",
+            "keep_dir",
+        ], context
+        assert sentinel_file.read_text(encoding="utf-8") == "keep\n", context
+        assert sentinel_dir.is_dir(), context
+        assert nested_file.read_text(encoding="utf-8") == "nested\n", context
+
+
 def test_cli_cancel_invalid_run_id_takes_precedence_over_invalid_home(tmp_path: Path) -> None:
     home_file = tmp_path / "home_file"
     home_file.write_text("not a dir\n", encoding="utf-8")
