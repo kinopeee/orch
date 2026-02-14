@@ -1133,6 +1133,61 @@ def test_cli_cancel_accepts_regular_plan_with_symlink_state_marker(tmp_path: Pat
     assert outside_state.read_text(encoding="utf-8") == "{}"
 
 
+def test_cli_cancel_rejects_run_with_directory_only_markers(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    run_id = "20260101_000000_abcdef"
+    run_dir = home / "runs" / run_id
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").mkdir()
+    (run_dir / "plan.yaml").mkdir()
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "cancel", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "Run not found" in proc.stdout
+    assert not (run_dir / "cancel.request").exists()
+
+
+def test_cli_cancel_accepts_regular_state_with_directory_plan_marker(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    run_id = "20260101_000000_abcdef"
+    run_dir = home / "runs" / run_id
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").write_text("{}", encoding="utf-8")
+    (run_dir / "plan.yaml").mkdir()
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "cancel", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0
+    assert (run_dir / "cancel.request").exists()
+
+
+def test_cli_cancel_accepts_regular_plan_with_directory_state_marker(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    run_id = "20260101_000000_abcdef"
+    run_dir = home / "runs" / run_id
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").mkdir()
+    (run_dir / "plan.yaml").write_text("tasks: []\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "cancel", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0
+    assert (run_dir / "cancel.request").exists()
+
+
 def test_cli_cancel_rejects_run_with_symlink_ancestor_home(tmp_path: Path) -> None:
     run_id = "20260101_000000_abcdef"
     real_home = tmp_path / "real_home"
