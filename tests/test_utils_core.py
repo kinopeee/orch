@@ -1967,3 +1967,52 @@ def test_source_run_exists_run_dir_lstat_catches_oserror_and_runtimeerror_as_fal
             break
 
     assert matched
+
+
+def test_source_run_exists_ancestor_guard_returns_false_before_run_dir_lstat() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    run_exists_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "_run_exists"
+        ),
+        None,
+    )
+    assert run_exists_function is not None
+
+    ancestor_if = next(
+        (
+            stmt
+            for stmt in run_exists_function.body
+            if isinstance(stmt, ast.If)
+            and isinstance(stmt.test, ast.Call)
+            and isinstance(stmt.test.func, ast.Name)
+            and stmt.test.func.id == "has_symlink_ancestor"
+        ),
+        None,
+    )
+    assert ancestor_if is not None
+    assert len(ancestor_if.test.args) == 1
+    assert isinstance(ancestor_if.test.args[0], ast.Name)
+    assert ancestor_if.test.args[0].id == "current_run_dir"
+    assert any(
+        isinstance(stmt, ast.Return)
+        and isinstance(stmt.value, ast.Constant)
+        and stmt.value.value is False
+        for stmt in ancestor_if.body
+    )
+
+    run_dir_lstat_lines = [
+        node.lineno
+        for node in ast.walk(run_exists_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "current_run_dir"
+        and node.func.attr == "lstat"
+    ]
+    assert run_dir_lstat_lines
+    assert ancestor_if.lineno < min(run_dir_lstat_lines)
