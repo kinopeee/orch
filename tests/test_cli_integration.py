@@ -839,6 +839,38 @@ def test_cli_run_dry_run_both_toggles_symlink_home_precedes_invalid_plan(
     assert not (real_home / "runs").exists()
 
 
+def test_cli_run_dry_run_both_toggles_dangling_symlink_home_precedes_invalid_plan(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "plan_both_toggles_dangling_symlink_home_vs_plan.yaml"
+    dangling_home = tmp_path / "dangling_home_both_toggles_plan"
+    dangling_home.symlink_to(tmp_path / "missing-home-target-plan", target_is_directory=True)
+    plan_path.write_text("tasks:\n  - id: t1\n    cmd: [\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(dangling_home),
+            "--dry-run",
+            "--fail-fast",
+            "--no-fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Plan validation error" not in output
+    assert "Dry Run" not in output
+
+
 def test_cli_run_dry_run_both_toggles_symlink_home_precedes_invalid_workdir(
     tmp_path: Path,
 ) -> None:
@@ -923,6 +955,43 @@ def test_cli_run_dry_run_both_toggles_symlink_home_precedes_plan_and_workdir(
     assert "Invalid workdir" not in output
     assert "Dry Run" not in output
     assert not (real_home / "runs").exists()
+
+
+def test_cli_run_dry_run_both_toggles_dangling_symlink_home_precedes_plan_and_workdir(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "plan_both_toggles_dangling_home_vs_plan_workdir.yaml"
+    dangling_home = tmp_path / "dangling_home_both_toggles_plan_workdir"
+    invalid_workdir_file = tmp_path / "invalid_workdir_both_toggles_dangling_home"
+    dangling_home.symlink_to(tmp_path / "missing-home-target", target_is_directory=True)
+    invalid_workdir_file.write_text("file\n", encoding="utf-8")
+    plan_path.write_text("tasks:\n  - id: t1\n    cmd: [\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(dangling_home),
+            "--workdir",
+            str(invalid_workdir_file),
+            "--dry-run",
+            "--fail-fast",
+            "--no-fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Plan validation error" not in output
+    assert "Invalid workdir" not in output
+    assert "Dry Run" not in output
 
 
 def test_cli_run_dry_run_both_toggles_home_precedes_plan_and_workdir(
@@ -1067,6 +1136,40 @@ def test_cli_run_dry_run_both_toggles_reverse_symlink_home_precedes_invalid_plan
     assert not (real_home / "runs").exists()
 
 
+def test_cli_run_dry_run_both_toggles_reverse_dangling_symlink_home_precedes_invalid_plan(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "plan_both_toggles_reverse_dangling_symlink_home_vs_plan.yaml"
+    dangling_home = tmp_path / "dangling_home_both_toggles_reverse_plan"
+    dangling_home.symlink_to(
+        tmp_path / "missing-home-target-reverse-plan", target_is_directory=True
+    )
+    plan_path.write_text("tasks:\n  - id: t1\n    cmd: [\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(dangling_home),
+            "--dry-run",
+            "--no-fail-fast",
+            "--fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Plan validation error" not in output
+    assert "Dry Run" not in output
+
+
 def test_cli_run_dry_run_both_toggles_reverse_symlink_home_precedes_invalid_workdir(
     tmp_path: Path,
 ) -> None:
@@ -1151,6 +1254,43 @@ def test_cli_run_dry_run_both_toggles_reverse_symlink_home_precedes_plan_and_wor
     assert "Invalid workdir" not in output
     assert "Dry Run" not in output
     assert not (real_home / "runs").exists()
+
+
+def test_cli_run_dry_run_both_toggles_reverse_dangling_symlink_home_precedes_plan_and_workdir(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "plan_both_toggles_reverse_dangling_home_vs_plan_workdir.yaml"
+    dangling_home = tmp_path / "dangling_home_both_toggles_reverse_plan_workdir"
+    invalid_workdir_file = tmp_path / "invalid_workdir_both_toggles_reverse_dangling_home"
+    dangling_home.symlink_to(tmp_path / "missing-home-target-reverse", target_is_directory=True)
+    invalid_workdir_file.write_text("file\n", encoding="utf-8")
+    plan_path.write_text("tasks:\n  - id: t1\n    cmd: [\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(dangling_home),
+            "--workdir",
+            str(invalid_workdir_file),
+            "--dry-run",
+            "--no-fail-fast",
+            "--fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Plan validation error" not in output
+    assert "Invalid workdir" not in output
+    assert "Dry Run" not in output
 
 
 def test_cli_run_dry_run_both_fail_fast_toggles_reverse_order_invalid_plan_precedes_invalid_workdir(
