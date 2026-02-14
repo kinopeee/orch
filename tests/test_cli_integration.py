@@ -4390,6 +4390,70 @@ def test_cli_status_rejects_run_dir_with_symlink_ancestor_without_lock_side_effe
     assert not (real_run_dir / ".lock").exists()
 
 
+def test_cli_logs_rejects_symlink_home_path(tmp_path: Path) -> None:
+    real_home = tmp_path / "real_home"
+    run_id = "20260101_000000_abcdef"
+    real_run_dir = real_home / "runs" / run_id
+    real_run_dir.mkdir(parents=True)
+    (real_run_dir / "state.json").write_text(
+        json.dumps(
+            {
+                "run_id": run_id,
+                "created_at": "2026-01-01T00:00:00+00:00",
+                "updated_at": "2026-01-01T00:00:00+00:00",
+                "status": "RUNNING",
+                "goal": None,
+                "plan_relpath": "plan.yaml",
+                "home": str(real_home),
+                "workdir": str(tmp_path),
+                "max_parallel": 1,
+                "fail_fast": False,
+                "tasks": {},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    home = tmp_path / "home_link"
+    home.symlink_to(real_home, target_is_directory=True)
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "logs", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "Invalid home" in proc.stdout
+    assert not (real_run_dir / ".lock").exists()
+
+
+def test_cli_resume_rejects_symlink_home_path(tmp_path: Path) -> None:
+    real_home = tmp_path / "real_home"
+    run_id = "20260101_000000_abcdef"
+    real_run_dir = real_home / "runs" / run_id
+    real_run_dir.mkdir(parents=True)
+    (real_run_dir / "plan.yaml").write_text(
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+        encoding="utf-8",
+    )
+
+    home = tmp_path / "home_link"
+    home.symlink_to(real_home, target_is_directory=True)
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "resume", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "Invalid home" in proc.stdout
+    assert not (real_run_dir / ".lock").exists()
+
+
 def test_cli_status_rejects_non_regular_state_file(tmp_path: Path) -> None:
     if not hasattr(os, "mkfifo"):
         return
