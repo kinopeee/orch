@@ -2991,6 +2991,8 @@ def test_cli_run_dry_run_both_toggles_invalid_plan_precedes_invalid_workdir_matr
     ]
     plan_modes = (
         "invalid_yaml",
+        "unknown_root_field",
+        "unknown_task_field",
         "non_regular_fifo",
         "symlink_plan",
         "symlink_ancestor_plan",
@@ -3008,6 +3010,28 @@ def test_cli_run_dry_run_both_toggles_invalid_plan_precedes_invalid_workdir_matr
             if plan_mode == "invalid_yaml":
                 plan_path = case_root / "invalid_plan.yaml"
                 plan_path.write_text("tasks:\n  - id: t1\n    cmd: [\n", encoding="utf-8")
+            elif plan_mode == "unknown_root_field":
+                plan_path = case_root / "unknown_root_field_plan.yaml"
+                _write_plan(
+                    plan_path,
+                    """
+                    tasks:
+                      - id: t1
+                        cmd: ["python3", "-c", "print('ok')"]
+                    unexpected_root: true
+                    """,
+                )
+            elif plan_mode == "unknown_task_field":
+                plan_path = case_root / "unknown_task_field_plan.yaml"
+                _write_plan(
+                    plan_path,
+                    """
+                    tasks:
+                      - id: t1
+                        cmd: ["python3", "-c", "print('ok')"]
+                        unexpected_task_field: 1
+                    """,
+                )
             elif plan_mode == "non_regular_fifo":
                 plan_path = case_root / "plan_fifo.yaml"
                 os.mkfifo(plan_path)
