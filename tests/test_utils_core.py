@@ -2063,6 +2063,63 @@ def test_source_validate_home_guard_orders_is_symlink_before_ancestor_walk() -> 
     assert second.args[0].id == "home"
 
 
+def test_source_validate_home_guard_reports_invalid_home_message() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    validate_home_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "_validate_home_or_exit"
+        ),
+        None,
+    )
+    assert validate_home_function is not None
+
+    guard_if = next(
+        (
+            stmt
+            for stmt in validate_home_function.body
+            if isinstance(stmt, ast.If)
+            and isinstance(stmt.test, ast.BoolOp)
+            and isinstance(stmt.test.op, ast.Or)
+        ),
+        None,
+    )
+    assert guard_if is not None
+
+    message_found = False
+    for node in ast.walk(guard_if):
+        if not isinstance(node, ast.Call):
+            continue
+        if (
+            not isinstance(node.func, ast.Attribute)
+            or not isinstance(node.func.value, ast.Name)
+            or node.func.value.id != "console"
+            or node.func.attr != "print"
+            or not node.args
+        ):
+            continue
+        arg = node.args[0]
+        if isinstance(arg, ast.JoinedStr):
+            has_message = any(
+                isinstance(part, ast.Constant)
+                and isinstance(part.value, str)
+                and "Invalid home" in part.value
+                for part in arg.values
+            )
+        elif isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+            has_message = "Invalid home" in arg.value
+        else:
+            has_message = False
+        if has_message:
+            message_found = True
+            break
+
+    assert message_found
+
+
 def test_source_cli_status_logs_validate_home_before_lock_and_load_state() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
