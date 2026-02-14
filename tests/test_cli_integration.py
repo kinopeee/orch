@@ -7258,6 +7258,52 @@ def test_cli_status_logs_resume_too_long_run_id_precedes_symlink_home(
         assert "Invalid home" not in output, command
 
 
+def test_cli_status_logs_resume_invalid_run_id_precedes_dangling_symlink_home(
+    tmp_path: Path,
+) -> None:
+    missing_home_target = tmp_path / "missing_home_target"
+    home_link = tmp_path / "home_link"
+    home_link.symlink_to(missing_home_target, target_is_directory=True)
+    bad_run_id = "../escape"
+
+    for command in ("status", "logs", "resume"):
+        proc = subprocess.run(
+            [sys.executable, "-m", "orch.cli", command, bad_run_id, "--home", str(home_link)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        output = proc.stdout + proc.stderr
+        assert proc.returncode == 2, command
+        assert "Invalid run_id" in output, command
+        assert "Invalid home" not in output, command
+
+    assert not missing_home_target.exists()
+
+
+def test_cli_status_logs_resume_too_long_run_id_precedes_dangling_symlink_home(
+    tmp_path: Path,
+) -> None:
+    missing_home_target = tmp_path / "missing_home_target"
+    home_link = tmp_path / "home_link"
+    home_link.symlink_to(missing_home_target, target_is_directory=True)
+    bad_run_id = "a" * 129
+
+    for command in ("status", "logs", "resume"):
+        proc = subprocess.run(
+            [sys.executable, "-m", "orch.cli", command, bad_run_id, "--home", str(home_link)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        output = proc.stdout + proc.stderr
+        assert proc.returncode == 2, command
+        assert "Invalid run_id" in output, command
+        assert "Invalid home" not in output, command
+
+    assert not missing_home_target.exists()
+
+
 def test_cli_status_logs_resume_invalid_run_id_precedes_home_symlink_to_file(
     tmp_path: Path,
 ) -> None:
@@ -7662,6 +7708,48 @@ def test_cli_cancel_too_long_run_id_takes_precedence_over_symlink_home(tmp_path:
     assert "Invalid run_id" in output
     assert "Invalid home" not in output
     assert not (real_run_dir / "cancel.request").exists()
+
+
+def test_cli_cancel_invalid_run_id_takes_precedence_over_dangling_symlink_home(
+    tmp_path: Path,
+) -> None:
+    missing_home_target = tmp_path / "missing_home_target"
+    home_link = tmp_path / "home_link"
+    home_link.symlink_to(missing_home_target, target_is_directory=True)
+    bad_run_id = "../escape"
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "cancel", bad_run_id, "--home", str(home_link)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid run_id" in output
+    assert "Invalid home" not in output
+    assert not missing_home_target.exists()
+
+
+def test_cli_cancel_too_long_run_id_takes_precedence_over_dangling_symlink_home(
+    tmp_path: Path,
+) -> None:
+    missing_home_target = tmp_path / "missing_home_target"
+    home_link = tmp_path / "home_link"
+    home_link.symlink_to(missing_home_target, target_is_directory=True)
+    bad_run_id = "a" * 129
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "cancel", bad_run_id, "--home", str(home_link)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid run_id" in output
+    assert "Invalid home" not in output
+    assert not missing_home_target.exists()
 
 
 def test_cli_cancel_too_long_run_id_takes_precedence_over_home_symlink_to_file(
