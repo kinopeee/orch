@@ -6010,6 +6010,54 @@ def test_cli_status_logs_resume_too_long_run_id_precedes_symlink_home(
         assert "Invalid home" not in output, command
 
 
+def test_cli_status_logs_resume_invalid_run_id_precedes_home_symlink_to_file(
+    tmp_path: Path,
+) -> None:
+    home_target_file = tmp_path / "home_target_file.txt"
+    home_target_file.write_text("not a home dir\n", encoding="utf-8")
+    home_link = tmp_path / "home_link"
+    home_link.symlink_to(home_target_file)
+    bad_run_id = "../escape"
+
+    for command in ("status", "logs", "resume"):
+        proc = subprocess.run(
+            [sys.executable, "-m", "orch.cli", command, bad_run_id, "--home", str(home_link)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        output = proc.stdout + proc.stderr
+        assert proc.returncode == 2, command
+        assert "Invalid run_id" in output, command
+        assert "Invalid home" not in output, command
+
+    assert home_target_file.read_text(encoding="utf-8") == "not a home dir\n"
+
+
+def test_cli_status_logs_resume_too_long_run_id_precedes_home_symlink_to_file(
+    tmp_path: Path,
+) -> None:
+    home_target_file = tmp_path / "home_target_file.txt"
+    home_target_file.write_text("not a home dir\n", encoding="utf-8")
+    home_link = tmp_path / "home_link"
+    home_link.symlink_to(home_target_file)
+    bad_run_id = "a" * 129
+
+    for command in ("status", "logs", "resume"):
+        proc = subprocess.run(
+            [sys.executable, "-m", "orch.cli", command, bad_run_id, "--home", str(home_link)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        output = proc.stdout + proc.stderr
+        assert proc.returncode == 2, command
+        assert "Invalid run_id" in output, command
+        assert "Invalid home" not in output, command
+
+    assert home_target_file.read_text(encoding="utf-8") == "not a home dir\n"
+
+
 def test_cli_status_logs_resume_invalid_run_id_precedes_home_file_ancestor(
     tmp_path: Path,
 ) -> None:
