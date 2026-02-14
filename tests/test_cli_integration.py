@@ -1035,6 +1035,48 @@ def test_cli_run_dry_run_both_toggles_reject_dangling_symlink_home(
     assert "Dry Run" not in output
 
 
+def test_cli_run_dry_run_both_toggles_reject_symlink_ancestor_home(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "plan_both_toggles_symlink_ancestor_home_only.yaml"
+    real_parent = tmp_path / "real_parent_both_toggles_only"
+    symlink_parent = tmp_path / "home_parent_link_both_toggles_only"
+    nested_home = symlink_parent / "orch_home"
+    real_parent.mkdir()
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(nested_home),
+            "--dry-run",
+            "--fail-fast",
+            "--no-fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "contains symlink component" not in output
+    assert "Dry Run" not in output
+
+
 def test_cli_run_dry_run_both_toggles_dangling_symlink_home_precedes_invalid_plan(
     tmp_path: Path,
 ) -> None:
@@ -1699,6 +1741,48 @@ def test_cli_run_dry_run_both_toggles_reverse_reject_dangling_symlink_home(
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Invalid home" in output
+    assert "Dry Run" not in output
+
+
+def test_cli_run_dry_run_both_toggles_reverse_reject_symlink_ancestor_home(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "plan_both_toggles_reverse_symlink_ancestor_home_only.yaml"
+    real_parent = tmp_path / "real_parent_both_toggles_reverse_only"
+    symlink_parent = tmp_path / "home_parent_link_both_toggles_reverse_only"
+    nested_home = symlink_parent / "orch_home"
+    real_parent.mkdir()
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(nested_home),
+            "--dry-run",
+            "--no-fail-fast",
+            "--fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert "Dry Run" not in output
 
 
