@@ -1620,3 +1620,64 @@ def test_source_cli_cancel_checks_run_exists_before_write_cancel_request() -> No
     assert run_exists_lines
     assert write_cancel_lines
     assert min(run_exists_lines) < min(write_cancel_lines)
+
+
+def test_source_cli_cancel_checks_full_guard_sequence_before_cancel_write() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    cancel_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "cancel"
+        ),
+        None,
+    )
+    assert cancel_function is not None
+
+    validate_run_id_lines = [
+        node.lineno
+        for node in ast.walk(cancel_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_validate_run_id_or_exit"
+    ]
+    validate_home_lines = [
+        node.lineno
+        for node in ast.walk(cancel_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_validate_home_or_exit"
+    ]
+    run_dir_lines = [
+        node.lineno
+        for node in ast.walk(cancel_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "run_dir"
+    ]
+    run_exists_lines = [
+        node.lineno
+        for node in ast.walk(cancel_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_run_exists"
+    ]
+    write_cancel_lines = [
+        node.lineno
+        for node in ast.walk(cancel_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "write_cancel_request"
+    ]
+
+    assert validate_run_id_lines
+    assert validate_home_lines
+    assert run_dir_lines
+    assert run_exists_lines
+    assert write_cancel_lines
+
+    assert min(validate_run_id_lines) < min(validate_home_lines)
+    assert min(validate_home_lines) < min(run_dir_lines)
+    assert min(run_dir_lines) < min(run_exists_lines)
+    assert min(run_exists_lines) < min(write_cancel_lines)
