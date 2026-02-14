@@ -3222,6 +3222,121 @@ def test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_existing_hom
             assert not (home / "runs").exists(), context
 
 
+def test_cli_run_dry_run_both_toggles_reject_invalid_plan_existing_home_matrix(
+    tmp_path: Path,
+) -> None:
+    if not hasattr(os, "mkfifo"):
+        return
+
+    flag_orders: list[list[str]] = [
+        ["--fail-fast", "--no-fail-fast"],
+        ["--no-fail-fast", "--fail-fast"],
+    ]
+    plan_modes = (
+        "invalid_yaml",
+        "unknown_root_field",
+        "unknown_task_field",
+        "non_regular_fifo",
+        "symlink_plan",
+        "symlink_ancestor_plan",
+    )
+
+    for order in flag_orders:
+        order_label = "forward" if order[0] == "--fail-fast" else "reverse"
+        for plan_mode in plan_modes:
+            case_root = tmp_path / f"invalid_plan_existing_home_only_{plan_mode}_{order_label}"
+            case_root.mkdir()
+            home = case_root / ".orch_cli"
+            home.mkdir()
+
+            if plan_mode == "invalid_yaml":
+                plan_path = case_root / "invalid_plan.yaml"
+                plan_path.write_text("tasks:\n  - id: t1\n    cmd: [\n", encoding="utf-8")
+            elif plan_mode == "unknown_root_field":
+                plan_path = case_root / "unknown_root_field_plan.yaml"
+                _write_plan(
+                    plan_path,
+                    """
+                    tasks:
+                      - id: t1
+                        cmd: ["python3", "-c", "print('ok')"]
+                    unexpected_root: true
+                    """,
+                )
+            elif plan_mode == "unknown_task_field":
+                plan_path = case_root / "unknown_task_field_plan.yaml"
+                _write_plan(
+                    plan_path,
+                    """
+                    tasks:
+                      - id: t1
+                        cmd: ["python3", "-c", "print('ok')"]
+                        unexpected_task_field: 1
+                    """,
+                )
+            elif plan_mode == "non_regular_fifo":
+                plan_path = case_root / "plan_fifo.yaml"
+                os.mkfifo(plan_path)
+            elif plan_mode == "symlink_plan":
+                real_plan = case_root / "real_plan.yaml"
+                _write_plan(
+                    real_plan,
+                    """
+                    tasks:
+                      - id: t1
+                        cmd: ["python3", "-c", "print('ok')"]
+                    """,
+                )
+                plan_path = case_root / "plan_symlink.yaml"
+                plan_path.symlink_to(real_plan)
+            else:
+                real_parent = case_root / "real_plan_parent"
+                real_parent.mkdir()
+                plan_file = real_parent / "plan.yaml"
+                _write_plan(
+                    plan_file,
+                    """
+                    tasks:
+                      - id: t1
+                        cmd: ["python3", "-c", "print('ok')"]
+                    """,
+                )
+                plan_parent_link = case_root / "plan_parent_link"
+                plan_parent_link.symlink_to(real_parent, target_is_directory=True)
+                plan_path = plan_parent_link / "plan.yaml"
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "orch.cli",
+                    "run",
+                    str(plan_path),
+                    "--home",
+                    str(home),
+                    "--dry-run",
+                    *order,
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=5,
+            )
+            output = proc.stdout + proc.stderr
+            context = f"{plan_mode}-{order_label}"
+            assert proc.returncode == 2, context
+            assert "Plan validation error" in output, context
+            assert "PLAN_PATH" not in output, context
+            assert "Invalid home" not in output, context
+            assert "Invalid workdir" not in output, context
+            assert "Dry Run" not in output, context
+            assert "run_id:" not in output, context
+            assert "state:" not in output, context
+            assert "report:" not in output, context
+            assert home.exists(), context
+            assert not (home / "runs").exists(), context
+
+
 def test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_default_home_matrix(
     tmp_path: Path,
 ) -> None:
