@@ -672,6 +672,28 @@ def test_run_exists_short_circuits_on_symlink_run_dir_without_marker_lstat(
     assert marker_lstat_calls == 0
 
 
+def test_run_exists_short_circuits_on_missing_run_dir_without_marker_lstat(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run1"
+    marker_state = run_dir / "state.json"
+    marker_plan = run_dir / "plan.yaml"
+
+    original_lstat = Path.lstat
+    marker_lstat_calls = 0
+
+    def capture_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal marker_lstat_calls
+        if path_obj in {marker_state, marker_plan}:
+            marker_lstat_calls += 1
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", capture_lstat)
+
+    assert cli_module._run_exists(run_dir) is False
+    assert marker_lstat_calls == 0
+
+
 def test_cli_cancel_skips_write_when_run_not_found(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
