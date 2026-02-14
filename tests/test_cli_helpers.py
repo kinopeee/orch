@@ -652,6 +652,38 @@ def test_run_exists_short_circuits_when_runs_component_is_symlink_ancestor(
     assert marker_lstat_calls == 0
 
 
+def test_run_exists_short_circuits_when_runs_component_symlinks_to_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+    outside_file = tmp_path / "outside_runs_file.txt"
+    outside_file.write_text("outside\n", encoding="utf-8")
+    (home / "runs").symlink_to(outside_file)
+    linked_run_dir = home / "runs" / "run1"
+    linked_state = linked_run_dir / "state.json"
+    linked_plan = linked_run_dir / "plan.yaml"
+
+    original_lstat = Path.lstat
+    run_dir_lstat_calls = 0
+    marker_lstat_calls = 0
+
+    def capture_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal run_dir_lstat_calls, marker_lstat_calls
+        if path_obj == linked_run_dir:
+            run_dir_lstat_calls += 1
+        if path_obj in {linked_state, linked_plan}:
+            marker_lstat_calls += 1
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", capture_lstat)
+
+    assert cli_module._run_exists(linked_run_dir) is False
+    assert run_dir_lstat_calls == 0
+    assert marker_lstat_calls == 0
+    assert outside_file.read_text(encoding="utf-8") == "outside\n"
+
+
 def test_run_exists_short_circuits_on_non_directory_without_marker_lstat(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
