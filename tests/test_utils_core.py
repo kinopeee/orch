@@ -4476,6 +4476,34 @@ def test_cli_integration_invalid_plan_workdir_matrix_keeps_plan_modes_and_toggle
     }
 
 
+def test_cli_integration_invalid_plan_workdir_matrix_asserts_output_contract() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+    matrix_name = "test_cli_run_dry_run_both_toggles_invalid_plan_precedes_invalid_workdir_matrix"
+
+    matrix_function = next(
+        (
+            node
+            for node in ast.walk(integration_module)
+            if isinstance(node, ast.FunctionDef) and node.name == matrix_name
+        ),
+        None,
+    )
+    assert matrix_function is not None
+
+    source_segment = ast.get_source_segment(integration_source, matrix_function)
+    assert source_segment is not None
+    assert '"Plan validation error" in output' in source_segment
+    assert '"Invalid home" not in output' in source_segment
+    assert '"Invalid workdir" not in output' in source_segment
+    assert '"Dry Run" not in output' in source_segment
+    assert '"run_id:" not in output' in source_segment
+    assert '"state:" not in output' in source_segment
+    assert '"report:" not in output' in source_segment
+    assert 'assert not (home / "runs").exists(), context' in source_segment
+
+
 def test_cli_integration_missing_plan_path_matrix_keeps_plan_modes_and_toggle_orders() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_module = ast.parse(
