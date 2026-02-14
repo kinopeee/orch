@@ -2069,6 +2069,67 @@ def test_cli_status_symlink_ancestor_home_short_circuits_before_lock_and_load(
     assert load_called is False
 
 
+def test_cli_status_home_file_ancestor_short_circuits_before_lock_and_load(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home_parent_file = tmp_path / "home_parent_file"
+    home_parent_file.write_text("not a directory\n", encoding="utf-8")
+    home = home_parent_file / "orch_home"
+    lock_called = False
+    load_called = False
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        nonlocal lock_called
+        lock_called = True
+        yield
+
+    def fake_load_state(_run_dir: Path) -> object:
+        nonlocal load_called
+        load_called = True
+        return object()
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_state", fake_load_state)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.status("run1", home=home, as_json=False)
+    assert exc_info.value.exit_code == 2
+    assert lock_called is False
+    assert load_called is False
+
+
+def test_cli_status_symlink_file_home_short_circuits_before_lock_and_load(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home_target_file = tmp_path / "home_target_file.txt"
+    home_target_file.write_text("not a home dir\n", encoding="utf-8")
+    home = tmp_path / "home_link"
+    home.symlink_to(home_target_file)
+    lock_called = False
+    load_called = False
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        nonlocal lock_called
+        lock_called = True
+        yield
+
+    def fake_load_state(_run_dir: Path) -> object:
+        nonlocal load_called
+        load_called = True
+        return object()
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_state", fake_load_state)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.status("run1", home=home, as_json=False)
+    assert exc_info.value.exit_code == 2
+    assert lock_called is False
+    assert load_called is False
+
+
 def test_cli_logs_invalid_home_short_circuits_before_run_dir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -2157,6 +2218,67 @@ def test_cli_logs_symlink_ancestor_home_short_circuits_before_lock_and_load(
     symlink_parent = tmp_path / "home_parent_link"
     symlink_parent.symlink_to(real_parent, target_is_directory=True)
     home = symlink_parent / "orch_home"
+    lock_called = False
+    load_called = False
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        nonlocal lock_called
+        lock_called = True
+        yield
+
+    def fake_load_state(_run_dir: Path) -> object:
+        nonlocal load_called
+        load_called = True
+        return object()
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_state", fake_load_state)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.logs("run1", home=home, task=None, tail=10)
+    assert exc_info.value.exit_code == 2
+    assert lock_called is False
+    assert load_called is False
+
+
+def test_cli_logs_home_file_ancestor_short_circuits_before_lock_and_load(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home_parent_file = tmp_path / "home_parent_file"
+    home_parent_file.write_text("not a directory\n", encoding="utf-8")
+    home = home_parent_file / "orch_home"
+    lock_called = False
+    load_called = False
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        nonlocal lock_called
+        lock_called = True
+        yield
+
+    def fake_load_state(_run_dir: Path) -> object:
+        nonlocal load_called
+        load_called = True
+        return object()
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_state", fake_load_state)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.logs("run1", home=home, task=None, tail=10)
+    assert exc_info.value.exit_code == 2
+    assert lock_called is False
+    assert load_called is False
+
+
+def test_cli_logs_symlink_file_home_short_circuits_before_lock_and_load(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home_target_file = tmp_path / "home_target_file.txt"
+    home_target_file.write_text("not a home dir\n", encoding="utf-8")
+    home = tmp_path / "home_link"
+    home.symlink_to(home_target_file)
     lock_called = False
     load_called = False
 
