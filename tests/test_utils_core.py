@@ -2138,6 +2138,42 @@ def test_source_cli_run_has_dry_run_exit_before_workdir_resolution() -> None:
     assert dry_run_if.lineno < min(resolve_workdir_lines)
 
 
+def test_source_cli_run_validates_home_before_dry_run_branch() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    run_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "run"
+        ),
+        None,
+    )
+    assert run_function is not None
+
+    validate_home_lines = [
+        node.lineno
+        for node in ast.walk(run_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_validate_home_or_exit"
+    ]
+    dry_run_if = next(
+        (
+            stmt
+            for stmt in run_function.body
+            if isinstance(stmt, ast.If)
+            and isinstance(stmt.test, ast.Name)
+            and stmt.test.id == "dry_run"
+        ),
+        None,
+    )
+
+    assert validate_home_lines
+    assert dry_run_if is not None
+    assert min(validate_home_lines) < dry_run_if.lineno
+
+
 def test_source_validate_home_checks_symlink_guards_before_lstat_loop() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
