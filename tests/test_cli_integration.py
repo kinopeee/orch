@@ -5770,6 +5770,43 @@ def test_cli_run_rejects_dangling_symlink_home_without_side_effect(tmp_path: Pat
     assert not missing_home_target.exists()
 
 
+def test_cli_dry_run_rejects_dangling_symlink_home_without_side_effect(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+    missing_home_target = tmp_path / "missing_home_target"
+    home_link = tmp_path / "dangling_home_link"
+    home_link.symlink_to(missing_home_target, target_is_directory=True)
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--dry-run",
+            "--home",
+            str(home_link),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert not missing_home_target.exists()
+
+
 def test_cli_resume_rejects_symlink_home_path(tmp_path: Path) -> None:
     real_home = tmp_path / "real_home"
     run_id = "20260101_000000_abcdef"
