@@ -5860,6 +5860,27 @@ def test_cli_cancel_invalid_run_id_takes_precedence_over_symlink_home(tmp_path: 
     assert not (real_run_dir / "cancel.request").exists()
 
 
+def test_cli_cancel_invalid_run_id_takes_precedence_over_home_file_ancestor(
+    tmp_path: Path,
+) -> None:
+    home_parent_file = tmp_path / "home_parent_file"
+    home_parent_file.write_text("not a dir\n", encoding="utf-8")
+    nested_home = home_parent_file / "orch_home"
+    bad_run_id = "../escape"
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "cancel", bad_run_id, "--home", str(nested_home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid run_id" in output
+    assert "Invalid home" not in output
+    assert home_parent_file.read_text(encoding="utf-8") == "not a dir\n"
+
+
 def test_cli_cancel_too_long_run_id_takes_precedence_over_symlink_home(tmp_path: Path) -> None:
     real_home = tmp_path / "real_home"
     real_run_dir = real_home / "runs" / "run1"
