@@ -9704,6 +9704,168 @@ def test_cli_integration_cancel_invalid_run_id_preserve_matrix_groups_keep_bound
     assert matched == set(expectations)
 
 
+def test_cli_integration_invalid_run_id_preserve_matrix_supergroup_boundaries() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    status_explicit = (
+        "test_cli_status_logs_resume_invalid_run_id_existing_home_preserve_entries_matrix"
+    )
+    status_default = (
+        "test_cli_status_logs_resume_invalid_run_id_default_home_preserve_entries_matrix"
+    )
+    status_explicit_with_runs = (
+        "test_cli_status_logs_resume_invalid_run_id_existing_home_with_runs_preserve_entries_matrix"
+    )
+    status_default_with_runs = (
+        "test_cli_status_logs_resume_invalid_run_id_default_home_with_runs_preserve_entries_matrix"
+    )
+    cancel_explicit = "test_cli_cancel_invalid_run_id_existing_home_preserves_entries_matrix"
+    cancel_default = "test_cli_cancel_invalid_run_id_default_home_preserves_entries_matrix"
+    cancel_explicit_with_runs = (
+        "test_cli_cancel_invalid_run_id_existing_home_with_runs_preserves_entries_matrix"
+    )
+    cancel_default_with_runs = (
+        "test_cli_cancel_invalid_run_id_default_home_with_runs_preserves_entries_matrix"
+    )
+
+    expectations = {
+        status_explicit: {
+            "home_var": "home",
+            "has_cwd": False,
+            "uses_home_flag": True,
+            "has_commands_axis": True,
+            "checks_cancel_message": False,
+            "has_existing_runs": False,
+        },
+        status_default: {
+            "home_var": "default_home",
+            "has_cwd": True,
+            "uses_home_flag": False,
+            "has_commands_axis": True,
+            "checks_cancel_message": False,
+            "has_existing_runs": False,
+        },
+        status_explicit_with_runs: {
+            "home_var": "home",
+            "has_cwd": False,
+            "uses_home_flag": True,
+            "has_commands_axis": True,
+            "checks_cancel_message": False,
+            "has_existing_runs": True,
+        },
+        status_default_with_runs: {
+            "home_var": "default_home",
+            "has_cwd": True,
+            "uses_home_flag": False,
+            "has_commands_axis": True,
+            "checks_cancel_message": False,
+            "has_existing_runs": True,
+        },
+        cancel_explicit: {
+            "home_var": "home",
+            "has_cwd": False,
+            "uses_home_flag": True,
+            "has_commands_axis": False,
+            "checks_cancel_message": True,
+            "has_existing_runs": False,
+        },
+        cancel_default: {
+            "home_var": "default_home",
+            "has_cwd": True,
+            "uses_home_flag": False,
+            "has_commands_axis": False,
+            "checks_cancel_message": True,
+            "has_existing_runs": False,
+        },
+        cancel_explicit_with_runs: {
+            "home_var": "home",
+            "has_cwd": False,
+            "uses_home_flag": True,
+            "has_commands_axis": False,
+            "checks_cancel_message": True,
+            "has_existing_runs": True,
+        },
+        cancel_default_with_runs: {
+            "home_var": "default_home",
+            "has_cwd": True,
+            "uses_home_flag": False,
+            "has_commands_axis": False,
+            "checks_cancel_message": True,
+            "has_existing_runs": True,
+        },
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expectations:
+            continue
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        expected = expectations[node.name]
+        home_var = expected["home_var"]
+
+        assert "run_id_modes" in source_segment
+        assert "for run_id_mode in run_id_modes:" in source_segment
+        assert 'assert "Invalid run_id" in output, context' in source_segment
+        assert 'assert "Invalid home" not in output, context' in source_segment
+        assert 'assert "Run not found or broken" not in output, context' in source_segment
+        assert 'assert "Plan validation error" not in output, context' in source_segment
+        assert f"assert {home_var}.exists(), context" in source_segment
+        assert f"{home_var}.iterdir()" in source_segment
+        assert '"keep.txt"' in source_segment
+        assert '"keep_dir"' in source_segment
+        assert 'assert sentinel_file.read_text(encoding="utf-8") == "keep\\n", context' in (
+            source_segment
+        )
+        assert "assert sentinel_dir.is_dir(), context" in source_segment
+        assert (
+            'assert nested_file.read_text(encoding="utf-8") == "nested\\n", context'
+            in source_segment
+        )
+
+        if expected["has_commands_axis"]:
+            assert "commands = (" in source_segment
+            assert "for command in commands:" in source_segment
+            assert '"status", "logs", "resume"' in source_segment
+        else:
+            assert "commands = (" not in source_segment
+            assert "for command in commands:" not in source_segment
+
+        if expected["checks_cancel_message"]:
+            assert 'assert "Cancel request written" not in output, context' in source_segment
+            assert '"cancel"' in source_segment
+        else:
+            assert 'assert "Cancel request written" not in output, context' not in source_segment
+            assert '"cancel"' not in source_segment
+
+        if expected["has_existing_runs"]:
+            assert '"runs"' in source_segment
+            assert "existing_run" in source_segment
+            assert "keep_run" in source_segment
+            assert ".lock" in source_segment
+        else:
+            assert f'assert not ({home_var} / "runs").exists(), context' in source_segment
+
+        if expected["has_cwd"]:
+            assert "cwd=case_root" in source_segment
+        else:
+            assert "cwd=case_root" not in source_segment
+
+        if expected["uses_home_flag"]:
+            assert '"--home"' in source_segment
+        else:
+            assert '"--home"' not in source_segment
+
+        matched.add(node.name)
+
+    assert matched == set(expectations)
+
+
 def test_cli_integration_resume_invalid_run_id_workdir_matrix_groups_keep_boundaries() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
