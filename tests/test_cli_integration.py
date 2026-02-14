@@ -1193,6 +1193,104 @@ def test_cli_run_dry_run_both_toggles_invalid_home_precedes_non_regular_plan_mat
                 assert not (root / "runs").exists(), context
 
 
+def test_cli_run_dry_run_both_toggles_invalid_home_precedes_non_regular_plan_and_workdir_matrix(
+    tmp_path: Path,
+) -> None:
+    if not hasattr(os, "mkfifo"):
+        return
+
+    flag_orders: list[list[str]] = [
+        ["--fail-fast", "--no-fail-fast"],
+        ["--no-fail-fast", "--fail-fast"],
+    ]
+    case_names = (
+        "home_file",
+        "file_ancestor",
+        "symlink_to_dir",
+        "symlink_to_file",
+        "dangling_symlink",
+        "symlink_ancestor",
+    )
+
+    for order in flag_orders:
+        order_label = "forward" if order[0] == "--fail-fast" else "reverse"
+        for case_name in case_names:
+            case_root = tmp_path / f"fifo_workdir_precedence_{case_name}_{order_label}"
+            case_root.mkdir()
+            side_effect_roots: list[Path] = []
+
+            if case_name == "home_file":
+                home_path = case_root / "home_file"
+                home_path.write_text("not a dir\n", encoding="utf-8")
+                side_effect_roots.append(case_root)
+            elif case_name == "file_ancestor":
+                parent_file = case_root / "home_parent_file"
+                parent_file.write_text("not a dir\n", encoding="utf-8")
+                home_path = parent_file / "orch_home"
+                side_effect_roots.append(case_root)
+            elif case_name == "symlink_to_dir":
+                real_home = case_root / "real_home"
+                real_home.mkdir()
+                home_path = case_root / "home_symlink_dir"
+                home_path.symlink_to(real_home, target_is_directory=True)
+                side_effect_roots.extend([case_root, real_home])
+            elif case_name == "symlink_to_file":
+                target_file = case_root / "home_target_file"
+                target_file.write_text("not a dir\n", encoding="utf-8")
+                home_path = case_root / "home_symlink_file"
+                home_path.symlink_to(target_file)
+                side_effect_roots.append(case_root)
+            elif case_name == "dangling_symlink":
+                home_path = case_root / "home_dangling_symlink"
+                home_path.symlink_to(case_root / "missing-target", target_is_directory=True)
+                side_effect_roots.append(case_root)
+            else:
+                real_parent = case_root / "real_parent"
+                real_parent.mkdir()
+                symlink_parent = case_root / "symlink_parent"
+                symlink_parent.symlink_to(real_parent, target_is_directory=True)
+                home_path = symlink_parent / "orch_home"
+                side_effect_roots.extend([case_root, real_parent])
+
+            plan_path = case_root / "plan_fifo.yaml"
+            os.mkfifo(plan_path)
+            invalid_workdir_file = case_root / "invalid_workdir_file"
+            invalid_workdir_file.write_text("file\n", encoding="utf-8")
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "orch.cli",
+                    "run",
+                    str(plan_path),
+                    "--home",
+                    str(home_path),
+                    "--workdir",
+                    str(invalid_workdir_file),
+                    "--dry-run",
+                    *order,
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=5,
+            )
+            output = proc.stdout + proc.stderr
+            context = f"{case_name}-{order_label}"
+            assert proc.returncode == 2, context
+            assert "Invalid home" in output, context
+            assert "Plan validation error" not in output, context
+            assert "Invalid workdir" not in output, context
+            assert "contains symlink component" not in output, context
+            assert "Dry Run" not in output, context
+            assert "run_id:" not in output, context
+            assert "state:" not in output, context
+            assert "report:" not in output, context
+            for root in side_effect_roots:
+                assert not (root / "runs").exists(), context
+
+
 def test_cli_run_dry_run_both_toggles_invalid_home_precedes_non_regular_plan_and_workdir(
     tmp_path: Path,
 ) -> None:
