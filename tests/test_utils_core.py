@@ -1809,3 +1809,52 @@ def test_source_run_exists_marker_helper_uses_regular_file_predicate() -> None:
     assert marker_lstat_lines
     assert regular_predicate_lines
     assert min(marker_lstat_lines) < min(regular_predicate_lines)
+
+
+def test_source_run_exists_uses_ordered_or_for_state_then_plan_markers() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    run_exists_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "_run_exists"
+        ),
+        None,
+    )
+    assert run_exists_function is not None
+
+    marker_return = next(
+        (
+            node
+            for node in ast.walk(run_exists_function)
+            if isinstance(node, ast.Return)
+            and isinstance(node.value, ast.BoolOp)
+            and isinstance(node.value.op, ast.Or)
+        ),
+        None,
+    )
+    assert marker_return is not None
+    assert isinstance(marker_return.value, ast.BoolOp)
+
+    marker_calls = [
+        value
+        for value in marker_return.value.values
+        if isinstance(value, ast.Call)
+        and isinstance(value.func, ast.Name)
+        and value.func.id == "_is_regular_non_symlink"
+    ]
+    assert len(marker_calls) == 2
+
+    marker_names: list[str] = []
+    for call in marker_calls:
+        assert len(call.args) == 1
+        arg = call.args[0]
+        assert isinstance(arg, ast.BinOp)
+        assert isinstance(arg.op, ast.Div)
+        assert isinstance(arg.right, ast.Constant)
+        assert isinstance(arg.right.value, str)
+        marker_names.append(arg.right.value)
+
+    assert marker_names == ["state.json", "plan.yaml"]
