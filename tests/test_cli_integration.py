@@ -1276,6 +1276,53 @@ def test_cli_run_dry_run_both_toggles_symlink_ancestor_precedes_plan_and_workdir
     assert "Dry Run" not in output
 
 
+def test_cli_run_dry_run_both_toggles_symlink_ancestor_precedes_invalid_workdir(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "plan_both_toggles_symlink_ancestor_vs_workdir.yaml"
+    real_parent = tmp_path / "real_parent_both_toggles_workdir"
+    symlink_parent = tmp_path / "home_parent_link_both_toggles_workdir"
+    nested_home = symlink_parent / "orch_home"
+    invalid_workdir_file = tmp_path / "invalid_workdir_both_toggles_symlink_ancestor_only"
+    real_parent.mkdir()
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+    invalid_workdir_file.write_text("file\n", encoding="utf-8")
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(nested_home),
+            "--workdir",
+            str(invalid_workdir_file),
+            "--dry-run",
+            "--fail-fast",
+            "--no-fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Invalid workdir" not in output
+    assert "contains symlink component" not in output
+    assert "Dry Run" not in output
+
+
 def test_cli_run_dry_run_both_toggles_home_precedes_plan_and_workdir(
     tmp_path: Path,
 ) -> None:
@@ -1895,6 +1942,53 @@ def test_cli_run_dry_run_both_toggles_reverse_symlink_ancestor_precedes_plan_and
     assert proc.returncode == 2
     assert "Invalid home" in output
     assert "Plan validation error" not in output
+    assert "Invalid workdir" not in output
+    assert "contains symlink component" not in output
+    assert "Dry Run" not in output
+
+
+def test_cli_run_dry_run_both_toggles_reverse_symlink_ancestor_precedes_invalid_workdir(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "plan_both_toggles_reverse_symlink_ancestor_vs_workdir.yaml"
+    real_parent = tmp_path / "real_parent_both_toggles_reverse_workdir"
+    symlink_parent = tmp_path / "home_parent_link_both_toggles_reverse_workdir"
+    nested_home = symlink_parent / "orch_home"
+    invalid_workdir_file = tmp_path / "invalid_workdir_both_toggles_reverse_symlink_ancestor_only"
+    real_parent.mkdir()
+    symlink_parent.symlink_to(real_parent, target_is_directory=True)
+    invalid_workdir_file.write_text("file\n", encoding="utf-8")
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(nested_home),
+            "--workdir",
+            str(invalid_workdir_file),
+            "--dry-run",
+            "--no-fail-fast",
+            "--fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
     assert "Invalid workdir" not in output
     assert "contains symlink component" not in output
     assert "Dry Run" not in output
