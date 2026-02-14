@@ -2174,6 +2174,42 @@ def test_source_cli_run_has_dry_run_exit_before_run_dir_creation() -> None:
     assert dry_run_if.lineno < min(run_dir_lines)
 
 
+def test_source_cli_run_has_dry_run_exit_before_ensure_run_layout() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    run_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "run"
+        ),
+        None,
+    )
+    assert run_function is not None
+
+    dry_run_if = next(
+        (
+            stmt
+            for stmt in run_function.body
+            if isinstance(stmt, ast.If)
+            and isinstance(stmt.test, ast.Name)
+            and stmt.test.id == "dry_run"
+        ),
+        None,
+    )
+    assert dry_run_if is not None
+
+    ensure_layout_lines = [
+        node.lineno
+        for node in ast.walk(run_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "ensure_run_layout"
+    ]
+    assert ensure_layout_lines
+    assert dry_run_if.lineno < min(ensure_layout_lines)
+
+
 def test_source_cli_run_validates_home_before_dry_run_branch() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
