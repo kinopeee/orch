@@ -6477,6 +6477,170 @@ def test_cli_integration_default_existing_home_plan_error_cases_keep_modes_and_t
     assert matched == set(expectations)
 
 
+def test_cli_integration_existing_home_plan_error_groups_keep_modes_and_toggles() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    expected_toggle_orders = {
+        ("--fail-fast", "--no-fail-fast"),
+        ("--no-fail-fast", "--fail-fast"),
+    }
+    invalid_plan_modes = {
+        "invalid_yaml",
+        "unknown_root_field",
+        "unknown_task_field",
+        "non_regular_fifo",
+        "symlink_plan",
+        "symlink_ancestor_plan",
+    }
+    missing_plan_modes = {
+        "missing_path",
+        "dangling_symlink_path",
+        "symlink_ancestor_missing_path",
+    }
+    invalid_plan_default_with_workdir = (
+        "test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_"
+        "default_existing_home_matrix"
+    )
+    invalid_plan_default_only = (
+        "test_cli_run_dry_run_both_toggles_reject_invalid_plan_default_existing_home_matrix"
+    )
+    missing_plan_default_with_workdir = (
+        "test_cli_run_dry_run_both_toggles_missing_plan_default_existing_home_"
+        "precedes_workdir_matrix"
+    )
+    missing_plan_default_only = (
+        "test_cli_run_dry_run_both_toggles_reject_missing_plan_default_existing_home_matrix"
+    )
+
+    expectations = {
+        "test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_existing_home_matrix": {
+            "plan_modes": invalid_plan_modes,
+            "needs_workdir": True,
+            "has_cwd": False,
+            "uses_home_flag": True,
+        },
+        "test_cli_run_dry_run_both_toggles_reject_invalid_plan_existing_home_matrix": {
+            "plan_modes": invalid_plan_modes,
+            "needs_workdir": False,
+            "has_cwd": False,
+            "uses_home_flag": True,
+        },
+        "test_cli_run_dry_run_both_toggles_missing_plan_precedes_workdir_existing_home_matrix": {
+            "plan_modes": missing_plan_modes,
+            "needs_workdir": True,
+            "has_cwd": False,
+            "uses_home_flag": True,
+        },
+        "test_cli_run_dry_run_both_toggles_reject_missing_plan_path_existing_home_matrix": {
+            "plan_modes": missing_plan_modes,
+            "needs_workdir": False,
+            "has_cwd": False,
+            "uses_home_flag": True,
+        },
+        invalid_plan_default_with_workdir: {
+            "plan_modes": invalid_plan_modes,
+            "needs_workdir": True,
+            "has_cwd": True,
+            "uses_home_flag": False,
+        },
+        invalid_plan_default_only: {
+            "plan_modes": invalid_plan_modes,
+            "needs_workdir": False,
+            "has_cwd": True,
+            "uses_home_flag": False,
+        },
+        missing_plan_default_with_workdir: {
+            "plan_modes": missing_plan_modes,
+            "needs_workdir": True,
+            "has_cwd": True,
+            "uses_home_flag": False,
+        },
+        missing_plan_default_only: {
+            "plan_modes": missing_plan_modes,
+            "needs_workdir": False,
+            "has_cwd": True,
+            "uses_home_flag": False,
+        },
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expectations:
+            continue
+
+        flag_orders_assign = next(
+            (
+                stmt
+                for stmt in node.body
+                if isinstance(stmt, ast.AnnAssign)
+                and isinstance(stmt.target, ast.Name)
+                and stmt.target.id == "flag_orders"
+                and isinstance(stmt.value, ast.List)
+            ),
+            None,
+        )
+        assert flag_orders_assign is not None
+        assert isinstance(flag_orders_assign.value, ast.List)
+        toggle_orders: set[tuple[str, ...]] = set()
+        for order_node in flag_orders_assign.value.elts:
+            assert isinstance(order_node, ast.List)
+            order_values: list[str] = []
+            for item in order_node.elts:
+                assert isinstance(item, ast.Constant)
+                assert isinstance(item.value, str)
+                order_values.append(item.value)
+            toggle_orders.add(tuple(order_values))
+        assert toggle_orders == expected_toggle_orders
+
+        plan_modes_assign = next(
+            (
+                stmt
+                for stmt in node.body
+                if isinstance(stmt, ast.Assign)
+                and any(
+                    isinstance(target, ast.Name) and target.id == "plan_modes"
+                    for target in stmt.targets
+                )
+                and isinstance(stmt.value, ast.Tuple)
+            ),
+            None,
+        )
+        assert plan_modes_assign is not None
+        assert isinstance(plan_modes_assign.value, ast.Tuple)
+        actual_plan_modes: set[str] = set()
+        for mode_node in plan_modes_assign.value.elts:
+            assert isinstance(mode_node, ast.Constant)
+            assert isinstance(mode_node.value, str)
+            actual_plan_modes.add(mode_node.value)
+        expected = expectations[node.name]
+        assert actual_plan_modes == expected["plan_modes"]
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        if expected["has_cwd"]:
+            assert "cwd=case_root" in source_segment
+        else:
+            assert "cwd=case_root" not in source_segment
+
+        if expected["uses_home_flag"]:
+            assert '"--home"' in source_segment
+        else:
+            assert '"--home"' not in source_segment
+
+        if expected["needs_workdir"]:
+            assert '"--workdir"' in source_segment
+        else:
+            assert '"--workdir"' not in source_segment
+
+        matched.add(node.name)
+
+    assert matched == set(expectations)
+
+
 def test_cli_integration_existing_home_plan_error_groups_keep_home_and_cwd_boundaries() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
