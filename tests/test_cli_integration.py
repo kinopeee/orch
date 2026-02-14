@@ -632,6 +632,44 @@ def test_cli_run_home_symlink_ancestor_precedes_invalid_workdir(tmp_path: Path) 
     assert not (real_parent / "orch_home" / "runs").exists()
 
 
+def test_cli_run_home_dangling_symlink_precedes_invalid_workdir(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    missing_home_target = tmp_path / "missing_home_target"
+    home_link = tmp_path / "home_link"
+    home_link.symlink_to(missing_home_target, target_is_directory=True)
+    missing_workdir = tmp_path / "missing_workdir"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home_link),
+            "--workdir",
+            str(missing_workdir),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Invalid workdir" not in output
+    assert not missing_home_target.exists()
+
+
 def test_cli_run_invalid_plan_precedes_invalid_workdir(tmp_path: Path) -> None:
     plan_path = tmp_path / "plan_invalid.yaml"
     home = tmp_path / ".orch_cli"
@@ -1585,6 +1623,35 @@ def test_cli_resume_home_symlink_ancestor_precedes_invalid_workdir(tmp_path: Pat
     assert "Invalid home" in output
     assert "Invalid workdir" not in output
     assert not (real_parent / "orch_home" / "runs").exists()
+
+
+def test_cli_resume_home_dangling_symlink_precedes_invalid_workdir(tmp_path: Path) -> None:
+    missing_home_target = tmp_path / "missing_home_target"
+    home_link = tmp_path / "home_link"
+    home_link.symlink_to(missing_home_target, target_is_directory=True)
+    missing_workdir = tmp_path / "missing_resume_wd"
+
+    resume_proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "resume",
+            "20260101_000000_abcdef",
+            "--home",
+            str(home_link),
+            "--workdir",
+            str(missing_workdir),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = resume_proc.stdout + resume_proc.stderr
+    assert resume_proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Invalid workdir" not in output
+    assert not missing_home_target.exists()
 
 
 def test_cli_resume_rejects_symlink_file_workdir(tmp_path: Path) -> None:
