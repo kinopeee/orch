@@ -4678,3 +4678,27 @@ def test_cli_integration_missing_plan_vs_home_matrix_keeps_mode_and_toggle_sets(
         assert isinstance(mode_node.value, str)
         home_modes.add(mode_node.value)
     assert home_modes == {"home_file", "symlink_to_dir", "dangling_symlink"}
+
+
+def test_cli_integration_missing_plan_vs_home_matrix_asserts_planpath_and_home_exclusion() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    matrix_function = next(
+        (
+            node
+            for node in ast.walk(integration_module)
+            if isinstance(node, ast.FunctionDef)
+            and node.name
+            == "test_cli_run_dry_run_both_toggles_missing_plan_path_precedes_invalid_home_matrix"
+        ),
+        None,
+    )
+    assert matrix_function is not None
+
+    source_segment = ast.get_source_segment(integration_source, matrix_function)
+    assert source_segment is not None
+    assert '"PLAN_PATH" in output' in source_segment
+    assert "\"Invalid value for 'PLAN_PATH'\" in output" in source_segment
+    assert '"Invalid home" not in output' in source_segment
