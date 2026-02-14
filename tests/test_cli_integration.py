@@ -1561,6 +1561,7 @@ def test_cli_dry_run_rejects_home_with_symlink_ancestor_component(tmp_path: Path
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Invalid home" in output
+    assert "Dry Run" not in output
     assert "contains symlink component" not in output
     assert not (real_parent / nested_home_name / "runs").exists()
 
@@ -1598,6 +1599,7 @@ def test_cli_dry_run_rejects_symlink_home_path(tmp_path: Path) -> None:
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Invalid home" in output
+    assert "Dry Run" not in output
     assert "contains symlink component" not in output
     assert not (real_home / "runs").exists()
 
@@ -1635,6 +1637,7 @@ def test_cli_dry_run_rejects_home_symlink_to_file_path(tmp_path: Path) -> None:
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Invalid home" in output
+    assert "Dry Run" not in output
     assert "contains symlink component" not in output
     assert home_target_file.read_text(encoding="utf-8") == "not a home dir\n"
 
@@ -6162,6 +6165,7 @@ def test_cli_dry_run_rejects_dangling_symlink_home_without_side_effect(
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Invalid home" in output
+    assert "Dry Run" not in output
     assert "contains symlink component" not in output
     assert not missing_home_target.exists()
 
