@@ -2542,6 +2542,46 @@ def test_source_cli_run_dry_run_branch_iterates_enumerate_order_into_idx_task_id
     )
 
 
+def test_source_cli_run_dry_run_branch_add_row_occurs_inside_for_loop() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    run_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "run"
+        ),
+        None,
+    )
+    assert run_function is not None
+
+    dry_run_if = next(
+        (
+            stmt
+            for stmt in run_function.body
+            if isinstance(stmt, ast.If)
+            and isinstance(stmt.test, ast.Name)
+            and stmt.test.id == "dry_run"
+        ),
+        None,
+    )
+    assert dry_run_if is not None
+
+    for_nodes = [node for node in ast.walk(dry_run_if) if isinstance(node, ast.For)]
+    assert for_nodes
+    assert any(
+        any(
+            isinstance(child, ast.Call)
+            and isinstance(child.func, ast.Attribute)
+            and isinstance(child.func.value, ast.Name)
+            and child.func.value.id == "table"
+            and child.func.attr == "add_row"
+            for child in ast.walk(for_node)
+        )
+        for for_node in for_nodes
+    )
+
+
 def test_source_cli_run_dry_run_branch_prints_table_object() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
