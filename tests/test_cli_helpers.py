@@ -405,6 +405,41 @@ def test_validate_home_or_exit_rejects_when_existing_ancestor_is_not_directory(
     assert exc_info.value.exit_code == 2
 
 
+def test_validate_home_or_exit_accepts_existing_directory(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+
+    _validate_home_or_exit(home)
+
+
+def test_validate_home_or_exit_accepts_missing_path_under_directory(tmp_path: Path) -> None:
+    home = tmp_path / "missing" / "nested" / "home"
+
+    _validate_home_or_exit(home)
+
+
+def test_validate_home_or_exit_stops_at_first_existing_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "missing" / "nested" / "home"
+    first_existing = tmp_path
+    original_lstat = Path.lstat
+    first_existing_seen = False
+
+    def capture_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal first_existing_seen
+        if path_obj == first_existing:
+            first_existing_seen = True
+        elif path_obj == first_existing.parent:
+            raise RuntimeError("must not inspect ancestors past first existing directory")
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", capture_lstat)
+
+    _validate_home_or_exit(home)
+    assert first_existing_seen is True
+
+
 def test_resolve_workdir_or_exit_rejects_when_resolve_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
