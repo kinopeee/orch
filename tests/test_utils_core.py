@@ -7902,6 +7902,160 @@ def test_cli_integration_run_invalid_workdir_modes_matrix_wiring() -> None:
     assert "*order" in source_segment
 
 
+def test_cli_integration_resume_invalid_workdir_modes_matrix_keeps_axes_and_toggles() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_module = ast.parse(
+        (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    )
+    matrix_name = "test_cli_resume_rejects_invalid_workdir_modes_matrix"
+
+    matrix_function = next(
+        (
+            node
+            for node in ast.walk(integration_module)
+            if isinstance(node, ast.FunctionDef) and node.name == matrix_name
+        ),
+        None,
+    )
+    assert matrix_function is not None
+
+    flag_orders_assign = next(
+        (
+            stmt
+            for stmt in matrix_function.body
+            if isinstance(stmt, ast.AnnAssign)
+            and isinstance(stmt.target, ast.Name)
+            and stmt.target.id == "flag_orders"
+            and isinstance(stmt.value, ast.List)
+        ),
+        None,
+    )
+    assert flag_orders_assign is not None
+    assert isinstance(flag_orders_assign.value, ast.List)
+    toggle_orders: set[tuple[str, ...]] = set()
+    for order_node in flag_orders_assign.value.elts:
+        assert isinstance(order_node, ast.List)
+        order_values: list[str] = []
+        for item in order_node.elts:
+            assert isinstance(item, ast.Constant)
+            assert isinstance(item.value, str)
+            order_values.append(item.value)
+        toggle_orders.add(tuple(order_values))
+    assert toggle_orders == {
+        ("--fail-fast", "--no-fail-fast"),
+        ("--no-fail-fast", "--fail-fast"),
+    }
+
+    workdir_modes_assign = next(
+        (
+            stmt
+            for stmt in matrix_function.body
+            if isinstance(stmt, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "workdir_modes"
+                for target in stmt.targets
+            )
+            and isinstance(stmt.value, ast.Tuple)
+        ),
+        None,
+    )
+    assert workdir_modes_assign is not None
+    assert isinstance(workdir_modes_assign.value, ast.Tuple)
+    workdir_modes: set[str] = set()
+    for mode_node in workdir_modes_assign.value.elts:
+        assert isinstance(mode_node, ast.Constant)
+        assert isinstance(mode_node.value, str)
+        workdir_modes.add(mode_node.value)
+    assert workdir_modes == {
+        "missing_path",
+        "file_path",
+        "file_ancestor",
+        "symlink_to_file",
+        "dangling_symlink",
+        "symlink_ancestor",
+    }
+
+
+def test_cli_integration_resume_invalid_workdir_modes_matrix_output_contract() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+    matrix_name = "test_cli_resume_rejects_invalid_workdir_modes_matrix"
+
+    matrix_function = next(
+        (
+            node
+            for node in ast.walk(integration_module)
+            if isinstance(node, ast.FunctionDef) and node.name == matrix_name
+        ),
+        None,
+    )
+    assert matrix_function is not None
+
+    source_segment = ast.get_source_segment(integration_source, matrix_function)
+    assert source_segment is not None
+    assert '"Invalid workdir" in output' in source_segment
+    assert '"Invalid home" not in output' in source_segment
+    assert '"Run not found or broken" not in output' in source_segment
+    assert '"Plan validation error" not in output' in source_segment
+    assert '"run_id:" not in output' in source_segment
+    assert '"state:" not in output' in source_segment
+    assert '"report:" not in output' in source_segment
+    assert 'state_path.read_text(encoding="utf-8") == baseline_state' in source_segment
+    assert 'sorted(path.name for path in (home / "runs").iterdir()) == [run_id]' in source_segment
+    assert "side_effect_files" in source_segment
+    assert "for file_path in side_effect_files:" in source_segment
+    assert (
+        'assert file_path.read_text(encoding="utf-8") == "not a directory\\n", context'
+        in source_segment
+    )
+    assert 'if workdir_mode == "dangling_symlink":' in source_segment
+    assert '"missing_workdir_target"' in source_segment
+    assert 'if workdir_mode == "symlink_ancestor":' in source_segment
+    assert '"child_workdir"' in source_segment
+
+
+def test_cli_integration_resume_invalid_workdir_modes_matrix_wiring() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+    matrix_name = "test_cli_resume_rejects_invalid_workdir_modes_matrix"
+
+    matrix_function = next(
+        (
+            node
+            for node in ast.walk(integration_module)
+            if isinstance(node, ast.FunctionDef) and node.name == matrix_name
+        ),
+        None,
+    )
+    assert matrix_function is not None
+
+    source_segment = ast.get_source_segment(integration_source, matrix_function)
+    assert source_segment is not None
+    assert "for workdir_mode in workdir_modes:" in source_segment
+    assert 'if workdir_mode == "missing_path":' in source_segment
+    assert 'elif workdir_mode == "file_path":' in source_segment
+    assert 'elif workdir_mode == "file_ancestor":' in source_segment
+    assert 'elif workdir_mode == "symlink_to_file":' in source_segment
+    assert 'elif workdir_mode == "dangling_symlink":' in source_segment
+    assert "else:" in source_segment
+    assert 'invalid_workdir = case_root / "missing_workdir"' in source_segment
+    assert 'invalid_workdir = case_root / "workdir_file"' in source_segment
+    assert 'workdir_parent_file = case_root / "workdir_parent_file"' in source_segment
+    assert 'invalid_workdir = workdir_parent_file / "child_workdir"' in source_segment
+    assert 'workdir_target_file = case_root / "workdir_target_file"' in source_segment
+    assert 'invalid_workdir = case_root / "workdir_symlink_to_file"' in source_segment
+    assert 'invalid_workdir = case_root / "workdir_dangling_symlink"' in source_segment
+    assert 'workdir_parent_link = case_root / "workdir_parent_link"' in source_segment
+    assert 'invalid_workdir = workdir_parent_link / "child_workdir"' in source_segment
+    assert "run_id = _extract_run_id(run_proc.stdout)" in source_segment
+    assert '"resume"' in source_segment
+    assert '"--workdir"' in source_segment
+    assert "*order" in source_segment
+    assert '"--dry-run"' not in source_segment
+
+
 def test_cli_integration_preserve_entries_matrices_keep_mode_and_toggle_contracts() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
