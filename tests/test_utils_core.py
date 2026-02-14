@@ -10084,6 +10084,244 @@ def test_cli_integration_invalid_run_id_preserve_matrix_supergroup_boundaries() 
     assert matched == set(expectations)
 
 
+def test_cli_integration_run_id_precedence_over_invalid_home_shape_families() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    status_entries = (
+        (
+            "test_cli_status_logs_resume_run_id_precedes_invalid_home",
+            "path_escape",
+            "file_path",
+        ),
+        (
+            "test_cli_status_logs_resume_too_long_run_id_precedes_invalid_home",
+            "too_long",
+            "file_path",
+        ),
+        (
+            "test_cli_status_logs_resume_invalid_run_id_precedes_symlink_home",
+            "path_escape",
+            "symlink",
+        ),
+        (
+            "test_cli_status_logs_resume_too_long_run_id_precedes_symlink_home",
+            "too_long",
+            "symlink",
+        ),
+        (
+            "test_cli_status_logs_resume_invalid_run_id_precedes_dangling_symlink_home",
+            "path_escape",
+            "dangling_symlink",
+        ),
+        (
+            "test_cli_status_logs_resume_too_long_run_id_precedes_dangling_symlink_home",
+            "too_long",
+            "dangling_symlink",
+        ),
+        (
+            "test_cli_status_logs_resume_invalid_run_id_precedes_home_symlink_to_file",
+            "path_escape",
+            "symlink_to_file",
+        ),
+        (
+            "test_cli_status_logs_resume_too_long_run_id_precedes_home_symlink_to_file",
+            "too_long",
+            "symlink_to_file",
+        ),
+        (
+            "test_cli_status_logs_resume_invalid_run_id_precedes_home_file_ancestor",
+            "path_escape",
+            "file_ancestor",
+        ),
+        (
+            "test_cli_status_logs_resume_too_long_run_id_precedes_home_file_ancestor",
+            "too_long",
+            "file_ancestor",
+        ),
+        (
+            "test_cli_status_logs_resume_invalid_run_id_precedes_home_symlink_ancestor",
+            "path_escape",
+            "symlink_ancestor",
+        ),
+        (
+            "test_cli_status_logs_resume_too_long_run_id_precedes_home_symlink_ancestor",
+            "too_long",
+            "symlink_ancestor",
+        ),
+        (
+            "test_cli_status_logs_resume_invalid_run_id_precedes_home_symlink_ancestor_directory",
+            "path_escape",
+            "symlink_ancestor_directory",
+        ),
+        (
+            "test_cli_status_logs_resume_too_long_run_id_precedes_home_symlink_ancestor_directory",
+            "too_long",
+            "symlink_ancestor_directory",
+        ),
+    )
+    cancel_entries = (
+        (
+            "test_cli_cancel_invalid_run_id_takes_precedence_over_invalid_home",
+            "path_escape",
+            "file_path",
+        ),
+        (
+            "test_cli_cancel_too_long_run_id_takes_precedence_over_invalid_home",
+            "too_long",
+            "file_path",
+        ),
+        (
+            "test_cli_cancel_invalid_run_id_takes_precedence_over_symlink_home",
+            "path_escape",
+            "symlink",
+        ),
+        (
+            "test_cli_cancel_too_long_run_id_takes_precedence_over_symlink_home",
+            "too_long",
+            "symlink",
+        ),
+        (
+            "test_cli_cancel_invalid_run_id_takes_precedence_over_dangling_symlink_home",
+            "path_escape",
+            "dangling_symlink",
+        ),
+        (
+            "test_cli_cancel_too_long_run_id_takes_precedence_over_dangling_symlink_home",
+            "too_long",
+            "dangling_symlink",
+        ),
+        (
+            "test_cli_cancel_invalid_run_id_takes_precedence_over_home_symlink_to_file",
+            "path_escape",
+            "symlink_to_file",
+        ),
+        (
+            "test_cli_cancel_too_long_run_id_takes_precedence_over_home_symlink_to_file",
+            "too_long",
+            "symlink_to_file",
+        ),
+        (
+            "test_cli_cancel_invalid_run_id_takes_precedence_over_home_file_ancestor",
+            "path_escape",
+            "file_ancestor",
+        ),
+        (
+            "test_cli_cancel_too_long_run_id_takes_precedence_over_home_file_ancestor",
+            "too_long",
+            "file_ancestor",
+        ),
+        (
+            "test_cli_cancel_invalid_run_id_takes_precedence_over_home_symlink_ancestor",
+            "path_escape",
+            "symlink_ancestor",
+        ),
+        (
+            "test_cli_cancel_too_long_run_id_takes_precedence_over_home_symlink_ancestor",
+            "too_long",
+            "symlink_ancestor",
+        ),
+        (
+            "test_cli_cancel_invalid_run_id_takes_precedence_over_home_symlink_ancestor_directory",
+            "path_escape",
+            "symlink_ancestor_directory",
+        ),
+        (
+            "test_cli_cancel_too_long_run_id_takes_precedence_over_home_symlink_ancestor_directory",
+            "too_long",
+            "symlink_ancestor_directory",
+        ),
+    )
+
+    expectations: dict[str, dict[str, str]] = {}
+    for name, run_id_mode, home_shape in status_entries:
+        expectations[name] = {
+            "command_family": "status_logs_resume",
+            "run_id_mode": run_id_mode,
+            "home_shape": home_shape,
+        }
+    for name, run_id_mode, home_shape in cancel_entries:
+        expectations[name] = {
+            "command_family": "cancel",
+            "run_id_mode": run_id_mode,
+            "home_shape": home_shape,
+        }
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expectations:
+            continue
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        expected = expectations[node.name]
+
+        assert "subprocess.run(" in source_segment
+        assert "assert proc.returncode == 2" in source_segment
+        assert 'assert "Invalid run_id" in output' in source_segment
+        assert 'assert "Invalid home" not in output' in source_segment
+
+        if expected["command_family"] == "status_logs_resume":
+            assert 'for command in ("status", "logs", "resume"):' in source_segment
+        else:
+            assert 'for command in ("status", "logs", "resume"):' not in source_segment
+            assert '"cancel"' in source_segment
+
+        if expected["run_id_mode"] == "path_escape":
+            assert 'bad_run_id = "../escape"' in source_segment
+        else:
+            assert 'bad_run_id = "a" * 129' in source_segment
+
+        if expected["home_shape"] == "file_path":
+            assert 'home_file.read_text(encoding="utf-8") == "not a dir\\n"' in source_segment
+        elif expected["home_shape"] == "symlink":
+            assert 'real_home = tmp_path / "real_home"' in source_segment
+            assert "home_link.symlink_to(real_home, target_is_directory=True)" in source_segment
+            if expected["command_family"] == "cancel":
+                assert 'assert not (real_run_dir / "cancel.request").exists()' in source_segment
+        elif expected["home_shape"] == "dangling_symlink":
+            assert 'missing_home_target = tmp_path / "missing_home_target"' in source_segment
+            assert "home_link.symlink_to(missing_home_target, target_is_directory=True)" in (
+                source_segment
+            )
+            assert "assert not missing_home_target.exists()" in source_segment
+        elif expected["home_shape"] == "symlink_to_file":
+            assert 'home_target_file = tmp_path / "home_target_file.txt"' in source_segment
+            assert "home_link.symlink_to(home_target_file)" in source_segment
+            assert (
+                'home_target_file.read_text(encoding="utf-8") == "not a home dir\\n"'
+                in source_segment
+            )
+        elif expected["home_shape"] == "file_ancestor":
+            assert 'home_parent_file = tmp_path / "home_parent_file"' in source_segment
+            assert 'nested_home = home_parent_file / "orch_home"' in source_segment
+            assert 'home_parent_file.read_text(encoding="utf-8") == "not a dir\\n"' in (
+                source_segment
+            )
+        elif expected["home_shape"] == "symlink_ancestor":
+            assert 'symlink_parent = tmp_path / "home_parent_link"' in source_segment
+            assert 'nested_home = symlink_parent / "orch_home"' in source_segment
+            assert 'assert "contains symlink component" not in output' in source_segment
+            assert 'assert not (real_parent / "orch_home" / "runs").exists()' in source_segment
+        else:
+            assert expected["home_shape"] == "symlink_ancestor_directory"
+            assert 'nested_home_name = "orch_home"' in source_segment
+            assert 'real_run_dir = real_parent / nested_home_name / "runs"' in source_segment
+            assert 'assert "contains symlink component" not in output' in source_segment
+            if expected["command_family"] == "cancel":
+                assert 'assert not (real_run_dir / "cancel.request").exists()' in source_segment
+                assert 'assert not (real_run_dir / ".lock").exists()' in source_segment
+            else:
+                assert 'assert not (real_run_dir / ".lock").exists()' in source_segment
+
+        matched.add(node.name)
+
+    assert matched == set(expectations)
+
+
 def test_cli_integration_resume_invalid_run_id_workdir_matrix_groups_keep_boundaries() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
