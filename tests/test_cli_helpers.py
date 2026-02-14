@@ -458,6 +458,34 @@ def test_resolve_workdir_or_exit_rejects_when_resolve_errors(
     assert exc_info.value.exit_code == 2
 
 
+def test_resolve_workdir_or_exit_resolve_error_short_circuits_before_lstat(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workdir = tmp_path / "workdir"
+    original_resolve = Path.resolve
+    original_lstat = Path.lstat
+    lstat_called = False
+
+    def flaky_resolve(path_obj: Path, *args: object, **kwargs: object) -> Path:
+        if path_obj == workdir:
+            raise RuntimeError("simulated resolve failure")
+        return original_resolve(path_obj, *args, **kwargs)
+
+    def capture_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal lstat_called
+        if path_obj == workdir:
+            lstat_called = True
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", flaky_resolve)
+    monkeypatch.setattr(Path, "lstat", capture_lstat)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _resolve_workdir_or_exit(workdir)
+    assert exc_info.value.exit_code == 2
+    assert lstat_called is False
+
+
 def test_resolve_workdir_or_exit_rejects_when_lstat_errors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
