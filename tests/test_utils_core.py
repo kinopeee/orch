@@ -5986,18 +5986,44 @@ def test_cli_integration_explicit_existing_home_plan_error_cases_keep_contracts(
         "test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_existing_home_matrix": {
             "anchor": '"Plan validation error" in output',
             "needs_workdir": True,
+            "present": [],
+            "absent": [
+                '"PLAN_PATH" not in output',
+                '"Invalid home" not in output',
+                '"Invalid workdir" not in output',
+            ],
         },
         "test_cli_run_dry_run_both_toggles_reject_invalid_plan_existing_home_matrix": {
             "anchor": '"Plan validation error" in output',
             "needs_workdir": False,
+            "present": [],
+            "absent": [
+                '"PLAN_PATH" not in output',
+                '"Invalid home" not in output',
+                '"Invalid workdir" not in output',
+            ],
         },
         "test_cli_run_dry_run_both_toggles_missing_plan_precedes_workdir_existing_home_matrix": {
             "anchor": '"PLAN_PATH" in output',
             "needs_workdir": True,
+            "present": ["\"Invalid value for 'PLAN_PATH'\" in output"],
+            "absent": [
+                '"Plan validation error" not in output',
+                '"Invalid home" not in output',
+                '"Invalid workdir" not in output',
+                '"contains symlink component" not in output',
+            ],
         },
         "test_cli_run_dry_run_both_toggles_reject_missing_plan_path_existing_home_matrix": {
             "anchor": '"PLAN_PATH" in output',
             "needs_workdir": False,
+            "present": ["\"Invalid value for 'PLAN_PATH'\" in output"],
+            "absent": [
+                '"Plan validation error" not in output',
+                '"Invalid home" not in output',
+                '"Invalid workdir" not in output',
+                '"contains symlink component" not in output',
+            ],
         },
     }
 
@@ -6017,9 +6043,15 @@ def test_cli_integration_explicit_existing_home_plan_error_cases_keep_contracts(
         assert "assert home.exists(), context" in source_segment
         assert 'assert not (home / "runs").exists(), context' in source_segment
         assert '"--home"' in source_segment
+        assert '"Dry Run" not in output' in source_segment
         assert '"run_id:" not in output' in source_segment
         assert '"state:" not in output' in source_segment
         assert '"report:" not in output' in source_segment
+
+        for snippet in expected["present"]:
+            assert snippet in source_segment
+        for snippet in expected["absent"]:
+            assert snippet in source_segment
 
         if expected["needs_workdir"]:
             assert '"--workdir"' in source_segment
