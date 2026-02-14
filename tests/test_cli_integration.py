@@ -671,6 +671,7 @@ def test_cli_run_dry_run_both_fail_fast_toggles_preserve_dependency_chain_order(
     output = proc.stdout + proc.stderr
     assert proc.returncode == 0
     assert "Dry Run" in output
+    assert "task_id" in output
     assert output.index("t1") < output.index("t2") < output.index("t3")
     assert "run_id:" not in output
     assert "state:" not in output
@@ -718,6 +719,7 @@ def test_cli_run_dry_run_both_fail_fast_toggles_reverse_order_preserve_dependenc
     output = proc.stdout + proc.stderr
     assert proc.returncode == 0
     assert "Dry Run" in output
+    assert "task_id" in output
     assert output.index("t1") < output.index("t2") < output.index("t3")
     assert "run_id:" not in output
     assert "state:" not in output
