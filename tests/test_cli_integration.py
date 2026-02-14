@@ -807,6 +807,93 @@ def test_cli_run_dry_run_both_fail_fast_toggles_invalid_home_precedes_invalid_pl
     assert home_file.read_text(encoding="utf-8") == "not a dir\n"
 
 
+def test_cli_run_dry_run_both_toggles_invalid_home_never_emits_runtime_summary(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "plan_both_toggles_invalid_home_runtime_summary.yaml"
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    flag_orders: list[list[str]] = [
+        ["--fail-fast", "--no-fail-fast"],
+        ["--no-fail-fast", "--fail-fast"],
+    ]
+
+    case_names = (
+        "home_file",
+        "file_ancestor",
+        "symlink_to_dir",
+        "symlink_to_file",
+        "dangling_symlink",
+        "symlink_ancestor",
+    )
+
+    for order in flag_orders:
+        order_label = "forward" if order[0] == "--fail-fast" else "reverse"
+        for case_name in case_names:
+            case_root = tmp_path / f"{case_name}_{order_label}"
+            case_root.mkdir()
+
+            if case_name == "home_file":
+                home_path = case_root / "home_file"
+                home_path.write_text("not a dir\n", encoding="utf-8")
+            elif case_name == "file_ancestor":
+                parent_file = case_root / "home_parent_file"
+                parent_file.write_text("not a dir\n", encoding="utf-8")
+                home_path = parent_file / "orch_home"
+            elif case_name == "symlink_to_dir":
+                real_home = case_root / "real_home"
+                real_home.mkdir()
+                home_path = case_root / "home_symlink_dir"
+                home_path.symlink_to(real_home, target_is_directory=True)
+            elif case_name == "symlink_to_file":
+                target_file = case_root / "home_target_file"
+                target_file.write_text("not a dir\n", encoding="utf-8")
+                home_path = case_root / "home_symlink_file"
+                home_path.symlink_to(target_file)
+            elif case_name == "dangling_symlink":
+                home_path = case_root / "home_dangling_symlink"
+                home_path.symlink_to(case_root / "missing-target", target_is_directory=True)
+            else:
+                real_parent = case_root / "real_parent"
+                real_parent.mkdir()
+                symlink_parent = case_root / "symlink_parent"
+                symlink_parent.symlink_to(real_parent, target_is_directory=True)
+                home_path = symlink_parent / "orch_home"
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "orch.cli",
+                    "run",
+                    str(plan_path),
+                    "--home",
+                    str(home_path),
+                    "--dry-run",
+                    *order,
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            output = proc.stdout + proc.stderr
+            context = f"{case_name}-{order_label}"
+            assert proc.returncode == 2, context
+            assert "Invalid home" in output, context
+            assert "contains symlink component" not in output, context
+            assert "Dry Run" not in output, context
+            assert "run_id:" not in output, context
+            assert "state:" not in output, context
+            assert "report:" not in output, context
+
+
 def test_cli_run_dry_run_both_toggles_symlink_home_precedes_invalid_plan(
     tmp_path: Path,
 ) -> None:
