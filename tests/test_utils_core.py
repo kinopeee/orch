@@ -2766,6 +2766,46 @@ def test_source_cli_run_dry_run_branch_console_prints_only_table() -> None:
     )
 
 
+def test_source_cli_run_dry_run_branch_has_single_console_print_call() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    run_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "run"
+        ),
+        None,
+    )
+    assert run_function is not None
+
+    dry_run_if = next(
+        (
+            stmt
+            for stmt in run_function.body
+            if isinstance(stmt, ast.If)
+            and isinstance(stmt.test, ast.Name)
+            and stmt.test.id == "dry_run"
+        ),
+        None,
+    )
+    assert dry_run_if is not None
+
+    console_print_calls = [
+        node
+        for node in ast.walk(dry_run_if)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "console"
+        and node.func.attr == "print"
+        and node.args
+        and isinstance(node.args[0], ast.Name)
+        and node.args[0].id == "table"
+    ]
+    assert len(console_print_calls) == 1
+
+
 def test_source_cli_run_dry_run_branch_prints_table_before_exit_zero() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
