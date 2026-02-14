@@ -827,6 +827,19 @@ def test_run_exists_rejects_mixed_non_regular_symlink_and_directory_markers(
     assert cli_module._run_exists(run_dir) is False
 
 
+def test_run_exists_rejects_mixed_non_regular_directory_and_symlink_markers(
+    tmp_path: Path,
+) -> None:
+    run_dir = tmp_path / ".orch" / "runs" / "run1"
+    run_dir.mkdir(parents=True)
+    outside_plan = tmp_path / "outside_plan.yaml"
+    outside_plan.write_text("tasks: []\n", encoding="utf-8")
+    (run_dir / "state.json").mkdir()
+    (run_dir / "plan.yaml").symlink_to(outside_plan)
+
+    assert cli_module._run_exists(run_dir) is False
+
+
 def test_run_exists_rejects_mixed_non_regular_fifo_and_directory_markers(
     tmp_path: Path,
 ) -> None:
@@ -836,6 +849,19 @@ def test_run_exists_rejects_mixed_non_regular_fifo_and_directory_markers(
     run_dir.mkdir(parents=True)
     os.mkfifo(run_dir / "state.json")
     (run_dir / "plan.yaml").mkdir()
+
+    assert cli_module._run_exists(run_dir) is False
+
+
+def test_run_exists_rejects_mixed_non_regular_directory_and_fifo_markers(
+    tmp_path: Path,
+) -> None:
+    if not hasattr(os, "mkfifo"):
+        pytest.skip("mkfifo is not supported on this platform")
+    run_dir = tmp_path / ".orch" / "runs" / "run1"
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").mkdir()
+    os.mkfifo(run_dir / "plan.yaml")
 
     assert cli_module._run_exists(run_dir) is False
 
