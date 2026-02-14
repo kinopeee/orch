@@ -434,6 +434,50 @@ def test_validate_home_or_exit_rejects_existing_path_with_symlink_ancestor(
     assert exc_info.value.exit_code == 2
 
 
+def test_validate_home_or_exit_symlink_path_short_circuits_before_ancestor_walk(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "home_link"
+    ancestor_checked = False
+
+    def fake_is_symlink_path(path_obj: Path, *, fail_closed: bool = True) -> bool:
+        del fail_closed
+        return path_obj == home
+
+    def fake_has_symlink_ancestor(_path: Path) -> bool:
+        nonlocal ancestor_checked
+        ancestor_checked = True
+        return False
+
+    monkeypatch.setattr(cli_module, "is_symlink_path", fake_is_symlink_path)
+    monkeypatch.setattr(cli_module, "has_symlink_ancestor", fake_has_symlink_ancestor)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _validate_home_or_exit(home)
+    assert exc_info.value.exit_code == 2
+    assert ancestor_checked is False
+
+
+def test_validate_home_or_exit_symlink_ancestor_short_circuits_before_lstat_loop(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "home" / "nested"
+
+    monkeypatch.setattr(cli_module, "is_symlink_path", lambda _path: False)
+    monkeypatch.setattr(cli_module, "has_symlink_ancestor", lambda _path: True)
+    monkeypatch.setattr(
+        Path,
+        "lstat",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("lstat loop should not run when ancestor guard rejects home")
+        ),
+    )
+
+    with pytest.raises(typer.Exit) as exc_info:
+        _validate_home_or_exit(home)
+    assert exc_info.value.exit_code == 2
+
+
 def test_validate_home_or_exit_accepts_existing_directory(tmp_path: Path) -> None:
     home = tmp_path / "home"
     home.mkdir()

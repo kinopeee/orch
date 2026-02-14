@@ -2019,6 +2019,50 @@ def test_source_validate_home_checks_symlink_guards_before_lstat_loop() -> None:
     assert raises_exit_two
 
 
+def test_source_validate_home_guard_orders_is_symlink_before_ancestor_walk() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    validate_home_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "_validate_home_or_exit"
+        ),
+        None,
+    )
+    assert validate_home_function is not None
+
+    guard_if = next(
+        (
+            stmt
+            for stmt in validate_home_function.body
+            if isinstance(stmt, ast.If)
+            and isinstance(stmt.test, ast.BoolOp)
+            and isinstance(stmt.test.op, ast.Or)
+        ),
+        None,
+    )
+    assert guard_if is not None
+
+    values = guard_if.test.values
+    assert len(values) == 2
+    first, second = values
+    assert isinstance(first, ast.Call)
+    assert isinstance(first.func, ast.Name)
+    assert first.func.id == "is_symlink_path"
+    assert len(first.args) == 1
+    assert isinstance(first.args[0], ast.Name)
+    assert first.args[0].id == "home"
+
+    assert isinstance(second, ast.Call)
+    assert isinstance(second.func, ast.Name)
+    assert second.func.id == "has_symlink_ancestor"
+    assert len(second.args) == 1
+    assert isinstance(second.args[0], ast.Name)
+    assert second.args[0].id == "home"
+
+
 def test_source_cli_status_logs_validate_home_before_lock_and_load_state() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
