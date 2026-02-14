@@ -4814,6 +4814,7 @@ def test_cli_integration_missing_plan_vs_home_matrix_asserts_planpath_and_home_e
     assert source_segment is not None
     assert '"PLAN_PATH" in output' in source_segment
     assert "\"Invalid value for 'PLAN_PATH'\" in output" in source_segment
+    assert '"Plan validation error" not in output' in source_segment
     assert '"Invalid home" not in output' in source_segment
     assert '"Invalid workdir" not in output' in source_segment
     assert '"contains symlink component" not in output' in source_segment
@@ -4944,6 +4945,7 @@ def test_cli_integration_missing_plan_vs_home_workdir_matrix_asserts_priority_an
     assert source_segment is not None
     assert '"PLAN_PATH" in output' in source_segment
     assert "\"Invalid value for 'PLAN_PATH'\" in output" in source_segment
+    assert '"Plan validation error" not in output' in source_segment
     assert '"Invalid home" not in output' in source_segment
     assert '"Invalid workdir" not in output' in source_segment
     assert '"contains symlink component" not in output' in source_segment
