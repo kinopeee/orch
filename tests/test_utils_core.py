@@ -1726,3 +1726,39 @@ def test_source_run_exists_checks_guard_sequence_before_marker_checks() -> None:
     assert marker_check_lines
     assert min(ancestor_guard_lines) < min(run_dir_lstat_lines)
     assert min(run_dir_lstat_lines) < min(marker_check_lines)
+
+
+def test_source_run_exists_checks_run_dir_shape_before_marker_checks() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    run_exists_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "_run_exists"
+        ),
+        None,
+    )
+    assert run_exists_function is not None
+
+    run_shape_guard_lines = [
+        node.lineno
+        for node in ast.walk(run_exists_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "stat"
+        and node.func.attr in {"S_ISLNK", "S_ISDIR"}
+    ]
+    marker_check_lines = [
+        node.lineno
+        for node in ast.walk(run_exists_function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_is_regular_non_symlink"
+    ]
+
+    assert run_shape_guard_lines
+    assert marker_check_lines
+    assert max(run_shape_guard_lines) < min(marker_check_lines)

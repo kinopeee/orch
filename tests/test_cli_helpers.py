@@ -642,6 +642,36 @@ def test_run_exists_short_circuits_on_run_dir_lstat_runtime_error_without_marker
     assert marker_lstat_calls == 0
 
 
+def test_run_exists_short_circuits_on_symlink_run_dir_without_marker_lstat(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real_run_dir = tmp_path / "outside_run"
+    real_run_dir.mkdir()
+    (real_run_dir / "state.json").write_text("{}", encoding="utf-8")
+    (real_run_dir / "plan.yaml").write_text("tasks: []\n", encoding="utf-8")
+
+    linked_run_dir = tmp_path / ".orch" / "runs" / "run1"
+    linked_run_dir.parent.mkdir(parents=True)
+    linked_run_dir.symlink_to(real_run_dir, target_is_directory=True)
+
+    linked_state = linked_run_dir / "state.json"
+    linked_plan = linked_run_dir / "plan.yaml"
+
+    original_lstat = Path.lstat
+    marker_lstat_calls = 0
+
+    def capture_lstat(path_obj: Path, *args: object, **kwargs: object) -> os.stat_result:
+        nonlocal marker_lstat_calls
+        if path_obj in {linked_state, linked_plan}:
+            marker_lstat_calls += 1
+        return original_lstat(path_obj, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", capture_lstat)
+
+    assert cli_module._run_exists(linked_run_dir) is False
+    assert marker_lstat_calls == 0
+
+
 def test_cli_cancel_skips_write_when_run_not_found(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
