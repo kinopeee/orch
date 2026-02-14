@@ -2362,6 +2362,54 @@ def test_source_cli_run_dry_run_branch_adds_row_with_index_and_task_id() -> None
     )
 
 
+def test_source_cli_run_dry_run_branch_adds_columns_before_rows() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+    run_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "run"
+        ),
+        None,
+    )
+    assert run_function is not None
+
+    dry_run_if = next(
+        (
+            stmt
+            for stmt in run_function.body
+            if isinstance(stmt, ast.If)
+            and isinstance(stmt.test, ast.Name)
+            and stmt.test.id == "dry_run"
+        ),
+        None,
+    )
+    assert dry_run_if is not None
+
+    add_column_lines = [
+        node.lineno
+        for node in ast.walk(dry_run_if)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "table"
+        and node.func.attr == "add_column"
+    ]
+    add_row_lines = [
+        node.lineno
+        for node in ast.walk(dry_run_if)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "table"
+        and node.func.attr == "add_row"
+    ]
+    assert add_column_lines
+    assert add_row_lines
+    assert min(add_column_lines) < min(add_row_lines)
+
+
 def test_source_cli_run_dry_run_branch_enumerates_order_with_start_one() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))

@@ -59,6 +59,7 @@ def test_cli_run_dry_run_returns_zero(tmp_path: Path) -> None:
     assert "task_id" in output
     assert "t1" in output
     assert "t2" in output
+    assert output.index("t1") < output.index("t2")
     assert "run_id:" not in output
     assert "state:" not in output
     assert "report:" not in output
