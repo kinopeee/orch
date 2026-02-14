@@ -4615,6 +4615,7 @@ def test_cli_integration_invalid_plan_existing_home_workdir_matrix_asserts_outpu
     assert '"report:" not in output' in source_segment
     assert "assert home.exists(), context" in source_segment
     assert 'assert not (home / "runs").exists(), context' in source_segment
+    assert "assert sorted(path.name for path in home.iterdir()) == [], context" in source_segment
     assert '"--home"' in source_segment
     assert '"--workdir"' in source_segment
 
@@ -4721,6 +4722,7 @@ def test_cli_integration_invalid_plan_existing_home_matrix_asserts_output_contra
     assert '"report:" not in output' in source_segment
     assert "assert home.exists(), context" in source_segment
     assert 'assert not (home / "runs").exists(), context' in source_segment
+    assert "assert sorted(path.name for path in home.iterdir()) == [], context" in source_segment
     assert '"--home"' in source_segment
     assert '"--workdir"' not in source_segment
 
@@ -5965,6 +5967,9 @@ def test_cli_integration_invalid_plan_existing_home_cases_keep_home_contracts() 
         assert "cwd=case_root" not in source_segment
         assert "assert home.exists(), context" in source_segment
         assert 'assert not (home / "runs").exists(), context' in source_segment
+        assert (
+            "assert sorted(path.name for path in home.iterdir()) == [], context" in source_segment
+        )
         assert '"--home"' in source_segment
 
         if expected["needs_workdir"]:
@@ -6042,6 +6047,9 @@ def test_cli_integration_explicit_existing_home_plan_error_cases_keep_contracts(
         assert "cwd=case_root" not in source_segment
         assert "assert home.exists(), context" in source_segment
         assert 'assert not (home / "runs").exists(), context' in source_segment
+        assert (
+            "assert sorted(path.name for path in home.iterdir()) == [], context" in source_segment
+        )
         assert '"--home"' in source_segment
         assert '"Dry Run" not in output' in source_segment
         assert '"run_id:" not in output' in source_segment
@@ -6307,6 +6315,7 @@ def test_cli_integration_missing_plan_workdir_existing_home_matrix_asserts_outpu
     assert '"report:" not in output' in source_segment
     assert "assert home.exists(), context" in source_segment
     assert 'assert not (home / "runs").exists(), context' in source_segment
+    assert "assert sorted(path.name for path in home.iterdir()) == [], context" in source_segment
     assert '"--home"' in source_segment
     assert '"--workdir"' in source_segment
 
@@ -6412,6 +6421,7 @@ def test_cli_integration_missing_plan_existing_home_matrix_asserts_output_contra
     assert '"report:" not in output' in source_segment
     assert "assert home.exists(), context" in source_segment
     assert 'assert not (home / "runs").exists(), context' in source_segment
+    assert "assert sorted(path.name for path in home.iterdir()) == [], context" in source_segment
     assert '"--home"' in source_segment
     assert '"--workdir"' not in source_segment
 
@@ -6447,6 +6457,9 @@ def test_cli_integration_missing_plan_existing_home_cases_keep_home_contracts() 
         assert "cwd=case_root" not in source_segment
         assert "assert home.exists(), context" in source_segment
         assert 'assert not (home / "runs").exists(), context' in source_segment
+        assert (
+            "assert sorted(path.name for path in home.iterdir()) == [], context" in source_segment
+        )
         assert '"--home"' in source_segment
 
         if expected["needs_workdir"]:
