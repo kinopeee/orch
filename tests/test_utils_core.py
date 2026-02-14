@@ -8903,6 +8903,143 @@ def test_cli_integration_resume_invalid_run_id_preserve_entries_matrices_output_
     assert matched == matrix_names
 
 
+def test_cli_integration_status_logs_resume_invalid_run_id_preserve_axes() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_module = ast.parse(
+        (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    )
+
+    matrix_names = {
+        "test_cli_status_logs_resume_invalid_run_id_existing_home_preserve_entries_matrix",
+        "test_cli_status_logs_resume_invalid_run_id_default_home_preserve_entries_matrix",
+    }
+    expected_commands = {"status", "logs", "resume"}
+    expected_run_id_modes = {"path_escape", "too_long"}
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in matrix_names:
+            continue
+
+        commands_assign = next(
+            (
+                stmt
+                for stmt in node.body
+                if isinstance(stmt, ast.Assign)
+                and any(
+                    isinstance(target, ast.Name) and target.id == "commands"
+                    for target in stmt.targets
+                )
+                and isinstance(stmt.value, ast.Tuple)
+            ),
+            None,
+        )
+        assert commands_assign is not None
+        assert isinstance(commands_assign.value, ast.Tuple)
+        commands: set[str] = set()
+        for command_node in commands_assign.value.elts:
+            assert isinstance(command_node, ast.Constant)
+            assert isinstance(command_node.value, str)
+            commands.add(command_node.value)
+        assert commands == expected_commands
+
+        run_id_modes_assign = next(
+            (
+                stmt
+                for stmt in node.body
+                if isinstance(stmt, ast.Assign)
+                and any(
+                    isinstance(target, ast.Name) and target.id == "run_id_modes"
+                    for target in stmt.targets
+                )
+                and isinstance(stmt.value, ast.Tuple)
+            ),
+            None,
+        )
+        assert run_id_modes_assign is not None
+        assert isinstance(run_id_modes_assign.value, ast.Tuple)
+        run_id_modes: set[str] = set()
+        for mode_node in run_id_modes_assign.value.elts:
+            assert isinstance(mode_node, ast.Constant)
+            assert isinstance(mode_node.value, str)
+            run_id_modes.add(mode_node.value)
+        assert run_id_modes == expected_run_id_modes
+
+        source_segment = ast.get_source_segment(
+            (tests_root / "test_cli_integration.py").read_text(encoding="utf-8"),
+            node,
+        )
+        assert source_segment is not None
+        assert "for run_id_mode in run_id_modes:" in source_segment
+        assert "for command in commands:" in source_segment
+        matched.add(node.name)
+
+    assert matched == matrix_names
+
+
+def test_cli_integration_status_logs_resume_invalid_run_id_preserve_boundaries() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    explicit_matrix = (
+        "test_cli_status_logs_resume_invalid_run_id_existing_home_preserve_entries_matrix"
+    )
+    default_matrix = (
+        "test_cli_status_logs_resume_invalid_run_id_default_home_preserve_entries_matrix"
+    )
+    expectations = {
+        explicit_matrix: {"home_var": "home", "has_cwd": False, "uses_home_flag": True},
+        default_matrix: {"home_var": "default_home", "has_cwd": True, "uses_home_flag": False},
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expectations:
+            continue
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        expected = expectations[node.name]
+        home_var = expected["home_var"]
+
+        assert 'assert "Invalid run_id" in output, context' in source_segment
+        assert 'assert "Invalid home" not in output, context' in source_segment
+        assert 'assert "Run not found or broken" not in output, context' in source_segment
+        assert 'assert "Plan validation error" not in output, context' in source_segment
+        assert f"assert {home_var}.exists(), context" in source_segment
+        assert f'assert not ({home_var} / "runs").exists(), context' in source_segment
+        assert f"{home_var}.iterdir()" in source_segment
+        assert '"keep.txt"' in source_segment
+        assert '"keep_dir"' in source_segment
+        assert 'assert sentinel_file.read_text(encoding="utf-8") == "keep\\n", context' in (
+            source_segment
+        )
+        assert "assert sentinel_dir.is_dir(), context" in source_segment
+        assert (
+            'assert nested_file.read_text(encoding="utf-8") == "nested\\n", context'
+            in source_segment
+        )
+
+        if expected["has_cwd"]:
+            assert "cwd=case_root" in source_segment
+        else:
+            assert "cwd=case_root" not in source_segment
+
+        if expected["uses_home_flag"]:
+            assert '"--home"' in source_segment
+        else:
+            assert '"--home"' not in source_segment
+
+        matched.add(node.name)
+
+    assert matched == set(expectations)
+
+
 def test_cli_integration_resume_invalid_run_id_workdir_matrix_groups_keep_boundaries() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
