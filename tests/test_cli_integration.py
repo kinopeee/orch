@@ -5893,6 +5893,7 @@ def test_cli_status_logs_resume_cancel_reject_dangling_symlink_home(
         output = proc.stdout + proc.stderr
         assert proc.returncode == 2, command
         assert "Invalid home" in output, command
+        assert "contains symlink component" not in output, command
 
     assert not missing_home_target.exists()
 
