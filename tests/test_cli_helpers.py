@@ -1251,6 +1251,47 @@ def test_cli_cancel_rejects_invalid_run_id_before_run_exists_or_write(
     assert write_called is False
 
 
+def test_cli_cancel_invalid_run_id_short_circuits_before_home_and_run_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / ".orch"
+    validate_home_called = False
+    run_dir_called = False
+    run_exists_called = False
+    write_called = False
+
+    def fake_validate_home(_home: Path) -> None:
+        nonlocal validate_home_called
+        validate_home_called = True
+
+    def fake_run_dir(_home: Path, _run_id: str) -> Path:
+        nonlocal run_dir_called
+        run_dir_called = True
+        return _home / "runs" / "run1"
+
+    def fake_run_exists(_run_dir: Path) -> bool:
+        nonlocal run_exists_called
+        run_exists_called = True
+        return True
+
+    def fake_write_cancel(_run_dir: Path) -> None:
+        nonlocal write_called
+        write_called = True
+
+    monkeypatch.setattr(cli_module, "_validate_home_or_exit", fake_validate_home)
+    monkeypatch.setattr(cli_module, "run_dir", fake_run_dir)
+    monkeypatch.setattr(cli_module, "_run_exists", fake_run_exists)
+    monkeypatch.setattr(cli_module, "write_cancel_request", fake_write_cancel)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.cancel("../bad", home=home)
+    assert exc_info.value.exit_code == 2
+    assert validate_home_called is False
+    assert run_dir_called is False
+    assert run_exists_called is False
+    assert write_called is False
+
+
 def test_cli_cancel_rejects_invalid_home_before_run_exists_or_write(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
