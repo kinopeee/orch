@@ -873,6 +873,46 @@ def test_cli_run_dry_run_both_toggles_symlink_to_file_home_precedes_invalid_plan
     assert "Dry Run" not in output
 
 
+def test_cli_run_dry_run_both_toggles_reject_symlink_to_file_home(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "plan_both_toggles_symlink_file_home_only.yaml"
+    home_target_file = tmp_path / "home_target_file_both_toggles_only"
+    home_symlink = tmp_path / "home_symlink_to_file_both_toggles_only"
+    home_target_file.write_text("home-target-file\n", encoding="utf-8")
+    home_symlink.symlink_to(home_target_file)
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home_symlink),
+            "--dry-run",
+            "--fail-fast",
+            "--no-fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
+    assert "Dry Run" not in output
+
+
 def test_cli_run_dry_run_both_toggles_symlink_to_file_home_precedes_invalid_workdir(
     tmp_path: Path,
 ) -> None:
@@ -1287,6 +1327,46 @@ def test_cli_run_dry_run_both_toggles_reverse_symlink_to_file_home_precedes_inva
     assert proc.returncode == 2
     assert "Invalid home" in output
     assert "Plan validation error" not in output
+    assert "Dry Run" not in output
+
+
+def test_cli_run_dry_run_both_toggles_reverse_reject_symlink_to_file_home(
+    tmp_path: Path,
+) -> None:
+    plan_path = tmp_path / "plan_both_toggles_reverse_symlink_file_home_only.yaml"
+    home_target_file = tmp_path / "home_target_file_both_toggles_reverse_only"
+    home_symlink = tmp_path / "home_symlink_to_file_both_toggles_reverse_only"
+    home_target_file.write_text("home-target-file\n", encoding="utf-8")
+    home_symlink.symlink_to(home_target_file)
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home_symlink),
+            "--dry-run",
+            "--no-fail-fast",
+            "--fail-fast",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Invalid home" in output
     assert "Dry Run" not in output
 
 
