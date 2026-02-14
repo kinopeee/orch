@@ -4598,6 +4598,30 @@ def test_cli_integration_single_plan_precedence_tests_assert_no_runtime_summary(
     assert matched_names == target_names
 
 
+def test_cli_integration_single_plan_precedence_tests_assert_no_planpath_error() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    target_names = {
+        "test_cli_run_dry_run_both_fail_fast_toggles_invalid_plan_precedes_invalid_workdir",
+        "test_cli_run_dry_run_both_fail_fast_toggles_reverse_order_invalid_plan_precedes_invalid_workdir",
+    }
+
+    matched_names: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in target_names:
+            continue
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        assert '"PLAN_PATH" not in output' in source_segment
+        matched_names.add(node.name)
+
+    assert matched_names == target_names
+
+
 def test_cli_integration_missing_plan_path_matrix_asserts_no_symlink_component_message() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
