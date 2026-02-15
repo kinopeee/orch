@@ -59,6 +59,8 @@ jobs:
               raise SystemExit(f"invalid DoD home type: {type(data['home']).__name__}")
           if data["home"].strip() == "":
               raise SystemExit("invalid DoD home value: empty")
+          if not os.path.isabs(data["home"]):
+              raise SystemExit(f"invalid DoD home value: not absolute {data['home']!r}")
           if data["home"] != expected_home:
               raise SystemExit(f"unexpected DoD home: {data['home']!r}")
           run_id_pattern = re.compile(r"^\d{8}_\d{6}_[0-9a-f]{6}$")
