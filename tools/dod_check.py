@@ -354,6 +354,11 @@ def _assert_summary_payload_consistent(payload: dict[str, str]) -> None:
         extra = sorted(actual_keys - required_keys)
         raise RuntimeError(f"invalid summary keys: missing={missing}, extra={extra}")
 
+    for key in sorted(required_keys):
+        value = payload[key]
+        if not isinstance(value, str):
+            raise RuntimeError(f"invalid summary value type: {key}={type(value).__name__}")
+
     if payload["result"] != "PASS":
         raise RuntimeError(f"invalid summary result: {payload['result']!r}")
     if payload["home"] == "":
