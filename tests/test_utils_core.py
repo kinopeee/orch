@@ -101,7 +101,7 @@ def test_ci_workflow_runs_dod_runtime_smoke() -> None:
         Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml"
     ).read_text(encoding="utf-8")
     assert "name: DoD runtime smoke" in ci_workflow
-    assert "python tools/dod_check.py --skip-quality-gates" in ci_workflow
+    assert "python tools/dod_check.py --skip-quality-gates --home /tmp/orch_ci_dod" in ci_workflow
 
 
 def test_ci_workflow_keeps_release_0_1_quality_gates() -> None:
@@ -110,7 +110,7 @@ def test_ci_workflow_keeps_release_0_1_quality_gates() -> None:
     ).read_text(encoding="utf-8")
     expected_steps = (
         "name: DoD runtime smoke",
-        "run: python tools/dod_check.py --skip-quality-gates",
+        "run: python tools/dod_check.py --skip-quality-gates --home /tmp/orch_ci_dod",
         "name: Lint format check",
         "run: ruff format --check .",
         "name: Lint",
