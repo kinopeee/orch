@@ -4688,6 +4688,480 @@ def test_cli_run_dry_run_both_toggles_default_existing_home_preserves_entries_in
             assert nested_file.read_text(encoding="utf-8") == "nested\n", context
 
 
+def test_cli_run_dry_run_both_toggles_existing_home_with_runs_preserves_entries_invalid_workdir(
+    tmp_path: Path,
+) -> None:
+    flag_orders: list[list[str]] = [
+        ["--fail-fast", "--no-fail-fast"],
+        ["--no-fail-fast", "--fail-fast"],
+    ]
+    workdir_modes = (
+        "file_path",
+        "file_ancestor",
+        "symlink_to_file",
+        "dangling_symlink",
+        "symlink_ancestor",
+    )
+
+    for order in flag_orders:
+        order_label = "forward" if order[0] == "--fail-fast" else "reverse"
+        for workdir_mode in workdir_modes:
+            case_root = (
+                tmp_path
+                / f"preserve_home_with_runs_entries_invalid_workdir_{workdir_mode}_{order_label}"
+            )
+            case_root.mkdir()
+            home = case_root / ".orch_cli"
+            home.mkdir()
+            sentinel_file = home / "keep.txt"
+            sentinel_file.write_text("keep\n", encoding="utf-8")
+            sentinel_dir = home / "keep_dir"
+            sentinel_dir.mkdir()
+            nested_file = sentinel_dir / "nested.txt"
+            nested_file.write_text("nested\n", encoding="utf-8")
+            existing_run = home / "runs" / "keep_run"
+            existing_run.mkdir(parents=True)
+            plan_file = existing_run / "plan.yaml"
+            plan_file.write_text("tasks: []\n", encoding="utf-8")
+
+            plan_path = case_root / "valid_plan.yaml"
+            plan_path.write_text(
+                'tasks:\n  - id: t1\n    cmd: ["python3", "-c", "print(\'ok\')"]\n',
+                encoding="utf-8",
+            )
+
+            if workdir_mode == "file_path":
+                invalid_workdir_path = case_root / "invalid_workdir_file"
+                invalid_workdir_path.write_text("file\n", encoding="utf-8")
+            elif workdir_mode == "file_ancestor":
+                workdir_parent_file = case_root / "workdir_parent_file"
+                workdir_parent_file.write_text("file\n", encoding="utf-8")
+                invalid_workdir_path = workdir_parent_file / "child_workdir"
+            elif workdir_mode == "symlink_to_file":
+                workdir_target_file = case_root / "workdir_target_file"
+                workdir_target_file.write_text("file\n", encoding="utf-8")
+                invalid_workdir_path = case_root / "workdir_symlink_to_file"
+                invalid_workdir_path.symlink_to(workdir_target_file)
+            elif workdir_mode == "dangling_symlink":
+                invalid_workdir_path = case_root / "workdir_dangling_symlink"
+                invalid_workdir_path.symlink_to(
+                    case_root / "missing_workdir_target", target_is_directory=True
+                )
+            else:
+                real_workdir_parent = case_root / "real_workdir_parent"
+                real_workdir_parent.mkdir()
+                workdir_parent_link = case_root / "workdir_parent_link"
+                workdir_parent_link.symlink_to(real_workdir_parent, target_is_directory=True)
+                invalid_workdir_path = workdir_parent_link / "child_workdir"
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "orch.cli",
+                    "run",
+                    str(plan_path),
+                    "--home",
+                    str(home),
+                    "--workdir",
+                    str(invalid_workdir_path),
+                    "--dry-run",
+                    *order,
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=5,
+            )
+            output = proc.stdout + proc.stderr
+            context = f"invalid_workdir-{workdir_mode}-{order_label}"
+            assert proc.returncode == 0, context
+            assert "Dry Run" in output, context
+            assert "Invalid workdir" not in output, context
+            assert "Plan validation error" not in output, context
+            assert "PLAN_PATH" not in output, context
+            assert "Invalid home" not in output, context
+            assert "run_id:" not in output, context
+            assert "state:" not in output, context
+            assert "report:" not in output, context
+            assert home.exists(), context
+            assert sorted(path.name for path in home.iterdir()) == [
+                "keep.txt",
+                "keep_dir",
+                "runs",
+            ], context
+            assert sorted(path.name for path in (home / "runs").iterdir()) == ["keep_run"], context
+            assert sorted(path.name for path in existing_run.iterdir()) == ["plan.yaml"], context
+            assert not (existing_run / ".lock").exists(), context
+            assert not (existing_run / "cancel.request").exists(), context
+            assert plan_file.read_text(encoding="utf-8") == "tasks: []\n", context
+            assert sentinel_file.read_text(encoding="utf-8") == "keep\n", context
+            assert sentinel_dir.is_dir(), context
+            assert nested_file.read_text(encoding="utf-8") == "nested\n", context
+
+
+def test_cli_run_dry_run_toggles_default_home_with_runs_invalid_workdir_preserve(
+    tmp_path: Path,
+) -> None:
+    flag_orders: list[list[str]] = [
+        ["--fail-fast", "--no-fail-fast"],
+        ["--no-fail-fast", "--fail-fast"],
+    ]
+    workdir_modes = (
+        "file_path",
+        "file_ancestor",
+        "symlink_to_file",
+        "dangling_symlink",
+        "symlink_ancestor",
+    )
+
+    for order in flag_orders:
+        order_label = "forward" if order[0] == "--fail-fast" else "reverse"
+        for workdir_mode in workdir_modes:
+            case_root = (
+                tmp_path / "preserve_default_home_with_runs_entries_invalid_workdir_"
+                f"{workdir_mode}_{order_label}"
+            )
+            case_root.mkdir()
+            default_home = case_root / ".orch_cli"
+            default_home.mkdir()
+            sentinel_file = default_home / "keep.txt"
+            sentinel_file.write_text("keep\n", encoding="utf-8")
+            sentinel_dir = default_home / "keep_dir"
+            sentinel_dir.mkdir()
+            nested_file = sentinel_dir / "nested.txt"
+            nested_file.write_text("nested\n", encoding="utf-8")
+            existing_run = default_home / "runs" / "keep_run"
+            existing_run.mkdir(parents=True)
+            plan_file = existing_run / "plan.yaml"
+            plan_file.write_text("tasks: []\n", encoding="utf-8")
+
+            plan_path = case_root / "valid_plan.yaml"
+            plan_path.write_text(
+                'tasks:\n  - id: t1\n    cmd: ["python3", "-c", "print(\'ok\')"]\n',
+                encoding="utf-8",
+            )
+
+            if workdir_mode == "file_path":
+                invalid_workdir_path = case_root / "invalid_workdir_file"
+                invalid_workdir_path.write_text("file\n", encoding="utf-8")
+            elif workdir_mode == "file_ancestor":
+                workdir_parent_file = case_root / "workdir_parent_file"
+                workdir_parent_file.write_text("file\n", encoding="utf-8")
+                invalid_workdir_path = workdir_parent_file / "child_workdir"
+            elif workdir_mode == "symlink_to_file":
+                workdir_target_file = case_root / "workdir_target_file"
+                workdir_target_file.write_text("file\n", encoding="utf-8")
+                invalid_workdir_path = case_root / "workdir_symlink_to_file"
+                invalid_workdir_path.symlink_to(workdir_target_file)
+            elif workdir_mode == "dangling_symlink":
+                invalid_workdir_path = case_root / "workdir_dangling_symlink"
+                invalid_workdir_path.symlink_to(
+                    case_root / "missing_workdir_target", target_is_directory=True
+                )
+            else:
+                real_workdir_parent = case_root / "real_workdir_parent"
+                real_workdir_parent.mkdir()
+                workdir_parent_link = case_root / "workdir_parent_link"
+                workdir_parent_link.symlink_to(real_workdir_parent, target_is_directory=True)
+                invalid_workdir_path = workdir_parent_link / "child_workdir"
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "orch.cli",
+                    "run",
+                    str(plan_path),
+                    "--workdir",
+                    str(invalid_workdir_path),
+                    "--dry-run",
+                    *order,
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=5,
+                cwd=case_root,
+            )
+            output = proc.stdout + proc.stderr
+            context = f"invalid_workdir-{workdir_mode}-{order_label}"
+            assert proc.returncode == 0, context
+            assert "Dry Run" in output, context
+            assert "Invalid workdir" not in output, context
+            assert "Plan validation error" not in output, context
+            assert "PLAN_PATH" not in output, context
+            assert "Invalid home" not in output, context
+            assert "run_id:" not in output, context
+            assert "state:" not in output, context
+            assert "report:" not in output, context
+            assert default_home.exists(), context
+            assert sorted(path.name for path in default_home.iterdir()) == [
+                "keep.txt",
+                "keep_dir",
+                "runs",
+            ], context
+            assert sorted(path.name for path in (default_home / "runs").iterdir()) == [
+                "keep_run"
+            ], context
+            assert sorted(path.name for path in existing_run.iterdir()) == ["plan.yaml"], context
+            assert not (existing_run / ".lock").exists(), context
+            assert not (existing_run / "cancel.request").exists(), context
+            assert plan_file.read_text(encoding="utf-8") == "tasks: []\n", context
+            assert sentinel_file.read_text(encoding="utf-8") == "keep\n", context
+            assert sentinel_dir.is_dir(), context
+            assert nested_file.read_text(encoding="utf-8") == "nested\n", context
+
+
+def test_cli_run_dry_run_both_toggles_existing_home_run_artifacts_preserved_invalid_workdir(
+    tmp_path: Path,
+) -> None:
+    flag_orders: list[list[str]] = [
+        ["--fail-fast", "--no-fail-fast"],
+        ["--no-fail-fast", "--fail-fast"],
+    ]
+    workdir_modes = (
+        "file_path",
+        "file_ancestor",
+        "symlink_to_file",
+        "dangling_symlink",
+        "symlink_ancestor",
+    )
+
+    for order in flag_orders:
+        order_label = "forward" if order[0] == "--fail-fast" else "reverse"
+        for workdir_mode in workdir_modes:
+            case_root = (
+                tmp_path / "preserve_home_run_artifacts_invalid_workdir_"
+                f"{workdir_mode}_{order_label}"
+            )
+            case_root.mkdir()
+            home = case_root / ".orch_cli"
+            home.mkdir()
+            sentinel_file = home / "keep.txt"
+            sentinel_file.write_text("keep\n", encoding="utf-8")
+            sentinel_dir = home / "keep_dir"
+            sentinel_dir.mkdir()
+            nested_file = sentinel_dir / "nested.txt"
+            nested_file.write_text("nested\n", encoding="utf-8")
+            existing_run = home / "runs" / "keep_run"
+            existing_run.mkdir(parents=True)
+            plan_file = existing_run / "plan.yaml"
+            plan_file.write_text("tasks: []\n", encoding="utf-8")
+            lock_file = existing_run / ".lock"
+            lock_file.write_text("lock\n", encoding="utf-8")
+            cancel_request = existing_run / "cancel.request"
+            cancel_request.write_text("cancel\n", encoding="utf-8")
+            run_log = existing_run / "task.log"
+            run_log.write_text("log\n", encoding="utf-8")
+
+            plan_path = case_root / "valid_plan.yaml"
+            plan_path.write_text(
+                'tasks:\n  - id: t1\n    cmd: ["python3", "-c", "print(\'ok\')"]\n',
+                encoding="utf-8",
+            )
+
+            if workdir_mode == "file_path":
+                invalid_workdir_path = case_root / "invalid_workdir_file"
+                invalid_workdir_path.write_text("file\n", encoding="utf-8")
+            elif workdir_mode == "file_ancestor":
+                workdir_parent_file = case_root / "workdir_parent_file"
+                workdir_parent_file.write_text("file\n", encoding="utf-8")
+                invalid_workdir_path = workdir_parent_file / "child_workdir"
+            elif workdir_mode == "symlink_to_file":
+                workdir_target_file = case_root / "workdir_target_file"
+                workdir_target_file.write_text("file\n", encoding="utf-8")
+                invalid_workdir_path = case_root / "workdir_symlink_to_file"
+                invalid_workdir_path.symlink_to(workdir_target_file)
+            elif workdir_mode == "dangling_symlink":
+                invalid_workdir_path = case_root / "workdir_dangling_symlink"
+                invalid_workdir_path.symlink_to(
+                    case_root / "missing_workdir_target", target_is_directory=True
+                )
+            else:
+                real_workdir_parent = case_root / "real_workdir_parent"
+                real_workdir_parent.mkdir()
+                workdir_parent_link = case_root / "workdir_parent_link"
+                workdir_parent_link.symlink_to(real_workdir_parent, target_is_directory=True)
+                invalid_workdir_path = workdir_parent_link / "child_workdir"
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "orch.cli",
+                    "run",
+                    str(plan_path),
+                    "--home",
+                    str(home),
+                    "--workdir",
+                    str(invalid_workdir_path),
+                    "--dry-run",
+                    *order,
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=5,
+            )
+            output = proc.stdout + proc.stderr
+            context = f"invalid_workdir-{workdir_mode}-{order_label}"
+            assert proc.returncode == 0, context
+            assert "Dry Run" in output, context
+            assert "Invalid workdir" not in output, context
+            assert "Plan validation error" not in output, context
+            assert "PLAN_PATH" not in output, context
+            assert "Invalid home" not in output, context
+            assert "run_id:" not in output, context
+            assert "state:" not in output, context
+            assert "report:" not in output, context
+            assert home.exists(), context
+            assert sorted(path.name for path in home.iterdir()) == [
+                "keep.txt",
+                "keep_dir",
+                "runs",
+            ], context
+            assert sorted(path.name for path in (home / "runs").iterdir()) == ["keep_run"], context
+            assert sorted(path.name for path in existing_run.iterdir()) == [
+                ".lock",
+                "cancel.request",
+                "plan.yaml",
+                "task.log",
+            ], context
+            assert plan_file.read_text(encoding="utf-8") == "tasks: []\n", context
+            assert lock_file.read_text(encoding="utf-8") == "lock\n", context
+            assert cancel_request.read_text(encoding="utf-8") == "cancel\n", context
+            assert run_log.read_text(encoding="utf-8") == "log\n", context
+            assert sentinel_file.read_text(encoding="utf-8") == "keep\n", context
+            assert sentinel_dir.is_dir(), context
+            assert nested_file.read_text(encoding="utf-8") == "nested\n", context
+
+
+def test_cli_run_dry_run_both_toggles_default_existing_home_run_artifacts_preserved_invalid_workdir(
+    tmp_path: Path,
+) -> None:
+    flag_orders: list[list[str]] = [
+        ["--fail-fast", "--no-fail-fast"],
+        ["--no-fail-fast", "--fail-fast"],
+    ]
+    workdir_modes = (
+        "file_path",
+        "file_ancestor",
+        "symlink_to_file",
+        "dangling_symlink",
+        "symlink_ancestor",
+    )
+
+    for order in flag_orders:
+        order_label = "forward" if order[0] == "--fail-fast" else "reverse"
+        for workdir_mode in workdir_modes:
+            case_root = (
+                tmp_path / "preserve_default_home_run_artifacts_invalid_workdir_"
+                f"{workdir_mode}_{order_label}"
+            )
+            case_root.mkdir()
+            default_home = case_root / ".orch_cli"
+            default_home.mkdir()
+            sentinel_file = default_home / "keep.txt"
+            sentinel_file.write_text("keep\n", encoding="utf-8")
+            sentinel_dir = default_home / "keep_dir"
+            sentinel_dir.mkdir()
+            nested_file = sentinel_dir / "nested.txt"
+            nested_file.write_text("nested\n", encoding="utf-8")
+            existing_run = default_home / "runs" / "keep_run"
+            existing_run.mkdir(parents=True)
+            plan_file = existing_run / "plan.yaml"
+            plan_file.write_text("tasks: []\n", encoding="utf-8")
+            lock_file = existing_run / ".lock"
+            lock_file.write_text("lock\n", encoding="utf-8")
+            cancel_request = existing_run / "cancel.request"
+            cancel_request.write_text("cancel\n", encoding="utf-8")
+            run_log = existing_run / "task.log"
+            run_log.write_text("log\n", encoding="utf-8")
+
+            plan_path = case_root / "valid_plan.yaml"
+            plan_path.write_text(
+                'tasks:\n  - id: t1\n    cmd: ["python3", "-c", "print(\'ok\')"]\n',
+                encoding="utf-8",
+            )
+
+            if workdir_mode == "file_path":
+                invalid_workdir_path = case_root / "invalid_workdir_file"
+                invalid_workdir_path.write_text("file\n", encoding="utf-8")
+            elif workdir_mode == "file_ancestor":
+                workdir_parent_file = case_root / "workdir_parent_file"
+                workdir_parent_file.write_text("file\n", encoding="utf-8")
+                invalid_workdir_path = workdir_parent_file / "child_workdir"
+            elif workdir_mode == "symlink_to_file":
+                workdir_target_file = case_root / "workdir_target_file"
+                workdir_target_file.write_text("file\n", encoding="utf-8")
+                invalid_workdir_path = case_root / "workdir_symlink_to_file"
+                invalid_workdir_path.symlink_to(workdir_target_file)
+            elif workdir_mode == "dangling_symlink":
+                invalid_workdir_path = case_root / "workdir_dangling_symlink"
+                invalid_workdir_path.symlink_to(
+                    case_root / "missing_workdir_target", target_is_directory=True
+                )
+            else:
+                real_workdir_parent = case_root / "real_workdir_parent"
+                real_workdir_parent.mkdir()
+                workdir_parent_link = case_root / "workdir_parent_link"
+                workdir_parent_link.symlink_to(real_workdir_parent, target_is_directory=True)
+                invalid_workdir_path = workdir_parent_link / "child_workdir"
+
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "orch.cli",
+                    "run",
+                    str(plan_path),
+                    "--workdir",
+                    str(invalid_workdir_path),
+                    "--dry-run",
+                    *order,
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=5,
+                cwd=case_root,
+            )
+            output = proc.stdout + proc.stderr
+            context = f"invalid_workdir-{workdir_mode}-{order_label}"
+            assert proc.returncode == 0, context
+            assert "Dry Run" in output, context
+            assert "Invalid workdir" not in output, context
+            assert "Plan validation error" not in output, context
+            assert "PLAN_PATH" not in output, context
+            assert "Invalid home" not in output, context
+            assert "run_id:" not in output, context
+            assert "state:" not in output, context
+            assert "report:" not in output, context
+            assert default_home.exists(), context
+            assert sorted(path.name for path in default_home.iterdir()) == [
+                "keep.txt",
+                "keep_dir",
+                "runs",
+            ], context
+            assert sorted(path.name for path in (default_home / "runs").iterdir()) == [
+                "keep_run"
+            ], context
+            assert sorted(path.name for path in existing_run.iterdir()) == [
+                ".lock",
+                "cancel.request",
+                "plan.yaml",
+                "task.log",
+            ], context
+            assert plan_file.read_text(encoding="utf-8") == "tasks: []\n", context
+            assert lock_file.read_text(encoding="utf-8") == "lock\n", context
+            assert cancel_request.read_text(encoding="utf-8") == "cancel\n", context
+            assert run_log.read_text(encoding="utf-8") == "log\n", context
+            assert sentinel_file.read_text(encoding="utf-8") == "keep\n", context
+            assert sentinel_dir.is_dir(), context
+            assert nested_file.read_text(encoding="utf-8") == "nested\n", context
+
+
 def test_cli_run_dry_run_both_toggles_missing_plan_path_precedes_invalid_home_matrix(
     tmp_path: Path,
 ) -> None:
