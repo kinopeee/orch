@@ -115,6 +115,22 @@ def test_tools_dod_check_enforces_command_timeouts() -> None:
         assert fragment in source
 
 
+def test_tools_dod_check_asserts_resume_success_tasks_unchanged() -> None:
+    source = (Path(__file__).resolve().parents[1] / "tools" / "dod_check.py").read_text(
+        encoding="utf-8"
+    )
+    required_fragments = (
+        "def _successful_task_snapshots(",
+        "def _assert_resume_kept_successful_tasks_unchanged(",
+        "baseline_successful_tasks = _successful_task_snapshots(",
+        "_assert_resume_kept_successful_tasks_unchanged(",
+        "resume changed attempts for successful task",
+        "resume changed started_at for successful task",
+    )
+    for fragment in required_fragments:
+        assert fragment in source
+
+
 def test_tools_dod_check_passes_home_to_all_orch_commands() -> None:
     source = (Path(__file__).resolve().parents[1] / "tools" / "dod_check.py").read_text(
         encoding="utf-8"

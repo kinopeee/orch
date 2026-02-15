@@ -138,6 +138,40 @@ def _state_tasks(state: dict[str, object]) -> dict[str, dict[str, object]]:
     return tasks
 
 
+def _successful_task_snapshots(state: dict[str, object]) -> dict[str, tuple[int, object]]:
+    snapshots: dict[str, tuple[int, object]] = {}
+    for task_id, task_state in _state_tasks(state).items():
+        if task_state.get("status") != "SUCCESS":
+            continue
+        attempts = task_state.get("attempts")
+        if not isinstance(attempts, int):
+            raise RuntimeError(f"task attempts must be int: {task_id}")
+        snapshots[task_id] = (attempts, task_state.get("started_at"))
+    return snapshots
+
+
+def _assert_resume_kept_successful_tasks_unchanged(
+    baseline: dict[str, tuple[int, object]], resumed_state: dict[str, object]
+) -> None:
+    resumed_tasks = _state_tasks(resumed_state)
+    for task_id, (baseline_attempts, baseline_started_at) in baseline.items():
+        task_state = resumed_tasks.get(task_id)
+        if task_state is None:
+            raise RuntimeError(f"task missing after resume: {task_id}")
+
+        attempts = task_state.get("attempts")
+        if not isinstance(attempts, int):
+            raise RuntimeError(f"task attempts must be int: {task_id}")
+        _assert(
+            attempts == baseline_attempts,
+            f"resume changed attempts for successful task: {task_id}",
+        )
+        _assert(
+            task_state.get("started_at") == baseline_started_at,
+            f"resume changed started_at for successful task: {task_id}",
+        )
+
+
 def _assert_report_exists(run_id: str, runs_dir: Path) -> None:
     report_path = runs_dir / run_id / "report" / "final_report.md"
     _assert(report_path.exists(), f"final report file was not generated: {report_path}")
@@ -280,6 +314,7 @@ def main(options: Options) -> int:
     basic_run_id = _parse_run_id(basic.stdout)
     _assert_run_status(basic_run_id, runs_dir, "SUCCESS")
     _assert_report_exists(basic_run_id, runs_dir)
+    baseline_successful_tasks = _successful_task_snapshots(_load_state(basic_run_id, runs_dir))
 
     parallel = _run(
         [
@@ -329,12 +364,10 @@ def main(options: Options) -> int:
     )
     _ = resume
     _assert_run_status(basic_run_id, runs_dir, "SUCCESS")
-    resumed_tasks = _state_tasks(_load_state(basic_run_id, runs_dir))
-    for task_id, task_state in resumed_tasks.items():
-        attempts = task_state.get("attempts")
-        if not isinstance(attempts, int):
-            raise RuntimeError(f"task attempts must be int: {task_id}")
-        _assert(attempts == 1, f"resume reran successful task: {task_id}")
+    _assert_resume_kept_successful_tasks_unchanged(
+        baseline_successful_tasks,
+        _load_state(basic_run_id, runs_dir),
+    )
 
     _run(
         [*orch_prefix, "status", basic_run_id, "--home", home_str],
