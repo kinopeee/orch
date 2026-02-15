@@ -49,6 +49,36 @@ def test_source_does_not_emit_symlink_component_detail_literal() -> None:
     assert offending_files == []
 
 
+def test_tools_dod_check_covers_release_0_1_required_commands() -> None:
+    source = (Path(__file__).resolve().parents[1] / "tools" / "dod_check.py").read_text(
+        encoding="utf-8"
+    )
+
+    expected_fragments = {
+        '"run", "examples/plan_basic.yaml"',
+        '"run", "examples/plan_parallel.yaml", "--max-parallel", "2"',
+        '"run", "examples/plan_fail_retry.yaml"',
+        '"resume", basic_run_id',
+        '"status", basic_run_id',
+        '"logs", basic_run_id, "--task", "inspect", "--tail", "5"',
+        '"cancel", detected_run_id',
+        '"-m", "ruff", "format", "--check", "."',
+        '"-m", "ruff", "check", "--no-fix", "."',
+        '"-m", "pytest"',
+    }
+    for fragment in expected_fragments:
+        assert fragment in source
+
+
+def test_tools_dod_check_uses_cli_fallback_when_orch_command_missing() -> None:
+    source = (Path(__file__).resolve().parents[1] / "tools" / "dod_check.py").read_text(
+        encoding="utf-8"
+    )
+    assert '["orch", "--help"]' in source
+    assert 'return ["orch"]' in source
+    assert 'return [sys.executable, "-m", "orch.cli"]' in source
+
+
 def test_source_does_not_emit_symbolic_links_detail_literal() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     offending_files: list[str] = []
