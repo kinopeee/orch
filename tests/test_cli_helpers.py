@@ -80,6 +80,11 @@ def test_render_plan_error_sanitizes_symbolic_link_hyphenated_detail() -> None:
     assert _render_plan_error(err) == "invalid plan path"
 
 
+def test_render_plan_error_sanitizes_symbolic_link_underscored_detail() -> None:
+    err = PlanError("plan path has symbolic_link reference: /tmp/plan.yaml")
+    assert _render_plan_error(err) == "invalid plan path"
+
+
 def test_render_plan_error_sanitizes_symbolic_links_plural_detail() -> None:
     err = PlanError("too many levels of symbolic links in plan path")
     assert _render_plan_error(err) == "invalid plan path"
@@ -142,6 +147,11 @@ def test_render_runtime_error_detail_sanitizes_symlink_case_insensitive() -> Non
 
 def test_render_runtime_error_detail_sanitizes_symbolic_link_detail() -> None:
     err = OSError("run path has symbolic link reference")
+    assert _render_runtime_error_detail(err) == "invalid run path"
+
+
+def test_render_runtime_error_detail_sanitizes_symbolic_link_hyphenated_detail() -> None:
+    err = OSError("run path has symbolic-link reference")
     assert _render_runtime_error_detail(err) == "invalid run path"
 
 
