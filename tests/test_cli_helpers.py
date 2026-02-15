@@ -904,6 +904,44 @@ tasks:
     assert exc_info.value.exit_code == 2
 
 
+def test_cli_run_sanitizes_symlink_execution_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    plan_path.write_text(
+        """
+tasks:
+  - id: t1
+    cmd: ["python3", "-c", "print('ok')"]
+""".strip(),
+        encoding="utf-8",
+    )
+    home = tmp_path / ".orch"
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+
+    async def boom_run_plan(*args: object, **kwargs: object) -> object:
+        raise OSError("run working directory must not include symlink: /tmp/wd")
+
+    monkeypatch.setattr(cli_module, "run_plan", boom_run_plan)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.run(
+            plan_path,
+            max_parallel=1,
+            home=home,
+            workdir=workdir,
+            fail_fast=False,
+            dry_run=False,
+        )
+    assert exc_info.value.exit_code == 2
+    captured = capsys.readouterr()
+    assert "Run execution failed" in captured.out
+    assert "invalid run path" in captured.out
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
+
+
 def test_cli_run_invalid_home_short_circuits_before_plan_load_and_workdir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
