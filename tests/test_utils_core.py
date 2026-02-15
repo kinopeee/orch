@@ -269,6 +269,7 @@ def test_ci_workflow_validates_dod_runtime_summary_json() -> None:
     assert "import json" in ci_workflow
     assert "import os" in ci_workflow
     assert "import re" in ci_workflow
+    assert "def _sorted_key_reprs(keys):" in ci_workflow
     assert 'summary_path = Path(os.environ["DOD_SUMMARY_PATH"])' in ci_workflow
     assert 'expected_home = os.environ["DOD_HOME"]' in ci_workflow
     assert "if not summary_path.exists():" in ci_workflow
@@ -293,6 +294,13 @@ def test_ci_workflow_validates_dod_runtime_summary_json() -> None:
         "if not isinstance(value, str) or run_id_pattern.fullmatch(value) is None:" in ci_workflow
     )
     assert "unexpected = set(data).difference(required_keys)" in ci_workflow
+    assert (
+        'raise SystemExit(f"missing keys in summary: {_sorted_key_reprs(missing)}")' in ci_workflow
+    )
+    assert (
+        'raise SystemExit(f"unexpected keys in summary: {_sorted_key_reprs(unexpected)}")'
+        in ci_workflow
+    )
     assert "if len(set(run_ids)) != len(run_ids):" in ci_workflow
 
 

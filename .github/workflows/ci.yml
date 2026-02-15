@@ -30,6 +30,9 @@ jobs:
           import re
           from pathlib import Path
 
+          def _sorted_key_reprs(keys):
+              return sorted(repr(key) for key in keys)
+
           summary_path = Path(os.environ["DOD_SUMMARY_PATH"])
           expected_home = os.environ["DOD_HOME"]
           if not summary_path.exists():
@@ -50,10 +53,10 @@ jobs:
           }
           missing = required_keys.difference(data)
           if missing:
-              raise SystemExit(f"missing keys in summary: {sorted(missing)}")
+              raise SystemExit(f"missing keys in summary: {_sorted_key_reprs(missing)}")
           unexpected = set(data).difference(required_keys)
           if unexpected:
-              raise SystemExit(f"unexpected keys in summary: {sorted(unexpected)}")
+              raise SystemExit(f"unexpected keys in summary: {_sorted_key_reprs(unexpected)}")
           if not isinstance(data["result"], str):
               raise SystemExit(f"invalid DoD result type: {type(data['result']).__name__}")
           if data["result"] != "PASS":
