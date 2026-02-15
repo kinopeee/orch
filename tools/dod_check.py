@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import subprocess
@@ -8,6 +9,7 @@ import sys
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,6 +22,11 @@ class CommandResult:
     returncode: int
     stdout: str
     stderr: str
+
+
+@dataclass(frozen=True)
+class Options:
+    skip_quality_gates: bool
 
 
 def _print_header(title: str) -> None:
@@ -70,6 +77,17 @@ def _detect_orch_prefix() -> list[str]:
     return [sys.executable, "-m", "orch.cli"]
 
 
+def _parse_args(argv: Sequence[str]) -> Options:
+    parser = argparse.ArgumentParser(description="Release 0.1 DoD self-check runner")
+    parser.add_argument(
+        "--skip-quality-gates",
+        action="store_true",
+        help="Skip ruff/pytest checks (useful when these are run separately in CI)",
+    )
+    parsed = parser.parse_args(list(argv))
+    return Options(skip_quality_gates=parsed.skip_quality_gates)
+
+
 def _parse_run_id(output: str) -> str:
     match = re.search(r"run_id:\s*([A-Za-z0-9_-]+)", output)
     if match is None:
@@ -87,6 +105,22 @@ def _load_state(run_id: str) -> dict[str, object]:
 def _assert(condition: bool, message: str) -> None:
     if not condition:
         raise RuntimeError(message)
+
+
+def _parse_iso_timestamp(value: object) -> datetime:
+    if not isinstance(value, str):
+        raise RuntimeError(f"timestamp must be string, got {type(value).__name__}")
+    return datetime.fromisoformat(value)
+
+
+def _intervals_overlap(
+    left_start: object, left_end: object, right_start: object, right_end: object
+) -> bool:
+    ls = _parse_iso_timestamp(left_start)
+    le = _parse_iso_timestamp(left_end)
+    rs = _parse_iso_timestamp(right_start)
+    re_ = _parse_iso_timestamp(right_end)
+    return ls < re_ and rs < le
 
 
 def _run_cancel_scenario(orch_prefix: list[str]) -> str:
@@ -147,7 +181,7 @@ def _run_cancel_scenario(orch_prefix: list[str]) -> str:
     return detected_run_id
 
 
-def main() -> int:
+def main(options: Options) -> int:
     orch_prefix = _detect_orch_prefix()
     print("orch command:", " ".join(orch_prefix))
 
@@ -166,9 +200,17 @@ def main() -> int:
     parallel_run_id = _parse_run_id(parallel.stdout)
     parallel_state = _load_state(parallel_run_id)
     tasks = parallel_state.get("tasks", {})
-    inspect_a = tasks["inspect_a"]["started_at"]  # type: ignore[index]
-    inspect_b = tasks["inspect_b"]["started_at"]  # type: ignore[index]
-    _assert(inspect_a == inspect_b, "parallel evidence check failed")
+    inspect_a = tasks["inspect_a"]  # type: ignore[index]
+    inspect_b = tasks["inspect_b"]  # type: ignore[index]
+    _assert(
+        _intervals_overlap(
+            inspect_a["started_at"],
+            inspect_a["ended_at"],
+            inspect_b["started_at"],
+            inspect_b["ended_at"],
+        ),
+        "parallel evidence check failed",
+    )
 
     fail = _run(
         [*orch_prefix, "run", "examples/plan_fail_retry.yaml"],
@@ -212,21 +254,25 @@ def main() -> int:
 
     cancel_run_id = _run_cancel_scenario(orch_prefix)
 
-    _run(
-        [sys.executable, "-m", "ruff", "format", "--check", "."],
-        expected=0,
-        title="ruff format check",
-    )
-    _run(
-        [sys.executable, "-m", "ruff", "check", "--no-fix", "."],
-        expected=0,
-        title="ruff lint check",
-    )
-    _run(
-        [sys.executable, "-m", "pytest"],
-        expected=0,
-        title="pytest",
-    )
+    if not options.skip_quality_gates:
+        _run(
+            [sys.executable, "-m", "ruff", "format", "--check", "."],
+            expected=0,
+            title="ruff format check",
+        )
+        _run(
+            [sys.executable, "-m", "ruff", "check", "--no-fix", "."],
+            expected=0,
+            title="ruff lint check",
+        )
+        _run(
+            [sys.executable, "-m", "pytest"],
+            expected=0,
+            title="pytest",
+        )
+    else:
+        _print_header("quality gates")
+        print("skipped (requested by --skip-quality-gates)")
 
     _print_header("DoD check summary")
     print(f"basic_run_id={basic_run_id}")
@@ -239,7 +285,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     try:
-        raise SystemExit(main())
+        raise SystemExit(main(_parse_args(sys.argv[1:])))
     except Exception as exc:  # noqa: BLE001
         print(f"DoD check failed: {exc}", file=sys.stderr)
         raise SystemExit(1) from exc

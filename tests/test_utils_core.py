@@ -79,6 +79,23 @@ def test_tools_dod_check_uses_cli_fallback_when_orch_command_missing() -> None:
     assert 'return [sys.executable, "-m", "orch.cli"]' in source
 
 
+def test_tools_dod_check_supports_skip_quality_gates_option() -> None:
+    source = (Path(__file__).resolve().parents[1] / "tools" / "dod_check.py").read_text(
+        encoding="utf-8"
+    )
+    assert "--skip-quality-gates" in source
+    assert "skip_quality_gates" in source
+    assert "skipped (requested by --skip-quality-gates)" in source
+
+
+def test_ci_workflow_runs_dod_runtime_smoke() -> None:
+    ci_workflow = (
+        Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml"
+    ).read_text(encoding="utf-8")
+    assert "name: DoD runtime smoke" in ci_workflow
+    assert "python tools/dod_check.py --skip-quality-gates" in ci_workflow
+
+
 def test_source_does_not_emit_symbolic_links_detail_literal() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     offending_files: list[str] = []
