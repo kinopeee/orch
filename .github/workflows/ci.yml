@@ -40,7 +40,11 @@ jobs:
           if not summary_path.is_file():
               raise SystemExit(f"DoD summary path is not a file: {summary_path}")
           try:
-              data = json.loads(summary_path.read_text(encoding="utf-8"))
+              summary_text = summary_path.read_text(encoding="utf-8")
+          except OSError as exc:
+              raise SystemExit(f"failed to read DoD summary file: {summary_path}") from exc
+          try:
+              data = json.loads(summary_text)
           except json.JSONDecodeError as exc:
               raise SystemExit(f"invalid DoD summary JSON: {exc}") from exc
           if not isinstance(data, dict):

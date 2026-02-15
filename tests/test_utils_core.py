@@ -181,8 +181,10 @@ def test_tools_dod_check_load_state_rejects_invalid_json_and_non_object_root() -
     start = source.index(marker)
     end = source.index("\n\ndef _state_tasks(", start)
     function_source = source[start:end]
+    assert "failed to read state file:" in function_source
     assert "state file is not valid json:" in function_source
     assert "state root must be object:" in function_source
+    assert "except OSError as exc:" in function_source
     assert "except json.JSONDecodeError as exc:" in function_source
     assert function_source.index("except json.JSONDecodeError as exc:") < function_source.index(
         "if not isinstance(state_data, dict):"
@@ -301,6 +303,9 @@ def test_ci_workflow_validates_dod_runtime_summary_json() -> None:
     assert "missing DoD summary file:" in ci_workflow
     assert "if not summary_path.is_file():" in ci_workflow
     assert "DoD summary path is not a file:" in ci_workflow
+    assert 'summary_text = summary_path.read_text(encoding="utf-8")' in ci_workflow
+    assert "failed to read DoD summary file:" in ci_workflow
+    assert "data = json.loads(summary_text)" in ci_workflow
     assert "except json.JSONDecodeError as exc:" in ci_workflow
     assert "invalid DoD summary JSON:" in ci_workflow
     assert "if not isinstance(data, dict):" in ci_workflow

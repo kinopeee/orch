@@ -321,6 +321,27 @@ def test_dod_check_load_state_raises_on_invalid_json(tmp_path: Path) -> None:
         module._load_state(run_id, tmp_path)  # type: ignore[attr-defined]
 
 
+def test_dod_check_load_state_raises_on_read_oserror(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_dod_check_module()
+    run_id = "20260215_000000_load_read_error"
+    state_path = tmp_path / run_id / "state.json"
+    state_path.parent.mkdir(parents=True)
+    state_path.write_text('{"status":"SUCCESS","tasks":{}}', encoding="utf-8")
+
+    original_read_text = module.Path.read_text  # type: ignore[attr-defined]
+
+    def fake_read_text(path: Path, *args: object, **kwargs: object) -> str:
+        if path == state_path:
+            raise OSError("permission denied")
+        return original_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(module.Path, "read_text", fake_read_text)  # type: ignore[attr-defined]
+    with pytest.raises(RuntimeError, match="failed to read state file"):
+        module._load_state(run_id, tmp_path)  # type: ignore[attr-defined]
+
+
 def test_dod_check_load_state_raises_on_non_object_root(tmp_path: Path) -> None:
     module = _load_dod_check_module()
     run_id = "20260215_000000_load_non_object"
