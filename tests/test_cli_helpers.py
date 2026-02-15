@@ -90,6 +90,11 @@ def test_render_plan_error_sanitizes_symbolic_links_uppercase_detail() -> None:
     assert _render_plan_error(err) == "invalid plan path"
 
 
+def test_render_plan_error_sanitizes_symbolic_links_hyphenated_uppercase_detail() -> None:
+    err = PlanError("TOO MANY LEVELS OF SYMBOLIC-LINKS IN PLAN PATH")
+    assert _render_plan_error(err) == "invalid plan path"
+
+
 def test_render_plan_error_sanitizes_symbolically_linked_detail() -> None:
     err = PlanError("plan path is symbolically linked to another location")
     assert _render_plan_error(err) == "invalid plan path"
@@ -152,6 +157,13 @@ def test_render_runtime_error_detail_sanitizes_symbolic_links_plural_detail() ->
 
 def test_render_runtime_error_detail_sanitizes_symbolic_links_uppercase_detail() -> None:
     err = OSError("TOO MANY LEVELS OF SYMBOLIC LINKS IN RUN PATH")
+    assert _render_runtime_error_detail(err) == "invalid run path"
+
+
+def test_render_runtime_error_detail_sanitizes_symbolic_links_underscored_uppercase_detail() -> (
+    None
+):
+    err = OSError("TOO MANY LEVELS OF SYMBOLIC_LINKS IN RUN PATH")
     assert _render_runtime_error_detail(err) == "invalid run path"
 
 
