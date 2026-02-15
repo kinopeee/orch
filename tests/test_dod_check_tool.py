@@ -124,6 +124,17 @@ def test_dod_check_intervals_overlap_rejects_naive_timestamps() -> None:
         )
 
 
+def test_dod_check_intervals_overlap_rejects_invalid_timestamp_format() -> None:
+    module = _load_dod_check_module()
+    with pytest.raises(RuntimeError, match="invalid timestamp format"):
+        module._intervals_overlap(  # type: ignore[attr-defined]
+            "not-a-timestamp",
+            "2026-02-15T15:00:02+00:00",
+            "2026-02-15T15:00:01+00:00",
+            "2026-02-15T15:00:03+00:00",
+        )
+
+
 def test_dod_check_detect_orch_prefix_prefers_orch_command(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -236,6 +247,22 @@ def test_dod_check_successful_task_snapshots_collects_success_entries() -> None:
         }
     )
     assert snapshots == {"inspect": (1, "2026-02-15T17:00:00+00:00")}
+
+
+def test_dod_check_successful_task_snapshots_rejects_non_int_attempts() -> None:
+    module = _load_dod_check_module()
+    with pytest.raises(RuntimeError, match="task attempts must be int: inspect"):
+        module._successful_task_snapshots(  # type: ignore[attr-defined]
+            {
+                "tasks": {
+                    "inspect": {
+                        "status": "SUCCESS",
+                        "attempts": "1",
+                        "started_at": "2026-02-15T17:00:00+00:00",
+                    }
+                }
+            }
+        )
 
 
 def test_dod_check_assert_resume_kept_successful_tasks_unchanged_passes() -> None:

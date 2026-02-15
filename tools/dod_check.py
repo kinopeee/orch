@@ -194,7 +194,10 @@ def _assert(condition: bool, message: str) -> None:
 def _parse_iso_timestamp(value: object) -> datetime:
     if not isinstance(value, str):
         raise RuntimeError(f"timestamp must be string, got {type(value).__name__}")
-    parsed = datetime.fromisoformat(value)
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError as exc:
+        raise RuntimeError(f"invalid timestamp format: {value!r}") from exc
     if parsed.tzinfo is None or parsed.utcoffset() is None:
         raise RuntimeError("timestamp must include timezone offset")
     return parsed
