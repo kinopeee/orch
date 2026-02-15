@@ -216,3 +216,22 @@ def test_dod_check_assert_report_exists_raises_when_missing(tmp_path: Path) -> N
     module = _load_dod_check_module()
     with pytest.raises(RuntimeError, match="final report file was not generated"):
         module._assert_report_exists("20260215_000000_missing", tmp_path)  # type: ignore[attr-defined]
+
+
+def test_dod_check_assert_run_status_passes_when_status_matches(tmp_path: Path) -> None:
+    module = _load_dod_check_module()
+    run_id = "20260215_000000_status_ok"
+    state_path = tmp_path / run_id / "state.json"
+    state_path.parent.mkdir(parents=True)
+    state_path.write_text('{"status":"SUCCESS","tasks":{}}', encoding="utf-8")
+    module._assert_run_status(run_id, tmp_path, "SUCCESS")  # type: ignore[attr-defined]
+
+
+def test_dod_check_assert_run_status_raises_when_status_mismatch(tmp_path: Path) -> None:
+    module = _load_dod_check_module()
+    run_id = "20260215_000000_status_ng"
+    state_path = tmp_path / run_id / "state.json"
+    state_path.parent.mkdir(parents=True)
+    state_path.write_text('{"status":"FAILED","tasks":{}}', encoding="utf-8")
+    with pytest.raises(RuntimeError, match="run status mismatch"):
+        module._assert_run_status(run_id, tmp_path, "SUCCESS")  # type: ignore[attr-defined]

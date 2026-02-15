@@ -133,6 +133,15 @@ def _assert_report_exists(run_id: str, runs_dir: Path) -> None:
     _assert(report_path.exists(), f"final report file was not generated: {report_path}")
 
 
+def _assert_run_status(run_id: str, runs_dir: Path, expected_status: str) -> None:
+    state = _load_state(run_id, runs_dir)
+    actual_status = state.get("status")
+    _assert(
+        actual_status == expected_status,
+        f"run status mismatch: run_id={run_id}, expected={expected_status}, actual={actual_status}",
+    )
+
+
 def _assert(condition: bool, message: str) -> None:
     if not condition:
         raise RuntimeError(message)
@@ -230,8 +239,7 @@ def _run_cancel_scenario(orch_prefix: list[str], home_str: str, runs_dir: Path) 
         print(run_stderr.rstrip())
 
     _assert(proc.returncode == 4, "cancel scenario run must exit with code 4")
-    state = _load_state(detected_run_id, runs_dir)
-    _assert(state.get("status") == "CANCELED", "cancel scenario state must be CANCELED")
+    _assert_run_status(detected_run_id, runs_dir, "CANCELED")
     _assert_report_exists(detected_run_id, runs_dir)
     _assert(
         "cancel requested" in cancel.stdout.lower(),
@@ -253,6 +261,7 @@ def main(options: Options) -> int:
         title="run basic plan",
     )
     basic_run_id = _parse_run_id(basic.stdout)
+    _assert_run_status(basic_run_id, runs_dir, "SUCCESS")
     _assert_report_exists(basic_run_id, runs_dir)
 
     parallel = _run(
@@ -269,6 +278,7 @@ def main(options: Options) -> int:
         title="run parallel plan",
     )
     parallel_run_id = _parse_run_id(parallel.stdout)
+    _assert_run_status(parallel_run_id, runs_dir, "SUCCESS")
     _assert_report_exists(parallel_run_id, runs_dir)
     parallel_state = _load_state(parallel_run_id, runs_dir)
     _assert(_has_parallel_overlap(parallel_state), "parallel evidence check failed")
@@ -279,6 +289,7 @@ def main(options: Options) -> int:
         title="run failure plan for skip propagation",
     )
     fail_run_id = _parse_run_id(fail.stdout)
+    _assert_run_status(fail_run_id, runs_dir, "FAILED")
     _assert_report_exists(fail_run_id, runs_dir)
     fail_state = _load_state(fail_run_id, runs_dir)
     fail_tasks = _state_tasks(fail_state)
@@ -297,6 +308,7 @@ def main(options: Options) -> int:
         title="resume completed run",
     )
     _ = resume
+    _assert_run_status(basic_run_id, runs_dir, "SUCCESS")
     resumed_tasks = _state_tasks(_load_state(basic_run_id, runs_dir))
     for task_id, task_state in resumed_tasks.items():
         attempts = task_state.get("attempts")
