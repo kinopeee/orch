@@ -843,6 +843,9 @@ def test_cli_helpers_run_resume_non_symlink_symbolic_details_are_preserved() -> 
         "test_cli_resume_keeps_symbolically_linkedness_conflict_error_detail": (
             "symbolically_linkedness issue"
         ),
+        "test_cli_resume_keeps_symbolically_linkingly_double_underscore_conflict_error_detail": (
+            "symbolically__linkingly issue"
+        ),
         "test_cli_status_keeps_symbolic_linkless_runtime_load_error_detail": (
             "symbolic_linkless issue"
         ),
@@ -954,6 +957,9 @@ def test_cli_helpers_runtime_symbolic_links_variants_are_sanitized() -> None:
         ),
         "test_cli_resume_sanitizes_symbolic_links_conflict_error": "invalid run path",
         "test_cli_resume_sanitizes_symbolically_dbl_hyphen_linked_conflict_error": (
+            "invalid run path"
+        ),
+        "test_cli_resume_sanitizes_symbolically_underscore_linked_conflict_error": (
             "invalid run path"
         ),
         "test_cli_run_sanitizes_symbolically_linked_initialize_error": "Failed to initialize run",

@@ -3478,6 +3478,40 @@ def test_cli_resume_sanitizes_symbolically_dbl_hyphen_linked_conflict_error(
     assert "must not be symlink" not in captured.out
 
 
+def test_cli_resume_sanitizes_symbolically_underscore_linked_conflict_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+
+    @contextmanager
+    def boom_conflict(*args: object, **kwargs: object) -> object:
+        raise RunConflictError("run lock path is symbolically_linked to another location")
+        yield
+
+    monkeypatch.setattr(cli_module, "run_lock", boom_conflict)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.resume(
+            "run1",
+            home=home,
+            max_parallel=1,
+            workdir=workdir,
+            fail_fast=False,
+            failed_only=False,
+        )
+    assert exc_info.value.exit_code == 3
+    captured = capsys.readouterr()
+    assert "invalid run path" in captured.out
+    assert "symbolically_linked" not in captured.out
+    assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
+
+
 def test_cli_resume_keeps_symbolic_linkless_conflict_error_detail(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -3565,6 +3599,36 @@ def test_cli_resume_keeps_symbolically_linkedness_conflict_error_detail(
     assert exc_info.value.exit_code == 3
     captured = capsys.readouterr()
     assert "symbolically_linkedness issue" in captured.out
+    assert "invalid run path" not in captured.out
+
+
+def test_cli_resume_keeps_symbolically_linkingly_double_underscore_conflict_error_detail(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+
+    @contextmanager
+    def boom_conflict(*args: object, **kwargs: object) -> object:
+        raise RunConflictError("run lock path has symbolically__linkingly issue")
+        yield
+
+    monkeypatch.setattr(cli_module, "run_lock", boom_conflict)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.resume(
+            "run1",
+            home=home,
+            max_parallel=1,
+            workdir=workdir,
+            fail_fast=False,
+            failed_only=False,
+        )
+    assert exc_info.value.exit_code == 3
+    captured = capsys.readouterr()
+    assert "symbolically__linkingly issue" in captured.out
     assert "invalid run path" not in captured.out
 
 
