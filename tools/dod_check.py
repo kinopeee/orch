@@ -123,6 +123,36 @@ def _intervals_overlap(
     return ls < re_ and rs < le
 
 
+def _has_parallel_overlap(state: dict[str, object]) -> bool:
+    tasks_obj = state.get("tasks")
+    if not isinstance(tasks_obj, dict):
+        raise RuntimeError("state.tasks must be an object")
+
+    windows: list[tuple[object, object]] = []
+    for task_obj in tasks_obj.values():
+        if not isinstance(task_obj, dict):
+            raise RuntimeError("task state must be an object")
+        if task_obj.get("status") != "SUCCESS":
+            continue
+        depends_on = task_obj.get("depends_on")
+        if not isinstance(depends_on, list):
+            raise RuntimeError("task depends_on must be a list")
+        if depends_on:
+            continue
+
+        started_at = task_obj.get("started_at")
+        ended_at = task_obj.get("ended_at")
+        if started_at is None or ended_at is None:
+            continue
+        windows.append((started_at, ended_at))
+
+    for i, (left_start, left_end) in enumerate(windows):
+        for right_start, right_end in windows[i + 1 :]:
+            if _intervals_overlap(left_start, left_end, right_start, right_end):
+                return True
+    return False
+
+
 def _run_cancel_scenario(orch_prefix: list[str]) -> str:
     RUNS_DIR.mkdir(parents=True, exist_ok=True)
     existing = {p.name for p in RUNS_DIR.iterdir() if p.is_dir()}
@@ -199,18 +229,7 @@ def main(options: Options) -> int:
     )
     parallel_run_id = _parse_run_id(parallel.stdout)
     parallel_state = _load_state(parallel_run_id)
-    tasks = parallel_state.get("tasks", {})
-    inspect_a = tasks["inspect_a"]  # type: ignore[index]
-    inspect_b = tasks["inspect_b"]  # type: ignore[index]
-    _assert(
-        _intervals_overlap(
-            inspect_a["started_at"],
-            inspect_a["ended_at"],
-            inspect_b["started_at"],
-            inspect_b["ended_at"],
-        ),
-        "parallel evidence check failed",
-    )
+    _assert(_has_parallel_overlap(parallel_state), "parallel evidence check failed")
 
     fail = _run(
         [*orch_prefix, "run", "examples/plan_fail_retry.yaml"],

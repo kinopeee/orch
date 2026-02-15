@@ -46,3 +46,51 @@ def test_dod_check_parse_args_defaults() -> None:
     module = _load_dod_check_module()
     parsed = module._parse_args([])  # type: ignore[attr-defined]
     assert parsed.skip_quality_gates is False
+
+
+def test_dod_check_has_parallel_overlap_true_for_successful_root_tasks() -> None:
+    module = _load_dod_check_module()
+    state = {
+        "tasks": {
+            "inspect_a": {
+                "status": "SUCCESS",
+                "depends_on": [],
+                "started_at": "2026-02-15T15:00:00+00:00",
+                "ended_at": "2026-02-15T15:00:02+00:00",
+            },
+            "inspect_b": {
+                "status": "SUCCESS",
+                "depends_on": [],
+                "started_at": "2026-02-15T15:00:01+00:00",
+                "ended_at": "2026-02-15T15:00:03+00:00",
+            },
+        }
+    }
+    assert module._has_parallel_overlap(state)  # type: ignore[attr-defined]
+
+
+def test_dod_check_has_parallel_overlap_false_without_root_overlap() -> None:
+    module = _load_dod_check_module()
+    state = {
+        "tasks": {
+            "inspect_a": {
+                "status": "SUCCESS",
+                "depends_on": [],
+                "started_at": "2026-02-15T15:00:00+00:00",
+                "ended_at": "2026-02-15T15:00:01+00:00",
+            },
+            "inspect_b": {
+                "status": "SUCCESS",
+                "depends_on": [],
+                "started_at": "2026-02-15T15:00:01+00:00",
+                "ended_at": "2026-02-15T15:00:02+00:00",
+            },
+            "build": {
+                "status": "SUCCESS",
+                "depends_on": ["inspect_a", "inspect_b"],
+                "started_at": "2026-02-15T15:00:00+00:00",
+                "ended_at": "2026-02-15T15:00:02+00:00",
+            },
+        }
+    }
+    assert not module._has_parallel_overlap(state)  # type: ignore[attr-defined]
