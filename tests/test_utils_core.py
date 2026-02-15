@@ -845,8 +845,13 @@ def test_cli_helpers_runtime_symbolic_links_variants_are_sanitized() -> None:
         "test_cli_resume_sanitizes_symbolic_links_runtime_lock_error": "Run not found or broken",
         "test_cli_resume_sanitizes_symbolic_links_conflict_error": "invalid run path",
         "test_cli_status_sanitizes_symbolic_links_runtime_load_error": "Failed to load state",
+        "test_cli_status_sanitizes_symbolically_linking_runtime_load_error": (
+            "Failed to load state"
+        ),
         "test_cli_logs_sanitizes_symbolic_links_runtime_load_error": "Failed to load state",
+        "test_cli_logs_sanitizes_symbolically_linking_runtime_load_error": ("Failed to load state"),
         "test_cli_cancel_sanitizes_symbolic_links_write_error": "Failed to request cancel",
+        "test_cli_cancel_sanitizes_symbolically_linking_write_error": ("Failed to request cancel"),
         "test_cli_run_sanitizes_symbolic_links_report_write_warning": "failed to write report",
         "test_cli_resume_sanitizes_symbolic_links_report_write_warning": "failed to write report",
     }
