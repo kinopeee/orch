@@ -11468,6 +11468,43 @@ def test_cli_integration_plan_validation_errors_suppress_symlink_detail() -> Non
     assert matched == expected_names
 
 
+def test_cli_integration_path_validation_output_markers_require_symlink_suppression() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    markers = {
+        'assert "Invalid home" in output',
+        'assert "Invalid workdir" in output',
+        'assert "Invalid run_id" in output',
+        'assert "Plan validation error" in output',
+        'assert "Invalid home" in proc.stdout',
+        'assert "Invalid workdir" in proc.stdout',
+        'assert "Invalid run_id" in proc.stdout',
+        'assert "Plan validation error" in proc.stdout',
+    }
+
+    examined: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if not node.name.startswith("test_"):
+            continue
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        if not any(marker in source_segment for marker in markers):
+            continue
+
+        assert (
+            'assert "contains symlink component" not in output' in source_segment
+            or 'assert "contains symlink component" not in proc.stdout' in source_segment
+        )
+        examined.add(node.name)
+
+    assert examined
+
+
 def test_cli_integration_resume_invalid_run_id_workdir_preserve_supergroup_boundaries() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
