@@ -11993,6 +11993,35 @@ def test_cli_integration_plan_validation_errors_suppress_symlink_detail() -> Non
     assert matched == expected_names
 
 
+def test_cli_integration_plural_symbolic_links_assertions_require_singular_pair() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_lines = integration_source.splitlines()
+
+    expected_suffixes = ("", ", context", ", command")
+    examined = 0
+    for index, line in enumerate(integration_lines):
+        stripped = line.strip()
+        expected: str | None = None
+        for suffix in expected_suffixes:
+            if stripped == f'assert "symbolic links" not in output.lower(){suffix}':
+                expected = f'assert "symbolic link" not in output.lower(){suffix}'
+                break
+            if stripped == f'assert "symbolic links" not in proc.stdout.lower(){suffix}':
+                expected = f'assert "symbolic link" not in proc.stdout.lower(){suffix}'
+                break
+        if expected is None:
+            continue
+
+        examined += 1
+        next_line = (
+            integration_lines[index + 1].strip() if index + 1 < len(integration_lines) else ""
+        )
+        assert next_line == expected
+
+    assert examined > 0
+
+
 def test_cli_integration_early_plan_cases_suppress_singular_symbolic_link_detail() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
