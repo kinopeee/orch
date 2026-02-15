@@ -56,6 +56,8 @@ def _run(
         )
     except subprocess.TimeoutExpired as exc:
         raise RuntimeError(f"command timed out after {timeout_sec}s: {' '.join(args)}") from exc
+    except OSError as exc:
+        raise RuntimeError(f"failed to execute command: {' '.join(args)}") from exc
     print(f"exit: {completed.returncode}")
     if completed.stdout.strip():
         print("stdout:")

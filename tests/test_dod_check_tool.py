@@ -223,6 +223,19 @@ def test_dod_check_run_raises_runtime_error_on_timeout(
         module._run(["orch", "run"], title="timeout test", timeout_sec=1)  # type: ignore[attr-defined]
 
 
+def test_dod_check_run_raises_runtime_error_on_oserror(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_dod_check_module()
+
+    def fake_run(*args: object, **kwargs: object) -> object:
+        raise OSError("exec failed")
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)  # type: ignore[attr-defined]
+    with pytest.raises(RuntimeError, match="failed to execute command: orch run"):
+        module._run(["orch", "run"], title="oserror test", timeout_sec=1)  # type: ignore[attr-defined]
+
+
 def test_dod_check_run_passes_custom_timeout_to_subprocess(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

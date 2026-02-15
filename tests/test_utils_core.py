@@ -203,6 +203,7 @@ def test_tools_dod_check_enforces_command_timeouts() -> None:
         "timeout_sec: float = 180.0",
         "timeout=timeout_sec",
         "command timed out after",
+        "failed to execute command:",
         "cancel scenario run did not stop within timeout",
         'title="status command",\n        timeout_sec=60.0,',
         'title="logs command",\n        timeout_sec=60.0,',
