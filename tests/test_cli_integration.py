@@ -4524,18 +4524,22 @@ def test_cli_run_dry_run_both_toggles_existing_home_preserves_entries_invalid_wo
                 encoding="utf-8",
             )
 
+            side_effect_files: list[Path] = []
             if workdir_mode == "file_path":
                 invalid_workdir_path = case_root / "invalid_workdir_file"
                 invalid_workdir_path.write_text("file\n", encoding="utf-8")
+                side_effect_files.append(invalid_workdir_path)
             elif workdir_mode == "file_ancestor":
                 workdir_parent_file = case_root / "workdir_parent_file"
                 workdir_parent_file.write_text("file\n", encoding="utf-8")
                 invalid_workdir_path = workdir_parent_file / "child_workdir"
+                side_effect_files.append(workdir_parent_file)
             elif workdir_mode == "symlink_to_file":
                 workdir_target_file = case_root / "workdir_target_file"
                 workdir_target_file.write_text("file\n", encoding="utf-8")
                 invalid_workdir_path = case_root / "workdir_symlink_to_file"
                 invalid_workdir_path.symlink_to(workdir_target_file)
+                side_effect_files.append(workdir_target_file)
             elif workdir_mode == "dangling_symlink":
                 invalid_workdir_path = case_root / "workdir_dangling_symlink"
                 invalid_workdir_path.symlink_to(
@@ -4584,6 +4588,12 @@ def test_cli_run_dry_run_both_toggles_existing_home_preserves_entries_invalid_wo
             assert sentinel_file.read_text(encoding="utf-8") == "keep\n", context
             assert sentinel_dir.is_dir(), context
             assert nested_file.read_text(encoding="utf-8") == "nested\n", context
+            for file_path in side_effect_files:
+                assert file_path.read_text(encoding="utf-8") == "file\n", context
+            if workdir_mode == "dangling_symlink":
+                assert not (case_root / "missing_workdir_target").exists(), context
+            if workdir_mode == "symlink_ancestor":
+                assert not (real_workdir_parent / "child_workdir").exists(), context
 
 
 def test_cli_run_dry_run_both_toggles_default_existing_home_preserves_entries_invalid_workdir(
@@ -4624,18 +4634,22 @@ def test_cli_run_dry_run_both_toggles_default_existing_home_preserves_entries_in
                 encoding="utf-8",
             )
 
+            side_effect_files: list[Path] = []
             if workdir_mode == "file_path":
                 invalid_workdir_path = case_root / "invalid_workdir_file"
                 invalid_workdir_path.write_text("file\n", encoding="utf-8")
+                side_effect_files.append(invalid_workdir_path)
             elif workdir_mode == "file_ancestor":
                 workdir_parent_file = case_root / "workdir_parent_file"
                 workdir_parent_file.write_text("file\n", encoding="utf-8")
                 invalid_workdir_path = workdir_parent_file / "child_workdir"
+                side_effect_files.append(workdir_parent_file)
             elif workdir_mode == "symlink_to_file":
                 workdir_target_file = case_root / "workdir_target_file"
                 workdir_target_file.write_text("file\n", encoding="utf-8")
                 invalid_workdir_path = case_root / "workdir_symlink_to_file"
                 invalid_workdir_path.symlink_to(workdir_target_file)
+                side_effect_files.append(workdir_target_file)
             elif workdir_mode == "dangling_symlink":
                 invalid_workdir_path = case_root / "workdir_dangling_symlink"
                 invalid_workdir_path.symlink_to(
@@ -4686,6 +4700,12 @@ def test_cli_run_dry_run_both_toggles_default_existing_home_preserves_entries_in
             assert sentinel_file.read_text(encoding="utf-8") == "keep\n", context
             assert sentinel_dir.is_dir(), context
             assert nested_file.read_text(encoding="utf-8") == "nested\n", context
+            for file_path in side_effect_files:
+                assert file_path.read_text(encoding="utf-8") == "file\n", context
+            if workdir_mode == "dangling_symlink":
+                assert not (case_root / "missing_workdir_target").exists(), context
+            if workdir_mode == "symlink_ancestor":
+                assert not (real_workdir_parent / "child_workdir").exists(), context
 
 
 def test_cli_run_dry_run_both_toggles_existing_home_with_runs_preserves_entries_invalid_workdir(
@@ -4730,18 +4750,22 @@ def test_cli_run_dry_run_both_toggles_existing_home_with_runs_preserves_entries_
                 encoding="utf-8",
             )
 
+            side_effect_files: list[Path] = []
             if workdir_mode == "file_path":
                 invalid_workdir_path = case_root / "invalid_workdir_file"
                 invalid_workdir_path.write_text("file\n", encoding="utf-8")
+                side_effect_files.append(invalid_workdir_path)
             elif workdir_mode == "file_ancestor":
                 workdir_parent_file = case_root / "workdir_parent_file"
                 workdir_parent_file.write_text("file\n", encoding="utf-8")
                 invalid_workdir_path = workdir_parent_file / "child_workdir"
+                side_effect_files.append(workdir_parent_file)
             elif workdir_mode == "symlink_to_file":
                 workdir_target_file = case_root / "workdir_target_file"
                 workdir_target_file.write_text("file\n", encoding="utf-8")
                 invalid_workdir_path = case_root / "workdir_symlink_to_file"
                 invalid_workdir_path.symlink_to(workdir_target_file)
+                side_effect_files.append(workdir_target_file)
             elif workdir_mode == "dangling_symlink":
                 invalid_workdir_path = case_root / "workdir_dangling_symlink"
                 invalid_workdir_path.symlink_to(
@@ -4798,6 +4822,12 @@ def test_cli_run_dry_run_both_toggles_existing_home_with_runs_preserves_entries_
             assert sentinel_file.read_text(encoding="utf-8") == "keep\n", context
             assert sentinel_dir.is_dir(), context
             assert nested_file.read_text(encoding="utf-8") == "nested\n", context
+            for file_path in side_effect_files:
+                assert file_path.read_text(encoding="utf-8") == "file\n", context
+            if workdir_mode == "dangling_symlink":
+                assert not (case_root / "missing_workdir_target").exists(), context
+            if workdir_mode == "symlink_ancestor":
+                assert not (real_workdir_parent / "child_workdir").exists(), context
 
 
 def test_cli_run_dry_run_toggles_default_home_with_runs_invalid_workdir_preserve(
@@ -4842,18 +4872,22 @@ def test_cli_run_dry_run_toggles_default_home_with_runs_invalid_workdir_preserve
                 encoding="utf-8",
             )
 
+            side_effect_files: list[Path] = []
             if workdir_mode == "file_path":
                 invalid_workdir_path = case_root / "invalid_workdir_file"
                 invalid_workdir_path.write_text("file\n", encoding="utf-8")
+                side_effect_files.append(invalid_workdir_path)
             elif workdir_mode == "file_ancestor":
                 workdir_parent_file = case_root / "workdir_parent_file"
                 workdir_parent_file.write_text("file\n", encoding="utf-8")
                 invalid_workdir_path = workdir_parent_file / "child_workdir"
+                side_effect_files.append(workdir_parent_file)
             elif workdir_mode == "symlink_to_file":
                 workdir_target_file = case_root / "workdir_target_file"
                 workdir_target_file.write_text("file\n", encoding="utf-8")
                 invalid_workdir_path = case_root / "workdir_symlink_to_file"
                 invalid_workdir_path.symlink_to(workdir_target_file)
+                side_effect_files.append(workdir_target_file)
             elif workdir_mode == "dangling_symlink":
                 invalid_workdir_path = case_root / "workdir_dangling_symlink"
                 invalid_workdir_path.symlink_to(
@@ -4911,6 +4945,12 @@ def test_cli_run_dry_run_toggles_default_home_with_runs_invalid_workdir_preserve
             assert sentinel_file.read_text(encoding="utf-8") == "keep\n", context
             assert sentinel_dir.is_dir(), context
             assert nested_file.read_text(encoding="utf-8") == "nested\n", context
+            for file_path in side_effect_files:
+                assert file_path.read_text(encoding="utf-8") == "file\n", context
+            if workdir_mode == "dangling_symlink":
+                assert not (case_root / "missing_workdir_target").exists(), context
+            if workdir_mode == "symlink_ancestor":
+                assert not (real_workdir_parent / "child_workdir").exists(), context
 
 
 def test_cli_run_dry_run_both_toggles_existing_home_run_artifacts_preserved_invalid_workdir(
@@ -4961,18 +5001,22 @@ def test_cli_run_dry_run_both_toggles_existing_home_run_artifacts_preserved_inva
                 encoding="utf-8",
             )
 
+            side_effect_files: list[Path] = []
             if workdir_mode == "file_path":
                 invalid_workdir_path = case_root / "invalid_workdir_file"
                 invalid_workdir_path.write_text("file\n", encoding="utf-8")
+                side_effect_files.append(invalid_workdir_path)
             elif workdir_mode == "file_ancestor":
                 workdir_parent_file = case_root / "workdir_parent_file"
                 workdir_parent_file.write_text("file\n", encoding="utf-8")
                 invalid_workdir_path = workdir_parent_file / "child_workdir"
+                side_effect_files.append(workdir_parent_file)
             elif workdir_mode == "symlink_to_file":
                 workdir_target_file = case_root / "workdir_target_file"
                 workdir_target_file.write_text("file\n", encoding="utf-8")
                 invalid_workdir_path = case_root / "workdir_symlink_to_file"
                 invalid_workdir_path.symlink_to(workdir_target_file)
+                side_effect_files.append(workdir_target_file)
             elif workdir_mode == "dangling_symlink":
                 invalid_workdir_path = case_root / "workdir_dangling_symlink"
                 invalid_workdir_path.symlink_to(
@@ -5035,6 +5079,12 @@ def test_cli_run_dry_run_both_toggles_existing_home_run_artifacts_preserved_inva
             assert sentinel_file.read_text(encoding="utf-8") == "keep\n", context
             assert sentinel_dir.is_dir(), context
             assert nested_file.read_text(encoding="utf-8") == "nested\n", context
+            for file_path in side_effect_files:
+                assert file_path.read_text(encoding="utf-8") == "file\n", context
+            if workdir_mode == "dangling_symlink":
+                assert not (case_root / "missing_workdir_target").exists(), context
+            if workdir_mode == "symlink_ancestor":
+                assert not (real_workdir_parent / "child_workdir").exists(), context
 
 
 def test_cli_run_dry_run_both_toggles_default_existing_home_run_artifacts_preserved_invalid_workdir(
@@ -5085,18 +5135,22 @@ def test_cli_run_dry_run_both_toggles_default_existing_home_run_artifacts_preser
                 encoding="utf-8",
             )
 
+            side_effect_files: list[Path] = []
             if workdir_mode == "file_path":
                 invalid_workdir_path = case_root / "invalid_workdir_file"
                 invalid_workdir_path.write_text("file\n", encoding="utf-8")
+                side_effect_files.append(invalid_workdir_path)
             elif workdir_mode == "file_ancestor":
                 workdir_parent_file = case_root / "workdir_parent_file"
                 workdir_parent_file.write_text("file\n", encoding="utf-8")
                 invalid_workdir_path = workdir_parent_file / "child_workdir"
+                side_effect_files.append(workdir_parent_file)
             elif workdir_mode == "symlink_to_file":
                 workdir_target_file = case_root / "workdir_target_file"
                 workdir_target_file.write_text("file\n", encoding="utf-8")
                 invalid_workdir_path = case_root / "workdir_symlink_to_file"
                 invalid_workdir_path.symlink_to(workdir_target_file)
+                side_effect_files.append(workdir_target_file)
             elif workdir_mode == "dangling_symlink":
                 invalid_workdir_path = case_root / "workdir_dangling_symlink"
                 invalid_workdir_path.symlink_to(
@@ -5160,6 +5214,12 @@ def test_cli_run_dry_run_both_toggles_default_existing_home_run_artifacts_preser
             assert sentinel_file.read_text(encoding="utf-8") == "keep\n", context
             assert sentinel_dir.is_dir(), context
             assert nested_file.read_text(encoding="utf-8") == "nested\n", context
+            for file_path in side_effect_files:
+                assert file_path.read_text(encoding="utf-8") == "file\n", context
+            if workdir_mode == "dangling_symlink":
+                assert not (case_root / "missing_workdir_target").exists(), context
+            if workdir_mode == "symlink_ancestor":
+                assert not (real_workdir_parent / "child_workdir").exists(), context
 
 
 def test_cli_run_dry_run_both_toggles_missing_plan_path_precedes_invalid_home_matrix(

@@ -7701,6 +7701,13 @@ def test_cli_integration_preserve_entries_invalid_workdir_matrices_keep_boundari
                 )
         else:
             assert f'assert not ({home_var} / "runs").exists(), context' in source_segment
+        assert "side_effect_files" in source_segment
+        assert "for file_path in side_effect_files:" in source_segment
+        assert 'file_path.read_text(encoding="utf-8") == "file\\n"' in source_segment
+        assert 'if workdir_mode == "dangling_symlink":' in source_segment
+        assert '"missing_workdir_target"' in source_segment
+        assert 'if workdir_mode == "symlink_ancestor":' in source_segment
+        assert '"child_workdir"' in source_segment
         assert "workdir_modes" in source_segment
         assert "for workdir_mode in workdir_modes:" in source_segment
 
@@ -7818,6 +7825,13 @@ def test_cli_integration_preserve_entries_invalid_workdir_matrices_keep_wiring()
         assert "invalid_workdir_path.symlink_to(" in source_segment
         assert 'workdir_parent_link = case_root / "workdir_parent_link"' in source_segment
         assert 'invalid_workdir_path = workdir_parent_link / "child_workdir"' in source_segment
+        assert "side_effect_files" in source_segment
+        assert "for file_path in side_effect_files:" in source_segment
+        assert 'file_path.read_text(encoding="utf-8") == "file\\n"' in source_segment
+        assert 'if workdir_mode == "dangling_symlink":' in source_segment
+        assert '"missing_workdir_target"' in source_segment
+        assert 'if workdir_mode == "symlink_ancestor":' in source_segment
+        assert '"child_workdir"' in source_segment
         assert '"--dry-run"' in source_segment
         assert "*order" in source_segment
         assert 'nested_file = sentinel_dir / "nested.txt"' in source_segment
