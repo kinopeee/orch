@@ -461,7 +461,7 @@ def cancel(
     try:
         exists = _run_exists(current_run_dir)
     except (OSError, RuntimeError) as exc:
-        console.print(f"[red]Failed to inspect run:[/red] {exc}")
+        console.print(f"[red]Failed to inspect run:[/red] {_render_runtime_error_detail(exc)}")
         raise typer.Exit(2) from exc
     if not exists:
         console.print(f"[red]Run not found:[/red] {run_id}")
@@ -469,7 +469,7 @@ def cancel(
     try:
         write_cancel_request(current_run_dir)
     except (OSError, RuntimeError) as exc:
-        console.print(f"[red]Failed to request cancel:[/red] {exc}")
+        console.print(f"[red]Failed to request cancel:[/red] {_render_runtime_error_detail(exc)}")
         raise typer.Exit(2) from exc
     console.print(f"cancel requested: [bold]{run_id}[/bold]")
 

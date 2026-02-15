@@ -11558,6 +11558,31 @@ def test_cli_integration_runs_symlink_path_error_is_sanitized() -> None:
     assert 'assert "must not be symlink" not in output, command' in source_segment
 
 
+def test_cli_integration_cancel_symlink_cancel_request_error_is_sanitized() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+    target_name = "test_cli_cancel_sanitizes_symlink_cancel_request_write_error"
+
+    target = next(
+        (
+            node
+            for node in ast.walk(integration_module)
+            if isinstance(node, ast.FunctionDef) and node.name == target_name
+        ),
+        None,
+    )
+    assert target is not None
+
+    source_segment = ast.get_source_segment(integration_source, target)
+    assert source_segment is not None
+    assert 'assert "Failed to request cancel" in output' in source_segment
+    assert 'assert "invalid run path" in output' in source_segment
+    assert 'assert "contains symlink component" not in output' in source_segment
+    assert 'assert "must not include symlink" not in output' in source_segment
+    assert 'assert "must not be symlink" not in output' in source_segment
+
+
 def test_cli_integration_resume_invalid_run_id_workdir_preserve_supergroup_boundaries() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")

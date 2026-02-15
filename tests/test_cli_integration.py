@@ -10735,6 +10735,32 @@ def test_cli_cancel_returns_two_when_cancel_request_write_fails(tmp_path: Path) 
     assert "Failed to request cancel" in proc.stdout
 
 
+def test_cli_cancel_sanitizes_symlink_cancel_request_write_error(tmp_path: Path) -> None:
+    home = tmp_path / ".orch_cli"
+    run_id = "20260101_000000_abcdef"
+    run_dir = home / "runs" / run_id
+    run_dir.mkdir(parents=True)
+    (run_dir / "plan.yaml").write_text("tasks: []\n", encoding="utf-8")
+    real_cancel = tmp_path / "real_cancel_request.txt"
+    real_cancel.write_text("sentinel\n", encoding="utf-8")
+    (run_dir / "cancel.request").symlink_to(real_cancel)
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "orch.cli", "cancel", run_id, "--home", str(home)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Failed to request cancel" in output
+    assert "invalid run path" in output
+    assert "contains symlink component" not in output
+    assert "must not include symlink" not in output
+    assert "must not be symlink" not in output
+    assert real_cancel.read_text(encoding="utf-8") == "sentinel\n"
+
+
 def test_cli_cancel_rejects_symlink_run_dir_without_side_effect(tmp_path: Path) -> None:
     home = tmp_path / ".orch_cli"
     run_id = "20260101_000000_abcdef"
