@@ -19,6 +19,28 @@ jobs:
           pip install -e ".[dev]"
       - name: DoD runtime smoke
         run: python tools/dod_check.py --skip-quality-gates --home /tmp/orch_ci_dod --json-out /tmp/orch_ci_dod_summary.json
+      - name: Validate DoD runtime summary JSON
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          summary_path = Path("/tmp/orch_ci_dod_summary.json")
+          data = json.loads(summary_path.read_text(encoding="utf-8"))
+          required_keys = {
+              "result",
+              "basic_run_id",
+              "parallel_run_id",
+              "fail_run_id",
+              "cancel_run_id",
+              "home",
+          }
+          missing = required_keys.difference(data)
+          if missing:
+              raise SystemExit(f"missing keys in summary: {sorted(missing)}")
+          if data["result"] != "PASS":
+              raise SystemExit(f"unexpected DoD result: {data['result']!r}")
+          PY
       - name: Upload DoD runtime summary
         uses: actions/upload-artifact@v4
         with:

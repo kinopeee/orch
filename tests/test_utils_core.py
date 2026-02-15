@@ -199,6 +199,16 @@ def test_ci_workflow_uploads_dod_runtime_summary_artifact() -> None:
     assert "path: /tmp/orch_ci_dod_summary.json" in ci_workflow
 
 
+def test_ci_workflow_validates_dod_runtime_summary_json() -> None:
+    ci_workflow = (
+        Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml"
+    ).read_text(encoding="utf-8")
+    assert "name: Validate DoD runtime summary JSON" in ci_workflow
+    assert 'summary_path = Path("/tmp/orch_ci_dod_summary.json")' in ci_workflow
+    assert "required_keys = {" in ci_workflow
+    assert 'if data["result"] != "PASS":' in ci_workflow
+
+
 def test_ci_workflow_keeps_release_0_1_quality_gates() -> None:
     ci_workflow = (
         Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml"
@@ -207,6 +217,7 @@ def test_ci_workflow_keeps_release_0_1_quality_gates() -> None:
         "name: DoD runtime smoke",
         "python tools/dod_check.py --skip-quality-gates --home /tmp/orch_ci_dod --json-out "
         "/tmp/orch_ci_dod_summary.json",
+        "name: Validate DoD runtime summary JSON",
         "name: Upload DoD runtime summary",
         "name: Lint format check",
         "run: ruff format --check .",
@@ -220,6 +231,12 @@ def test_ci_workflow_keeps_release_0_1_quality_gates() -> None:
     for step in expected_steps:
         assert step in ci_workflow
 
+    assert ci_workflow.index("name: DoD runtime smoke") < ci_workflow.index(
+        "name: Validate DoD runtime summary JSON"
+    )
+    assert ci_workflow.index("name: Validate DoD runtime summary JSON") < ci_workflow.index(
+        "name: Upload DoD runtime summary"
+    )
     assert ci_workflow.index("name: DoD runtime smoke") < ci_workflow.index(
         "name: Lint format check"
     )
