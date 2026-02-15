@@ -16070,6 +16070,7 @@ def test_cli_status_logs_resume_invalid_run_id_precedence_invalid_home_shape_mat
                 assert proc.returncode == 2, context
                 assert "Invalid run_id" in output, context
                 assert "Invalid home" not in output, context
+                assert "contains symlink component" not in output, context
                 assert "run_id: [bold]" not in output, context
                 assert "state: [bold]" not in output, context
                 assert "report: [bold]" not in output, context
@@ -18271,6 +18272,7 @@ def test_cli_cancel_invalid_run_id_precedence_invalid_home_shape_matrix(
             assert proc.returncode == 2, context
             assert "Invalid run_id" in output, context
             assert "Invalid home" not in output, context
+            assert "contains symlink component" not in output, context
             assert "run_id: [bold]" not in output, context
             assert "state: [bold]" not in output, context
             assert "report: [bold]" not in output, context

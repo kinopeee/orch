@@ -11217,6 +11217,9 @@ def test_cli_integration_run_id_precedence_over_invalid_home_shape_families() ->
                 assert '"file_ancestor"' in source_segment
                 assert '"symlink_ancestor"' in source_segment
                 assert '"symlink_ancestor_directory"' in source_segment
+                assert 'assert "contains symlink component" not in output, context' in (
+                    source_segment
+                )
                 assert 'assert "run_id: [bold]" not in output, context' in source_segment
                 assert 'assert "state: [bold]" not in output, context' in source_segment
                 assert 'assert "report: [bold]" not in output, context' in source_segment
