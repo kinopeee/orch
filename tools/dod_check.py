@@ -27,6 +27,7 @@ class CommandResult:
 class Options:
     skip_quality_gates: bool
     home: Path
+    emit_json: bool
 
 
 def _print_header(title: str) -> None:
@@ -99,10 +100,19 @@ def _parse_args(argv: Sequence[str]) -> Options:
         default=".orch",
         help="Home directory used for DoD runs (default: .orch)",
     )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit machine-readable JSON summary at the end",
+    )
     parsed = parser.parse_args(list(argv))
     home = Path(parsed.home)
     resolved_home = home.resolve() if home.is_absolute() else (ROOT / home).resolve()
-    return Options(skip_quality_gates=parsed.skip_quality_gates, home=resolved_home)
+    return Options(
+        skip_quality_gates=parsed.skip_quality_gates,
+        home=resolved_home,
+        emit_json=parsed.json,
+    )
 
 
 def _parse_run_id(output: str) -> str:
@@ -301,6 +311,24 @@ def _run_cancel_scenario(orch_prefix: list[str], home_str: str, runs_dir: Path) 
     return detected_run_id
 
 
+def _build_summary_payload(
+    *,
+    basic_run_id: str,
+    parallel_run_id: str,
+    fail_run_id: str,
+    cancel_run_id: str,
+    home: Path,
+) -> dict[str, str]:
+    return {
+        "result": "PASS",
+        "basic_run_id": basic_run_id,
+        "parallel_run_id": parallel_run_id,
+        "fail_run_id": fail_run_id,
+        "cancel_run_id": cancel_run_id,
+        "home": str(home),
+    }
+
+
 def main(options: Options) -> int:
     orch_prefix = _detect_orch_prefix()
     runs_dir = _runs_dir(options.home)
@@ -426,6 +454,19 @@ def main(options: Options) -> int:
     print(f"fail_run_id={fail_run_id}")
     print(f"cancel_run_id={cancel_run_id}")
     print("result=PASS")
+    if options.emit_json:
+        print(
+            json.dumps(
+                _build_summary_payload(
+                    basic_run_id=basic_run_id,
+                    parallel_run_id=parallel_run_id,
+                    fail_run_id=fail_run_id,
+                    cancel_run_id=cancel_run_id,
+                    home=options.home,
+                ),
+                sort_keys=True,
+            )
+        )
     return 0
 
 

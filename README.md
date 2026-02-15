@@ -115,6 +115,12 @@ python tools/dod_check.py --skip-quality-gates
 python tools/dod_check.py --home .orch_dod
 ```
 
+機械可読な結果が必要な場合は `--json` を付けると最後に JSON summary を出力します。
+
+```bash
+python tools/dod_check.py --json
+```
+
 - `plan_fail_retry.yaml` は失敗系確認用です（終了コード `3` が期待値）。
 - `resume` は SUCCESS 済みタスクを再実行しません。
 - `cancel` は実行中 run に対して実施してください（run 側終了コード `4`）。

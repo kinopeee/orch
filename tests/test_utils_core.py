@@ -94,6 +94,21 @@ def test_tools_dod_check_supports_skip_quality_gates_option() -> None:
     assert "skip_quality_gates" in source
     assert "skipped (requested by --skip-quality-gates)" in source
     assert "--home" in source
+    assert "--json" in source
+
+
+def test_tools_dod_check_supports_json_summary_output() -> None:
+    source = (Path(__file__).resolve().parents[1] / "tools" / "dod_check.py").read_text(
+        encoding="utf-8"
+    )
+    required_fragments = (
+        "emit_json",
+        "def _build_summary_payload(",
+        "json.dumps(",
+        "if options.emit_json:",
+    )
+    for fragment in required_fragments:
+        assert fragment in source
 
 
 def test_tools_dod_check_enforces_command_timeouts() -> None:
@@ -230,6 +245,7 @@ def test_readme_mentions_release_0_1_dod_self_check_script() -> None:
     assert "python tools/dod_check.py" in readme
     assert "python tools/dod_check.py --skip-quality-gates" in readme
     assert "python tools/dod_check.py --home .orch_dod" in readme
+    assert "python tools/dod_check.py --json" in readme
 
 
 def test_cli_error_output_paths_use_sanitizer_helpers() -> None:

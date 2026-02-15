@@ -44,6 +44,7 @@ def test_dod_check_parse_args_skip_quality_gates_flag() -> None:
     parsed = module._parse_args(["--skip-quality-gates"])  # type: ignore[attr-defined]
     assert parsed.skip_quality_gates is True
     assert parsed.home == (module.ROOT / ".orch").resolve()  # type: ignore[attr-defined]
+    assert parsed.emit_json is False
 
 
 def test_dod_check_parse_args_defaults() -> None:
@@ -51,6 +52,7 @@ def test_dod_check_parse_args_defaults() -> None:
     parsed = module._parse_args([])  # type: ignore[attr-defined]
     assert parsed.skip_quality_gates is False
     assert parsed.home == (module.ROOT / ".orch").resolve()  # type: ignore[attr-defined]
+    assert parsed.emit_json is False
 
 
 def test_dod_check_parse_args_resolves_relative_home() -> None:
@@ -63,6 +65,12 @@ def test_dod_check_parse_args_keeps_absolute_home() -> None:
     module = _load_dod_check_module()
     parsed = module._parse_args(["--home", "/tmp/dod-home-absolute"])  # type: ignore[attr-defined]
     assert parsed.home == Path("/tmp/dod-home-absolute")
+
+
+def test_dod_check_parse_args_enables_json_summary() -> None:
+    module = _load_dod_check_module()
+    parsed = module._parse_args(["--json"])  # type: ignore[attr-defined]
+    assert parsed.emit_json is True
 
 
 def test_dod_check_has_parallel_overlap_true_for_successful_root_tasks() -> None:
@@ -402,3 +410,22 @@ def test_dod_check_assert_run_status_raises_when_status_mismatch(tmp_path: Path)
     state_path.write_text('{"status":"FAILED","tasks":{}}', encoding="utf-8")
     with pytest.raises(RuntimeError, match="run status mismatch"):
         module._assert_run_status(run_id, tmp_path, "SUCCESS")  # type: ignore[attr-defined]
+
+
+def test_dod_check_build_summary_payload_contains_all_keys() -> None:
+    module = _load_dod_check_module()
+    payload = module._build_summary_payload(  # type: ignore[attr-defined]
+        basic_run_id="basic123",
+        parallel_run_id="parallel123",
+        fail_run_id="fail123",
+        cancel_run_id="cancel123",
+        home=Path("/tmp/dod-home"),
+    )
+    assert payload == {
+        "result": "PASS",
+        "basic_run_id": "basic123",
+        "parallel_run_id": "parallel123",
+        "fail_run_id": "fail123",
+        "cancel_run_id": "cancel123",
+        "home": "/tmp/dod-home",
+    }
