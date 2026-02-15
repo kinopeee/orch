@@ -116,7 +116,7 @@ tasks:
     symlink_parent = tmp_path / "link_parent"
     symlink_parent.symlink_to(real_parent, target_is_directory=True)
 
-    with pytest.raises(PlanError, match="contains symlink component"):
+    with pytest.raises(PlanError, match="must not include symlink"):
         load_plan(symlink_parent / "plan.yaml")
 
 
@@ -141,7 +141,7 @@ tasks:
 
     monkeypatch.setattr(Path, "lstat", flaky_lstat)
 
-    with pytest.raises(PlanError, match="contains symlink component"):
+    with pytest.raises(PlanError, match="must not include symlink"):
         load_plan(plan_path)
 
 

@@ -11364,6 +11364,54 @@ def test_cli_integration_other_invalid_home_families_suppress_symlink_detail() -
     assert matched == expected_names
 
 
+def test_cli_integration_invalid_home_symlink_detail_suppression_extended() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    invalid_home_absent_names = {
+        "test_cli_run_dry_run_both_fail_fast_toggles_invalid_plan_precedes_invalid_workdir",
+        "test_cli_run_dry_run_both_toggles_invalid_plan_precedes_invalid_workdir_matrix",
+        "test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_existing_home_matrix",
+        "test_cli_run_dry_run_both_toggles_reject_invalid_plan_existing_home_matrix",
+        "test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_default_home_matrix",
+        "test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_default_existing_home_matrix",
+        "test_cli_run_dry_run_both_toggles_reject_invalid_plan_default_home_matrix",
+        "test_cli_run_dry_run_both_toggles_reject_invalid_plan_default_existing_home_matrix",
+        "test_cli_run_dry_run_both_fail_fast_toggles_reverse_order_invalid_plan_precedes_invalid_workdir",
+    }
+    invalid_home_present_names = {
+        "test_cli_cancel_rejects_run_with_symlink_ancestor_home",
+        "test_cli_cancel_rejects_home_file_without_side_effect",
+        "test_cli_status_rejects_run_dir_with_symlink_ancestor_without_lock_side_effect",
+        "test_cli_logs_rejects_symlink_home_path",
+        "test_cli_resume_rejects_symlink_home_path",
+    }
+
+    expected_names = invalid_home_absent_names | invalid_home_present_names
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expected_names:
+            continue
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        assert 'assert "contains symlink component" not in output' in source_segment
+
+        if node.name in invalid_home_absent_names:
+            assert 'assert "Invalid home" not in output' in source_segment
+            assert '"Plan validation error" in output' in source_segment
+        else:
+            assert 'assert "Invalid home" in output' in source_segment
+
+        matched.add(node.name)
+
+    assert matched == expected_names
+
+
 def test_cli_integration_resume_invalid_run_id_workdir_preserve_supergroup_boundaries() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")

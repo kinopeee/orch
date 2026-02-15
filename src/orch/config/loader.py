@@ -180,7 +180,7 @@ def validate_plan(plan: PlanSpec) -> None:
 
 def load_plan(path: Path) -> PlanSpec:
     if has_symlink_ancestor(path):
-        raise PlanError(f"plan file path contains symlink component: {path}")
+        raise PlanError(f"plan file path must not include symlink: {path}")
     try:
         meta = path.lstat()
     except FileNotFoundError:

@@ -2981,6 +2981,7 @@ def test_cli_run_dry_run_both_fail_fast_toggles_invalid_plan_precedes_invalid_wo
     assert "PLAN_PATH" not in output
     assert "Invalid home" not in output
     assert "Invalid workdir" not in output
+    assert "contains symlink component" not in output
     assert "Dry Run" not in output
     assert "run_id:" not in output
     assert "state:" not in output
@@ -3098,6 +3099,7 @@ def test_cli_run_dry_run_both_toggles_invalid_plan_precedes_invalid_workdir_matr
             assert "PLAN_PATH" not in output, context
             assert "Invalid home" not in output, context
             assert "Invalid workdir" not in output, context
+            assert "contains symlink component" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
@@ -3217,6 +3219,7 @@ def test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_existing_hom
             assert "PLAN_PATH" not in output, context
             assert "Invalid home" not in output, context
             assert "Invalid workdir" not in output, context
+            assert "contains symlink component" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
@@ -3333,6 +3336,7 @@ def test_cli_run_dry_run_both_toggles_reject_invalid_plan_existing_home_matrix(
             assert "PLAN_PATH" not in output, context
             assert "Invalid home" not in output, context
             assert "Invalid workdir" not in output, context
+            assert "contains symlink component" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
@@ -3451,6 +3455,7 @@ def test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_default_home
             assert "PLAN_PATH" not in output, context
             assert "Invalid home" not in output, context
             assert "Invalid workdir" not in output, context
+            assert "contains symlink component" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
@@ -3569,6 +3574,7 @@ def test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_default_exis
             assert "PLAN_PATH" not in output, context
             assert "Invalid home" not in output, context
             assert "Invalid workdir" not in output, context
+            assert "contains symlink component" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
@@ -3683,6 +3689,7 @@ def test_cli_run_dry_run_both_toggles_reject_invalid_plan_default_home_matrix(
             assert "PLAN_PATH" not in output, context
             assert "Invalid home" not in output, context
             assert "Invalid workdir" not in output, context
+            assert "contains symlink component" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
@@ -3799,6 +3806,7 @@ def test_cli_run_dry_run_both_toggles_reject_invalid_plan_default_existing_home_
             assert "PLAN_PATH" not in output, context
             assert "Invalid home" not in output, context
             assert "Invalid workdir" not in output, context
+            assert "contains symlink component" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
@@ -6393,6 +6401,7 @@ def test_cli_run_dry_run_both_fail_fast_toggles_reverse_order_invalid_plan_prece
     assert "PLAN_PATH" not in output
     assert "Invalid home" not in output
     assert "Invalid workdir" not in output
+    assert "contains symlink component" not in output
     assert "Dry Run" not in output
     assert "run_id:" not in output
     assert "state:" not in output
@@ -11131,8 +11140,10 @@ def test_cli_cancel_rejects_run_with_symlink_ancestor_home(tmp_path: Path) -> No
         text=True,
         check=False,
     )
+    output = proc.stdout + proc.stderr
     assert proc.returncode == 2
-    assert "Invalid home" in proc.stdout
+    assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert not (real_run_dir / "cancel.request").exists()
 
 
@@ -11180,8 +11191,10 @@ def test_cli_cancel_rejects_home_file_without_side_effect(tmp_path: Path) -> Non
         text=True,
         check=False,
     )
+    output = proc.stdout + proc.stderr
     assert proc.returncode == 2
-    assert "Invalid home" in proc.stdout
+    assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert home.read_text(encoding="utf-8") == "not a directory\n"
 
 
@@ -14048,8 +14061,10 @@ def test_cli_status_rejects_run_dir_with_symlink_ancestor_without_lock_side_effe
         text=True,
         check=False,
     )
+    output = proc.stdout + proc.stderr
     assert proc.returncode == 2
-    assert "Invalid home" in proc.stdout
+    assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert not (real_run_dir / ".lock").exists()
 
 
@@ -14085,8 +14100,10 @@ def test_cli_logs_rejects_symlink_home_path(tmp_path: Path) -> None:
         text=True,
         check=False,
     )
+    output = proc.stdout + proc.stderr
     assert proc.returncode == 2
-    assert "Invalid home" in proc.stdout
+    assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert not (real_run_dir / ".lock").exists()
 
 
@@ -14188,8 +14205,10 @@ def test_cli_resume_rejects_symlink_home_path(tmp_path: Path) -> None:
         text=True,
         check=False,
     )
+    output = proc.stdout + proc.stderr
     assert proc.returncode == 2
-    assert "Invalid home" in proc.stdout
+    assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert not (real_run_dir / ".lock").exists()
 
 
