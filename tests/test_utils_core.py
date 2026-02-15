@@ -336,6 +336,30 @@ def test_cli_helpers_sanitizer_output_tests_require_symbolic_links_suppression()
     assert examined
 
 
+def test_cli_helpers_invalid_plan_path_output_requires_full_suppression() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    helpers_source = (tests_root / "test_cli_helpers.py").read_text(encoding="utf-8")
+    helpers_module = ast.parse(helpers_source)
+
+    examined: set[str] = set()
+    for node in ast.walk(helpers_module):
+        if not isinstance(node, ast.FunctionDef) or not node.name.startswith("test_"):
+            continue
+
+        source_segment = ast.get_source_segment(helpers_source, node)
+        assert source_segment is not None
+        if 'assert "invalid plan path" in captured.out' not in source_segment:
+            continue
+
+        assert 'assert "symbolic links" not in captured.out.lower()' in source_segment
+        assert 'assert "contains symlink component" not in captured.out' in source_segment
+        assert 'assert "must not include symlink" not in captured.out' in source_segment
+        assert 'assert "must not be symlink" not in captured.out' in source_segment
+        examined.add(node.name)
+
+    assert examined
+
+
 def test_new_run_id_format_includes_timestamp_and_suffix() -> None:
     now = datetime(2026, 2, 13, 12, 34, 56, tzinfo=UTC)
     run_id = new_run_id(now)
