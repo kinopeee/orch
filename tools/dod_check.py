@@ -364,7 +364,7 @@ def _assert_summary_payload_consistent(payload: dict[str, str]) -> None:
 
     if payload["result"] != "PASS":
         raise RuntimeError(f"invalid summary result: {payload['result']!r}")
-    if payload["home"] == "":
+    if payload["home"].strip() == "":
         raise RuntimeError("invalid summary home: empty")
 
     run_id_pattern = re.compile(r"^\d{8}_\d{6}_[0-9a-f]{6}$")

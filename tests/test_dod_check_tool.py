@@ -616,6 +616,20 @@ def test_dod_check_assert_summary_payload_consistent_rejects_empty_home() -> Non
         module._assert_summary_payload_consistent(payload)  # type: ignore[attr-defined]
 
 
+def test_dod_check_assert_summary_payload_consistent_rejects_whitespace_home() -> None:
+    module = _load_dod_check_module()
+    payload = {
+        "result": "PASS",
+        "basic_run_id": "20260215_000000_a1b2c3",
+        "parallel_run_id": "20260215_000001_d4e5f6",
+        "fail_run_id": "20260215_000002_0a1b2c",
+        "cancel_run_id": "20260215_000003_3d4e5f",
+        "home": "   ",
+    }
+    with pytest.raises(RuntimeError, match="invalid summary home"):
+        module._assert_summary_payload_consistent(payload)  # type: ignore[attr-defined]
+
+
 def test_dod_check_write_summary_json_creates_file(tmp_path: Path) -> None:
     module = _load_dod_check_module()
     payload = {

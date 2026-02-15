@@ -57,6 +57,8 @@ jobs:
               raise SystemExit(f"unexpected DoD result: {data['result']!r}")
           if not isinstance(data["home"], str):
               raise SystemExit(f"invalid DoD home type: {type(data['home']).__name__}")
+          if data["home"].strip() == "":
+              raise SystemExit("invalid DoD home value: empty")
           if data["home"] != expected_home:
               raise SystemExit(f"unexpected DoD home: {data['home']!r}")
           run_id_pattern = re.compile(r"^\d{8}_\d{6}_[0-9a-f]{6}$")

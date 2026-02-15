@@ -247,6 +247,7 @@ def test_ci_workflow_validates_dod_runtime_summary_json() -> None:
     assert 'if not isinstance(data["result"], str):' in ci_workflow
     assert 'if data["result"] != "PASS":' in ci_workflow
     assert 'if not isinstance(data["home"], str):' in ci_workflow
+    assert 'if data["home"].strip() == "":' in ci_workflow
     assert 'if data["home"] != expected_home:' in ci_workflow
     assert 'run_id_pattern = re.compile(r"^\\d{8}_\\d{6}_[0-9a-f]{6}$")' in ci_workflow
     assert (
