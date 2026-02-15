@@ -144,6 +144,8 @@ def _load_state(run_id: str, runs_dir: Path) -> dict[str, object]:
     state_path = runs_dir / run_id / "state.json"
     if not state_path.exists():
         raise RuntimeError(f"state file not found: {state_path}")
+    if not state_path.is_file():
+        raise RuntimeError(f"state path is not file: {state_path}")
     try:
         state_payload = state_path.read_text(encoding="utf-8")
     except OSError as exc:

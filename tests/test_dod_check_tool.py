@@ -342,6 +342,15 @@ def test_dod_check_load_state_raises_on_read_oserror(
         module._load_state(run_id, tmp_path)  # type: ignore[attr-defined]
 
 
+def test_dod_check_load_state_raises_when_state_path_is_not_file(tmp_path: Path) -> None:
+    module = _load_dod_check_module()
+    run_id = "20260215_000000_load_not_file"
+    state_dir = tmp_path / run_id / "state.json"
+    state_dir.mkdir(parents=True)
+    with pytest.raises(RuntimeError, match="state path is not file"):
+        module._load_state(run_id, tmp_path)  # type: ignore[attr-defined]
+
+
 def test_dod_check_load_state_raises_on_non_object_root(tmp_path: Path) -> None:
     module = _load_dod_check_module()
     run_id = "20260215_000000_load_non_object"

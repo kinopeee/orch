@@ -181,6 +181,8 @@ def test_tools_dod_check_load_state_rejects_invalid_json_and_non_object_root() -
     start = source.index(marker)
     end = source.index("\n\ndef _state_tasks(", start)
     function_source = source[start:end]
+    assert "state path is not file:" in function_source
+    assert "if not state_path.is_file():" in function_source
     assert "failed to read state file:" in function_source
     assert "state file is not valid json:" in function_source
     assert "state root must be object:" in function_source
