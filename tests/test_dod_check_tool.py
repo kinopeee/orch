@@ -45,6 +45,7 @@ def test_dod_check_parse_args_skip_quality_gates_flag() -> None:
     assert parsed.skip_quality_gates is True
     assert parsed.home == (module.ROOT / ".orch").resolve()  # type: ignore[attr-defined]
     assert parsed.emit_json is False
+    assert parsed.json_out is None
 
 
 def test_dod_check_parse_args_defaults() -> None:
@@ -53,6 +54,7 @@ def test_dod_check_parse_args_defaults() -> None:
     assert parsed.skip_quality_gates is False
     assert parsed.home == (module.ROOT / ".orch").resolve()  # type: ignore[attr-defined]
     assert parsed.emit_json is False
+    assert parsed.json_out is None
 
 
 def test_dod_check_parse_args_resolves_relative_home() -> None:
@@ -71,6 +73,19 @@ def test_dod_check_parse_args_enables_json_summary() -> None:
     module = _load_dod_check_module()
     parsed = module._parse_args(["--json"])  # type: ignore[attr-defined]
     assert parsed.emit_json is True
+    assert parsed.json_out is None
+
+
+def test_dod_check_parse_args_resolves_json_out_relative_path() -> None:
+    module = _load_dod_check_module()
+    parsed = module._parse_args(["--json-out", "tmp/dod-summary.json"])  # type: ignore[attr-defined]
+    assert parsed.json_out == (module.ROOT / "tmp/dod-summary.json").resolve()  # type: ignore[attr-defined]
+
+
+def test_dod_check_parse_args_keeps_json_out_absolute_path() -> None:
+    module = _load_dod_check_module()
+    parsed = module._parse_args(["--json-out", "/tmp/dod-summary.json"])  # type: ignore[attr-defined]
+    assert parsed.json_out == Path("/tmp/dod-summary.json")
 
 
 def test_dod_check_has_parallel_overlap_true_for_successful_root_tasks() -> None:
@@ -429,3 +444,23 @@ def test_dod_check_build_summary_payload_contains_all_keys() -> None:
         "cancel_run_id": "cancel123",
         "home": "/tmp/dod-home",
     }
+
+
+def test_dod_check_write_summary_json_creates_file(tmp_path: Path) -> None:
+    module = _load_dod_check_module()
+    payload = {
+        "result": "PASS",
+        "basic_run_id": "basic123",
+        "parallel_run_id": "parallel123",
+        "fail_run_id": "fail123",
+        "cancel_run_id": "cancel123",
+        "home": "/tmp/dod-home",
+    }
+    out_path = tmp_path / "nested" / "dod-summary.json"
+    module._write_summary_json(out_path, payload)  # type: ignore[attr-defined]
+    written = out_path.read_text(encoding="utf-8")
+    assert written == (
+        '{"basic_run_id": "basic123", "cancel_run_id": "cancel123", '
+        '"fail_run_id": "fail123", "home": "/tmp/dod-home", '
+        '"parallel_run_id": "parallel123", "result": "PASS"}\n'
+    )

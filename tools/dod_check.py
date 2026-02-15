@@ -28,6 +28,7 @@ class Options:
     skip_quality_gates: bool
     home: Path
     emit_json: bool
+    json_out: Path | None
 
 
 def _print_header(title: str) -> None:
@@ -105,13 +106,22 @@ def _parse_args(argv: Sequence[str]) -> Options:
         action="store_true",
         help="Emit machine-readable JSON summary at the end",
     )
+    parser.add_argument(
+        "--json-out",
+        help="Write machine-readable JSON summary to this file path",
+    )
     parsed = parser.parse_args(list(argv))
     home = Path(parsed.home)
     resolved_home = home.resolve() if home.is_absolute() else (ROOT / home).resolve()
+    json_out: Path | None = None
+    if parsed.json_out:
+        output = Path(parsed.json_out)
+        json_out = output.resolve() if output.is_absolute() else (ROOT / output).resolve()
     return Options(
         skip_quality_gates=parsed.skip_quality_gates,
         home=resolved_home,
         emit_json=parsed.json,
+        json_out=json_out,
     )
 
 
@@ -329,6 +339,11 @@ def _build_summary_payload(
     }
 
 
+def _write_summary_json(path: Path, payload: dict[str, str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+
+
 def main(options: Options) -> int:
     orch_prefix = _detect_orch_prefix()
     runs_dir = _runs_dir(options.home)
@@ -454,19 +469,18 @@ def main(options: Options) -> int:
     print(f"fail_run_id={fail_run_id}")
     print(f"cancel_run_id={cancel_run_id}")
     print("result=PASS")
+    payload = _build_summary_payload(
+        basic_run_id=basic_run_id,
+        parallel_run_id=parallel_run_id,
+        fail_run_id=fail_run_id,
+        cancel_run_id=cancel_run_id,
+        home=options.home,
+    )
     if options.emit_json:
-        print(
-            json.dumps(
-                _build_summary_payload(
-                    basic_run_id=basic_run_id,
-                    parallel_run_id=parallel_run_id,
-                    fail_run_id=fail_run_id,
-                    cancel_run_id=cancel_run_id,
-                    home=options.home,
-                ),
-                sort_keys=True,
-            )
-        )
+        print(json.dumps(payload, sort_keys=True))
+    if options.json_out is not None:
+        _write_summary_json(options.json_out, payload)
+        print(f"summary_json_path={options.json_out}")
     return 0
 
 

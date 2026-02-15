@@ -95,6 +95,7 @@ def test_tools_dod_check_supports_skip_quality_gates_option() -> None:
     assert "skipped (requested by --skip-quality-gates)" in source
     assert "--home" in source
     assert "--json" in source
+    assert "--json-out" in source
 
 
 def test_tools_dod_check_supports_json_summary_output() -> None:
@@ -103,9 +104,13 @@ def test_tools_dod_check_supports_json_summary_output() -> None:
     )
     required_fragments = (
         "emit_json",
+        "json_out",
         "def _build_summary_payload(",
+        "def _write_summary_json(",
         "json.dumps(",
         "if options.emit_json:",
+        "if options.json_out is not None:",
+        "summary_json_path=",
     )
     for fragment in required_fragments:
         assert fragment in source
@@ -169,12 +174,10 @@ def test_ci_workflow_runs_dod_runtime_smoke() -> None:
         Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml"
     ).read_text(encoding="utf-8")
     assert "name: DoD runtime smoke" in ci_workflow
-    assert "set -o pipefail" in ci_workflow
     assert (
-        "python tools/dod_check.py --skip-quality-gates --home /tmp/orch_ci_dod --json"
-        in ci_workflow
+        "python tools/dod_check.py --skip-quality-gates --home /tmp/orch_ci_dod --json-out "
+        "/tmp/orch_ci_dod_summary.json" in ci_workflow
     )
-    assert "tee /tmp/orch_ci_dod_summary.json" in ci_workflow
 
 
 def test_ci_workflow_uploads_dod_runtime_summary_artifact() -> None:
@@ -193,7 +196,8 @@ def test_ci_workflow_keeps_release_0_1_quality_gates() -> None:
     ).read_text(encoding="utf-8")
     expected_steps = (
         "name: DoD runtime smoke",
-        "python tools/dod_check.py --skip-quality-gates --home /tmp/orch_ci_dod --json",
+        "python tools/dod_check.py --skip-quality-gates --home /tmp/orch_ci_dod --json-out "
+        "/tmp/orch_ci_dod_summary.json",
         "name: Upload DoD runtime summary",
         "name: Lint format check",
         "run: ruff format --check .",
@@ -262,6 +266,7 @@ def test_readme_mentions_release_0_1_dod_self_check_script() -> None:
     assert "python tools/dod_check.py --skip-quality-gates" in readme
     assert "python tools/dod_check.py --home .orch_dod" in readme
     assert "python tools/dod_check.py --json" in readme
+    assert "python tools/dod_check.py --json-out /tmp/orch_dod_summary.json" in readme
 
 
 def test_cli_error_output_paths_use_sanitizer_helpers() -> None:

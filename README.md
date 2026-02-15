@@ -121,6 +121,12 @@ python tools/dod_check.py --home .orch_dod
 python tools/dod_check.py --json
 ```
 
+JSON をファイルとして保存したい場合は `--json-out` を使います。
+
+```bash
+python tools/dod_check.py --json-out /tmp/orch_dod_summary.json
+```
+
 - `plan_fail_retry.yaml` は失敗系確認用です（終了コード `3` が期待値）。
 - `resume` は SUCCESS 済みタスクを再実行しません。
 - `cancel` は実行中 run に対して実施してください（run 側終了コード `4`）。
