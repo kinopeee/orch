@@ -69,6 +69,8 @@ def test_source_does_not_emit_symbolic_links_detail_literal() -> None:
         "symbolically linked",
         "symbolically-linked",
         "symbolically_linked",
+        "symbolically--linked",
+        "symbolically__linked",
         "symbolicallylinked",
     )
     for file_path in src_root.rglob("*.py"):
