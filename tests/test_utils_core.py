@@ -147,6 +147,8 @@ def test_cli_helpers_mentions_symlink_detection_matrix_exists() -> None:
             '"path has symbolic--link reference",',
             '"path has symbolic__links reference",',
             '"path is symbolically-linked",',
+            '"path is symbolically--linked",',
+            '"path is symbolically__linked",',
             '"RUN PATH HAS SYMBOLIC_LINK REFERENCE",',
             "assert _mentions_symlink(detail) is True",
         ),
@@ -273,6 +275,10 @@ def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
             'err = PlanError("plan path is symbolically_linked to another location")',
             'assert _render_plan_error(err) == "invalid plan path"',
         ),
+        "test_render_plan_error_sanitizes_symbolically_linked_double_hyphen_detail": (
+            'err = PlanError("plan path is symbolically--linked to another location")',
+            'assert _render_plan_error(err) == "invalid plan path"',
+        ),
         "test_render_plan_error_sanitizes_symbolicallylinked_compact_detail": (
             'err = PlanError("plan path is symbolicallylinked to another location")',
             'assert _render_plan_error(err) == "invalid plan path"',
@@ -393,6 +399,13 @@ def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
         ),
         "test_render_runtime_error_detail_sanitizes_symbolically_linked_underscored_detail": (
             'err = OSError("run path is symbolically_linked to another location")',
+            'assert _render_runtime_error_detail(err) == "invalid run path"',
+        ),
+        (
+            "test_render_runtime_error_detail_sanitizes_symbolically_linked_"
+            "double_underscore_detail"
+        ): (
+            'err = OSError("run path is symbolically__linked to another location")',
             'assert _render_runtime_error_detail(err) == "invalid run path"',
         ),
         "test_render_runtime_error_detail_sanitizes_symbolicallylinked_compact_detail": (
