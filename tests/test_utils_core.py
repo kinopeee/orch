@@ -124,6 +124,45 @@ def test_cli_symlink_hint_pattern_shape_and_usage_are_stable() -> None:
     assert 'return "symlink" in detail.lower()' not in cli_source
 
 
+def test_cli_helpers_mentions_symlink_detection_matrix_exists() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    helpers_source = (tests_root / "test_cli_helpers.py").read_text(encoding="utf-8")
+    helpers_module = ast.parse(helpers_source)
+
+    expected: dict[str, tuple[str, ...]] = {
+        "test_mentions_symlink_detects_supported_variants": (
+            '"path contains symlink component",',
+            '"path has symbolic-link reference",',
+            '"path has symbolic_link reference",',
+            '"path is symbolically-linked",',
+            '"RUN PATH HAS SYMBOLIC_LINK REFERENCE",',
+            "assert _mentions_symlink(detail) is True",
+        ),
+        "test_mentions_symlink_rejects_non_symlink_variants": (
+            '"path has hardlink reference",',
+            '"path references linker script",',
+            '"this error is about permissions only",',
+            "assert _mentions_symlink(detail) is False",
+        ),
+    }
+
+    matched: set[str] = set()
+    source_lines = helpers_source.splitlines()
+    for node in ast.walk(helpers_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expected:
+            continue
+
+        start_line = node.decorator_list[0].lineno if node.decorator_list else node.lineno
+        source_segment = "\n".join(source_lines[start_line - 1 : node.end_lineno])
+        for fragment in expected[node.name]:
+            assert fragment in source_segment
+        matched.add(node.name)
+
+    assert matched == set(expected)
+
+
 def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     helpers_source = (tests_root / "test_cli_helpers.py").read_text(encoding="utf-8")

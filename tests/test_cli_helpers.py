@@ -9,6 +9,7 @@ import typer
 
 import orch.cli as cli_module
 from orch.cli import (
+    _mentions_symlink,
     _render_plan_error,
     _render_runtime_error_detail,
     _resolve_workdir_or_exit,
@@ -20,6 +21,40 @@ from orch.config.loader import load_plan
 from orch.config.schema import PlanSpec, TaskSpec
 from orch.state.model import RunState
 from orch.util.errors import PlanError
+
+
+@pytest.mark.parametrize(
+    "detail",
+    [
+        "path contains symlink component",
+        "path is symlinked",
+        "path has symbolic link reference",
+        "path has symbolic-link reference",
+        "path has symbolic_link reference",
+        "path has symboliclinks reference",
+        "path is symbolically linked",
+        "path is symbolically-linked",
+        "path is symbolically_linked",
+        "TOO MANY LEVELS OF SYMBOLIC LINKS",
+        "RUN PATH HAS SYMBOLIC_LINK REFERENCE",
+    ],
+)
+def test_mentions_symlink_detects_supported_variants(detail: str) -> None:
+    assert _mentions_symlink(detail) is True
+
+
+@pytest.mark.parametrize(
+    "detail",
+    [
+        "path has hardlink reference",
+        "path references linker script",
+        "path points to regular directory",
+        "symbolism is unrelated to links",
+        "this error is about permissions only",
+    ],
+)
+def test_mentions_symlink_rejects_non_symlink_variants(detail: str) -> None:
+    assert _mentions_symlink(detail) is False
 
 
 def test_write_plan_snapshot_roundtrips_to_valid_plan(tmp_path: Path) -> None:
