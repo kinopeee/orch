@@ -258,6 +258,8 @@ def test_cli_helpers_mentions_symlink_detection_matrix_exists() -> None:
             '"PATH HAS SYMBOLICALLY-LINKS ISSUE",',
             '"PATH HAS SYMBOLICALLY-LINKING ISSUE",',
             '"PATH HAS SYMBOLICALLY_LINKS ISSUE",',
+            '"PATH HAS SYMBOLICALLY_LINKING ISSUE",',
+            '"PATH HAS SYMBOLICALLYLINKING ISSUE",',
             '"RUN PATH HAS SYMBOLIC_LINK REFERENCE",',
             "assert _mentions_symlink(detail) is True",
         ),
@@ -271,6 +273,8 @@ def test_cli_helpers_mentions_symlink_detection_matrix_exists() -> None:
             '"path has symbolic-linkers issue",',
             '"path has symbolically_linkedness issue",',
             '"path has symbolically-linkingly issue",',
+            '"path has symbolically_linkingly issue",',
+            '"path has symbolicallylinkingly issue",',
             '"this error is about permissions only",',
             "assert _mentions_symlink(detail) is False",
         ),
@@ -321,6 +325,14 @@ def test_cli_helpers_render_non_symlink_symbolic_details_are_preserved() -> None
         ),
         "test_render_runtime_error_detail_keeps_symbolically_linkingly_non_symlink_detail": (
             "run path has symbolically-linkingly issue",
+            "invalid run path",
+        ),
+        "test_render_plan_error_keeps_symbolically_linkingly_underscored_non_symlink_detail": (
+            "plan path has symbolically_linkingly issue",
+            "invalid plan path",
+        ),
+        "test_render_runtime_error_detail_keeps_symbolicallylinkingly_non_symlink_detail": (
+            "run path has symbolicallylinkingly issue",
             "invalid run path",
         ),
     }
@@ -481,6 +493,10 @@ def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
             'err = PlanError("plan path has symbolically_linking issue")',
             'assert _render_plan_error(err) == "invalid plan path"',
         ),
+        "test_render_plan_error_sanitizes_symbolically_linking_underscored_uppercase_detail": (
+            'err = PlanError("PLAN PATH HAS SYMBOLICALLY_LINKING ISSUE")',
+            'assert _render_plan_error(err) == "invalid plan path"',
+        ),
         "test_render_plan_error_sanitizes_symbolically_links_underscored_uppercase_detail": (
             'err = PlanError("PLAN PATH HAS SYMBOLICALLY_LINKS ISSUE")',
             'assert _render_plan_error(err) == "invalid plan path"',
@@ -491,6 +507,10 @@ def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
         ),
         "test_render_plan_error_sanitizes_symbolicallylinking_compact_detail": (
             'err = PlanError("plan path has symbolicallylinking issue")',
+            'assert _render_plan_error(err) == "invalid plan path"',
+        ),
+        "test_render_plan_error_sanitizes_symbolicallylinking_compact_uppercase_detail": (
+            'err = PlanError("PLAN PATH HAS SYMBOLICALLYLINKING ISSUE")',
             'assert _render_plan_error(err) == "invalid plan path"',
         ),
         "test_render_plan_error_sanitizes_symbolicallylinked_compact_uppercase_detail": (
@@ -666,6 +686,10 @@ def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
             'err = OSError("run path has symbolically_linking issue")',
             'assert _render_runtime_error_detail(err) == "invalid run path"',
         ),
+        "test_render_runtime_error_detail_sanitizes_symbolically_linking_underscored_uppercase": (
+            'err = OSError("RUN PATH HAS SYMBOLICALLY_LINKING ISSUE")',
+            'assert _render_runtime_error_detail(err) == "invalid run path"',
+        ),
         ("test_render_runtime_error_detail_sanitizes_symbolically_links_uppercase_underscored"): (
             'err = OSError("RUN PATH HAS SYMBOLICALLY_LINKS ISSUE")',
             'assert _render_runtime_error_detail(err) == "invalid run path"',
@@ -676,6 +700,10 @@ def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
         ),
         "test_render_runtime_error_detail_sanitizes_symbolicallylinking_compact_detail": (
             'err = OSError("run path has symbolicallylinking issue")',
+            'assert _render_runtime_error_detail(err) == "invalid run path"',
+        ),
+        "test_render_runtime_error_detail_sanitizes_symbolicallylinking_compact_uppercase": (
+            'err = OSError("RUN PATH HAS SYMBOLICALLYLINKING ISSUE")',
             'assert _render_runtime_error_detail(err) == "invalid run path"',
         ),
         "test_render_runtime_error_detail_sanitizes_symbolicallylinked_uppercase_compact": (

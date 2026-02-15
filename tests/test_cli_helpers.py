@@ -63,6 +63,8 @@ from orch.util.errors import PlanError, RunConflictError
         "PATH HAS SYMBOLICALLY-LINKS ISSUE",
         "PATH HAS SYMBOLICALLY-LINKING ISSUE",
         "PATH HAS SYMBOLICALLY_LINKS ISSUE",
+        "PATH HAS SYMBOLICALLY_LINKING ISSUE",
+        "PATH HAS SYMBOLICALLYLINKING ISSUE",
         "TOO MANY LEVELS OF SYMBOLIC LINKS",
         "RUN PATH HAS SYMBOLIC_LINK REFERENCE",
     ],
@@ -83,6 +85,8 @@ def test_mentions_symlink_detects_supported_variants(detail: str) -> None:
         "path has symbolic-linkers issue",
         "path has symbolically_linkedness issue",
         "path has symbolically-linkingly issue",
+        "path has symbolically_linkingly issue",
+        "path has symbolicallylinkingly issue",
         "path points to regular directory",
         "symbolism is unrelated to links",
         "this error is about permissions only",
@@ -148,6 +152,11 @@ def test_render_plan_error_keeps_symbolic_linkedlist_non_symlink_detail() -> Non
 def test_render_plan_error_keeps_symbolically_linkingly_non_symlink_detail() -> None:
     err = PlanError("plan path has symbolically-linkingly issue")
     assert _render_plan_error(err) == "plan path has symbolically-linkingly issue"
+
+
+def test_render_plan_error_keeps_symbolically_linkingly_underscored_non_symlink_detail() -> None:
+    err = PlanError("plan path has symbolically_linkingly issue")
+    assert _render_plan_error(err) == "plan path has symbolically_linkingly issue"
 
 
 def test_render_plan_error_sanitizes_symlink_detail_case_insensitive() -> None:
@@ -320,6 +329,11 @@ def test_render_plan_error_sanitizes_symbolically_linking_underscored_detail() -
     assert _render_plan_error(err) == "invalid plan path"
 
 
+def test_render_plan_error_sanitizes_symbolically_linking_underscored_uppercase_detail() -> None:
+    err = PlanError("PLAN PATH HAS SYMBOLICALLY_LINKING ISSUE")
+    assert _render_plan_error(err) == "invalid plan path"
+
+
 def test_render_plan_error_sanitizes_symbolically_links_underscored_uppercase_detail() -> None:
     err = PlanError("PLAN PATH HAS SYMBOLICALLY_LINKS ISSUE")
     assert _render_plan_error(err) == "invalid plan path"
@@ -332,6 +346,11 @@ def test_render_plan_error_sanitizes_symbolicallylinks_compact_uppercase_detail(
 
 def test_render_plan_error_sanitizes_symbolicallylinking_compact_detail() -> None:
     err = PlanError("plan path has symbolicallylinking issue")
+    assert _render_plan_error(err) == "invalid plan path"
+
+
+def test_render_plan_error_sanitizes_symbolicallylinking_compact_uppercase_detail() -> None:
+    err = PlanError("PLAN PATH HAS SYMBOLICALLYLINKING ISSUE")
     assert _render_plan_error(err) == "invalid plan path"
 
 
@@ -556,6 +575,11 @@ def test_render_runtime_error_detail_sanitizes_symbolically_linking_underscored_
     assert _render_runtime_error_detail(err) == "invalid run path"
 
 
+def test_render_runtime_error_detail_sanitizes_symbolically_linking_underscored_uppercase() -> None:
+    err = OSError("RUN PATH HAS SYMBOLICALLY_LINKING ISSUE")
+    assert _render_runtime_error_detail(err) == "invalid run path"
+
+
 def test_render_runtime_error_detail_sanitizes_symbolically_links_uppercase_underscored() -> None:
     err = OSError("RUN PATH HAS SYMBOLICALLY_LINKS ISSUE")
     assert _render_runtime_error_detail(err) == "invalid run path"
@@ -568,6 +592,11 @@ def test_render_runtime_error_detail_sanitizes_symbolicallylinks_compact_upperca
 
 def test_render_runtime_error_detail_sanitizes_symbolicallylinking_compact_detail() -> None:
     err = OSError("run path has symbolicallylinking issue")
+    assert _render_runtime_error_detail(err) == "invalid run path"
+
+
+def test_render_runtime_error_detail_sanitizes_symbolicallylinking_compact_uppercase() -> None:
+    err = OSError("RUN PATH HAS SYMBOLICALLYLINKING ISSUE")
     assert _render_runtime_error_detail(err) == "invalid run path"
 
 
@@ -619,6 +648,11 @@ def test_render_runtime_error_detail_keeps_symbolically_linkedness_non_symlink_d
 def test_render_runtime_error_detail_keeps_symbolically_linkingly_non_symlink_detail() -> None:
     err = OSError("run path has symbolically-linkingly issue")
     assert _render_runtime_error_detail(err) == "run path has symbolically-linkingly issue"
+
+
+def test_render_runtime_error_detail_keeps_symbolicallylinkingly_non_symlink_detail() -> None:
+    err = OSError("run path has symbolicallylinkingly issue")
+    assert _render_runtime_error_detail(err) == "run path has symbolicallylinkingly issue"
 
 
 def test_write_plan_snapshot_rejects_symlink_destination(tmp_path: Path) -> None:
