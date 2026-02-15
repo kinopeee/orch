@@ -366,6 +366,8 @@ def _assert_summary_payload_consistent(payload: dict[str, str]) -> None:
         raise RuntimeError(f"invalid summary result: {payload['result']!r}")
     if payload["home"].strip() == "":
         raise RuntimeError("invalid summary home: empty")
+    if payload["home"] != payload["home"].strip():
+        raise RuntimeError("invalid summary home: surrounding whitespace")
     if not Path(payload["home"]).is_absolute():
         raise RuntimeError(f"invalid summary home: not absolute {payload['home']!r}")
 
