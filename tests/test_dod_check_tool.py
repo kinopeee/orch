@@ -175,3 +175,18 @@ def test_dod_check_has_parallel_overlap_rejects_non_object_tasks() -> None:
     module = _load_dod_check_module()
     with pytest.raises(RuntimeError, match="state.tasks must be an object"):
         module._has_parallel_overlap({"tasks": []})  # type: ignore[attr-defined]
+
+
+def test_dod_check_assert_report_exists_passes_when_file_exists(tmp_path: Path) -> None:
+    module = _load_dod_check_module()
+    run_id = "20260215_000000_abcdef"
+    report = tmp_path / run_id / "report" / "final_report.md"
+    report.parent.mkdir(parents=True)
+    report.write_text("# report\n", encoding="utf-8")
+    module._assert_report_exists(run_id, tmp_path)  # type: ignore[attr-defined]
+
+
+def test_dod_check_assert_report_exists_raises_when_missing(tmp_path: Path) -> None:
+    module = _load_dod_check_module()
+    with pytest.raises(RuntimeError, match="final report file was not generated"):
+        module._assert_report_exists("20260215_000000_missing", tmp_path)  # type: ignore[attr-defined]
