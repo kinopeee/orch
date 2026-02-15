@@ -145,6 +145,35 @@ def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
     assert matched == set(required_cases)
 
 
+def test_cli_helpers_run_resume_plan_error_symbolic_variants_are_sanitized() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    helpers_source = (tests_root / "test_cli_helpers.py").read_text(encoding="utf-8")
+    helpers_module = ast.parse(helpers_source)
+
+    expected_names = {
+        "test_cli_run_sanitizes_symbolically_linked_plan_error",
+        "test_cli_resume_sanitizes_symbolically_linked_plan_error",
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(helpers_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expected_names:
+            continue
+
+        source_segment = ast.get_source_segment(helpers_source, node)
+        assert source_segment is not None
+        assert 'assert "Plan validation error" in captured.out' in source_segment
+        assert 'assert "invalid plan path" in captured.out' in source_segment
+        assert 'assert "contains symlink component" not in captured.out' in source_segment
+        assert 'assert "must not include symlink" not in captured.out' in source_segment
+        assert 'assert "must not be symlink" not in captured.out' in source_segment
+        matched.add(node.name)
+
+    assert matched == expected_names
+
+
 def test_new_run_id_format_includes_timestamp_and_suffix() -> None:
     now = datetime(2026, 2, 13, 12, 34, 56, tzinfo=UTC)
     run_id = new_run_id(now)
