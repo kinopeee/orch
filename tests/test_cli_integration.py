@@ -7145,6 +7145,7 @@ def test_cli_run_rejects_invalid_workdir_modes_without_creating_run_dir_matrix(
             assert "Invalid workdir" in output, context
             assert "Invalid home" not in output, context
             assert "Plan validation error" not in output, context
+            assert "contains symlink component" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
@@ -7246,6 +7247,7 @@ def test_cli_run_default_home_rejects_invalid_workdir_modes_without_creating_run
             assert "Invalid workdir" in output, context
             assert "Invalid home" not in output, context
             assert "Plan validation error" not in output, context
+            assert "contains symlink component" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
