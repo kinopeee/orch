@@ -8404,6 +8404,7 @@ def test_cli_integration_run_invalid_workdir_with_runs_matrices_keep_axes_and_bo
         assert 'assert "Invalid workdir" in output, context' in source_segment
         assert 'assert "Invalid home" not in output, context' in source_segment
         assert 'assert "Plan validation error" not in output, context' in source_segment
+        assert 'assert "contains symlink component" not in output, context' in source_segment
         assert 'assert "Dry Run" not in output, context' in source_segment
         assert 'assert "run_id:" not in output, context' in source_segment
         assert 'assert "state:" not in output, context' in source_segment
@@ -8535,6 +8536,7 @@ def test_cli_integration_run_invalid_workdir_preserve_supergroup_boundaries() ->
         assert 'assert "Invalid workdir" in output, context' in source_segment
         assert 'assert "Invalid home" not in output, context' in source_segment
         assert 'assert "Plan validation error" not in output, context' in source_segment
+        assert 'assert "contains symlink component" not in output, context' in source_segment
         assert 'assert "Dry Run" not in output, context' in source_segment
         assert 'assert "run_id:" not in output, context' in source_segment
         assert 'assert "state:" not in output, context' in source_segment
@@ -8737,6 +8739,7 @@ def test_cli_integration_run_invalid_workdir_preserve_dry_run_non_dry_parity() -
         assert '"missing_workdir_target"' in source_segment
         assert 'if workdir_mode == "symlink_ancestor":' in source_segment
         assert '"child_workdir"' in source_segment
+        assert 'assert "contains symlink component" not in output, context' in source_segment
         assert 'assert "Invalid home" not in output, context' in source_segment
         assert 'assert "Plan validation error" not in output, context' in source_segment
         assert 'assert "run_id:" not in output, context' in source_segment

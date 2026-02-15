@@ -4579,6 +4579,7 @@ def test_cli_run_dry_run_both_toggles_existing_home_preserves_entries_invalid_wo
             assert "Plan validation error" not in output, context
             assert "PLAN_PATH" not in output, context
             assert "Invalid home" not in output, context
+            assert "contains symlink component" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
             assert "report:" not in output, context
@@ -4688,6 +4689,7 @@ def test_cli_run_dry_run_both_toggles_default_existing_home_preserves_entries_in
             assert "Plan validation error" not in output, context
             assert "PLAN_PATH" not in output, context
             assert "Invalid home" not in output, context
+            assert "contains symlink component" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
             assert "report:" not in output, context
@@ -4805,6 +4807,7 @@ def test_cli_run_dry_run_both_toggles_existing_home_with_runs_preserves_entries_
             assert "Plan validation error" not in output, context
             assert "PLAN_PATH" not in output, context
             assert "Invalid home" not in output, context
+            assert "contains symlink component" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
             assert "report:" not in output, context
@@ -4926,6 +4929,7 @@ def test_cli_run_dry_run_toggles_default_home_with_runs_invalid_workdir_preserve
             assert "Plan validation error" not in output, context
             assert "PLAN_PATH" not in output, context
             assert "Invalid home" not in output, context
+            assert "contains symlink component" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
             assert "report:" not in output, context
@@ -5056,6 +5060,7 @@ def test_cli_run_dry_run_both_toggles_existing_home_run_artifacts_preserved_inva
             assert "Plan validation error" not in output, context
             assert "PLAN_PATH" not in output, context
             assert "Invalid home" not in output, context
+            assert "contains symlink component" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
             assert "report:" not in output, context
@@ -5189,6 +5194,7 @@ def test_cli_run_dry_run_both_toggles_default_existing_home_run_artifacts_preser
             assert "Plan validation error" not in output, context
             assert "PLAN_PATH" not in output, context
             assert "Invalid home" not in output, context
+            assert "contains symlink component" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
             assert "report:" not in output, context
@@ -6979,6 +6985,7 @@ def test_cli_run_rejects_symlink_file_workdir_without_creating_run_dir(tmp_path:
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Invalid workdir" in output
+    assert "contains symlink component" not in output
     assert not (home / "runs").exists()
     assert workdir_target_file.read_text(encoding="utf-8") == "not a directory\n"
 
@@ -7057,6 +7064,7 @@ def test_cli_run_rejects_missing_workdir_without_creating_run_dir(tmp_path: Path
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Invalid workdir" in output
+    assert "contains symlink component" not in output
     assert not (home / "runs").exists()
 
 
@@ -7355,6 +7363,7 @@ def test_cli_run_invalid_workdir_existing_home_preserves_entries_matrix(
             assert "Invalid workdir" in output, context
             assert "Invalid home" not in output, context
             assert "Plan validation error" not in output, context
+            assert "contains symlink component" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
@@ -7468,6 +7477,7 @@ def test_cli_run_default_home_invalid_workdir_preserves_entries_matrix(
             assert "Invalid workdir" in output, context
             assert "Invalid home" not in output, context
             assert "Plan validation error" not in output, context
+            assert "contains symlink component" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
@@ -7589,6 +7599,7 @@ def test_cli_run_invalid_workdir_existing_home_with_runs_preserves_entries_matri
             assert "Invalid workdir" in output, context
             assert "Invalid home" not in output, context
             assert "Plan validation error" not in output, context
+            assert "contains symlink component" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
@@ -7714,6 +7725,7 @@ def test_cli_run_default_home_invalid_workdir_with_runs_preserves_entries_matrix
             assert "Invalid workdir" in output, context
             assert "Invalid home" not in output, context
             assert "Plan validation error" not in output, context
+            assert "contains symlink component" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
@@ -7848,6 +7860,7 @@ def test_cli_run_invalid_workdir_existing_home_run_artifacts_preserved_matrix(
             assert "Invalid workdir" in output, context
             assert "Invalid home" not in output, context
             assert "Plan validation error" not in output, context
+            assert "contains symlink component" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
@@ -7985,6 +7998,7 @@ def test_cli_run_default_home_invalid_workdir_run_artifacts_preserved_matrix(
             assert "Invalid workdir" in output, context
             assert "Invalid home" not in output, context
             assert "Plan validation error" not in output, context
+            assert "contains symlink component" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
@@ -9533,6 +9547,7 @@ def test_cli_resume_rejects_missing_workdir(tmp_path: Path) -> None:
     output = resume_proc.stdout + resume_proc.stderr
     assert resume_proc.returncode == 2
     assert "Invalid workdir" in output
+    assert "contains symlink component" not in output
 
 
 def test_cli_resume_invalid_home_precedes_invalid_workdir(tmp_path: Path) -> None:
@@ -9766,6 +9781,7 @@ def test_cli_resume_rejects_symlink_file_workdir(tmp_path: Path) -> None:
     output = resume_proc.stdout + resume_proc.stderr
     assert resume_proc.returncode == 2
     assert "Invalid workdir" in output
+    assert "contains symlink component" not in output
     assert workdir_target_file.read_text(encoding="utf-8") == "not a directory\n"
 
 
