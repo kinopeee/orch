@@ -54,10 +54,14 @@ from orch.util.errors import PlanError, RunConflictError
         "PATH IS SYMBOLICALLYLINKED",
         "path has symbolically links issue",
         "path has symbolically-links issue",
+        "path has symbolically-linking issue",
         "path has symbolically_links issue",
+        "path has symbolically_linking issue",
         "path has symbolicallylinks issue",
+        "path has symbolicallylinking issue",
         "PATH HAS SYMBOLICALLYLINKS ISSUE",
         "PATH HAS SYMBOLICALLY-LINKS ISSUE",
+        "PATH HAS SYMBOLICALLY-LINKING ISSUE",
         "PATH HAS SYMBOLICALLY_LINKS ISSUE",
         "TOO MANY LEVELS OF SYMBOLIC LINKS",
         "RUN PATH HAS SYMBOLIC_LINK REFERENCE",
@@ -78,6 +82,7 @@ def test_mentions_symlink_detects_supported_variants(detail: str) -> None:
         "path has symbolic-linkingly issue",
         "path has symbolic-linkers issue",
         "path has symbolically_linkedness issue",
+        "path has symbolically-linkingly issue",
         "path points to regular directory",
         "symbolism is unrelated to links",
         "this error is about permissions only",
@@ -138,6 +143,11 @@ def test_render_plan_error_keeps_symbolic_linker_non_symlink_detail() -> None:
 def test_render_plan_error_keeps_symbolic_linkedlist_non_symlink_detail() -> None:
     err = PlanError("plan path has symbolic-linkedlist issue")
     assert _render_plan_error(err) == "plan path has symbolic-linkedlist issue"
+
+
+def test_render_plan_error_keeps_symbolically_linkingly_non_symlink_detail() -> None:
+    err = PlanError("plan path has symbolically-linkingly issue")
+    assert _render_plan_error(err) == "plan path has symbolically-linkingly issue"
 
 
 def test_render_plan_error_sanitizes_symlink_detail_case_insensitive() -> None:
@@ -290,6 +300,11 @@ def test_render_plan_error_sanitizes_symbolically_links_hyphenated_plural_detail
     assert _render_plan_error(err) == "invalid plan path"
 
 
+def test_render_plan_error_sanitizes_symbolically_linking_hyphenated_detail() -> None:
+    err = PlanError("plan path has symbolically-linking issue")
+    assert _render_plan_error(err) == "invalid plan path"
+
+
 def test_render_plan_error_sanitizes_symbolically_links_hyphenated_uppercase_detail() -> None:
     err = PlanError("PLAN PATH HAS SYMBOLICALLY-LINKS ISSUE")
     assert _render_plan_error(err) == "invalid plan path"
@@ -300,6 +315,11 @@ def test_render_plan_error_sanitizes_symbolically_links_underscored_plural_detai
     assert _render_plan_error(err) == "invalid plan path"
 
 
+def test_render_plan_error_sanitizes_symbolically_linking_underscored_detail() -> None:
+    err = PlanError("plan path has symbolically_linking issue")
+    assert _render_plan_error(err) == "invalid plan path"
+
+
 def test_render_plan_error_sanitizes_symbolically_links_underscored_uppercase_detail() -> None:
     err = PlanError("PLAN PATH HAS SYMBOLICALLY_LINKS ISSUE")
     assert _render_plan_error(err) == "invalid plan path"
@@ -307,6 +327,11 @@ def test_render_plan_error_sanitizes_symbolically_links_underscored_uppercase_de
 
 def test_render_plan_error_sanitizes_symbolicallylinks_compact_uppercase_detail() -> None:
     err = PlanError("PLAN PATH HAS SYMBOLICALLYLINKS ISSUE")
+    assert _render_plan_error(err) == "invalid plan path"
+
+
+def test_render_plan_error_sanitizes_symbolicallylinking_compact_detail() -> None:
+    err = PlanError("plan path has symbolicallylinking issue")
     assert _render_plan_error(err) == "invalid plan path"
 
 
@@ -507,6 +532,11 @@ def test_render_runtime_error_detail_sanitizes_symbolically_links_hyphenated_plu
     assert _render_runtime_error_detail(err) == "invalid run path"
 
 
+def test_render_runtime_error_detail_sanitizes_symbolically_linking_hyphenated_detail() -> None:
+    err = OSError("run path has symbolically-linking issue")
+    assert _render_runtime_error_detail(err) == "invalid run path"
+
+
 def test_render_runtime_error_detail_sanitizes_symbolically_links_hyphenated_uppercase_detail() -> (
     None
 ):
@@ -521,6 +551,11 @@ def test_render_runtime_error_detail_sanitizes_symbolically_links_underscored_pl
     assert _render_runtime_error_detail(err) == "invalid run path"
 
 
+def test_render_runtime_error_detail_sanitizes_symbolically_linking_underscored_detail() -> None:
+    err = OSError("run path has symbolically_linking issue")
+    assert _render_runtime_error_detail(err) == "invalid run path"
+
+
 def test_render_runtime_error_detail_sanitizes_symbolically_links_uppercase_underscored() -> None:
     err = OSError("RUN PATH HAS SYMBOLICALLY_LINKS ISSUE")
     assert _render_runtime_error_detail(err) == "invalid run path"
@@ -528,6 +563,11 @@ def test_render_runtime_error_detail_sanitizes_symbolically_links_uppercase_unde
 
 def test_render_runtime_error_detail_sanitizes_symbolicallylinks_compact_uppercase_detail() -> None:
     err = OSError("RUN PATH HAS SYMBOLICALLYLINKS ISSUE")
+    assert _render_runtime_error_detail(err) == "invalid run path"
+
+
+def test_render_runtime_error_detail_sanitizes_symbolicallylinking_compact_detail() -> None:
+    err = OSError("run path has symbolicallylinking issue")
     assert _render_runtime_error_detail(err) == "invalid run path"
 
 
@@ -574,6 +614,11 @@ def test_render_runtime_error_detail_keeps_symbolic_linkless_non_symlink_detail(
 def test_render_runtime_error_detail_keeps_symbolically_linkedness_non_symlink_detail() -> None:
     err = OSError("run path has symbolically_linkedness issue")
     assert _render_runtime_error_detail(err) == "run path has symbolically_linkedness issue"
+
+
+def test_render_runtime_error_detail_keeps_symbolically_linkingly_non_symlink_detail() -> None:
+    err = OSError("run path has symbolically-linkingly issue")
+    assert _render_runtime_error_detail(err) == "run path has symbolically-linkingly issue"
 
 
 def test_write_plan_snapshot_rejects_symlink_destination(tmp_path: Path) -> None:
@@ -2241,6 +2286,49 @@ def test_cli_run_sanitizes_symbolically_linked_plan_error(
     assert "Plan validation error" in captured.out
     assert "invalid plan path" in captured.out
     assert "symbolically-linked" not in captured.out
+    assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
+    assert "contains symlink component" not in captured.out
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
+
+
+def test_cli_run_sanitizes_symbolically_linking_plan_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    plan_path.write_text("tasks: []\n", encoding="utf-8")
+    home = tmp_path / ".orch"
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+    resolve_workdir_called = False
+
+    def fake_load_plan(_path: Path) -> PlanSpec:
+        raise PlanError("plan path has symbolically-linking issue")
+
+    def fake_resolve_workdir(_workdir: Path) -> Path:
+        nonlocal resolve_workdir_called
+        resolve_workdir_called = True
+        return _workdir
+
+    monkeypatch.setattr(cli_module, "load_plan", fake_load_plan)
+    monkeypatch.setattr(cli_module, "_resolve_workdir_or_exit", fake_resolve_workdir)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.run(
+            plan_path,
+            max_parallel=1,
+            home=home,
+            workdir=workdir,
+            fail_fast=False,
+            dry_run=False,
+        )
+    assert exc_info.value.exit_code == 2
+    assert resolve_workdir_called is False
+    captured = capsys.readouterr()
+    assert "Plan validation error" in captured.out
+    assert "invalid plan path" in captured.out
+    assert "symbolically-linking" not in captured.out
     assert "symbolic links" not in captured.out.lower()
     assert "symbolic link" not in captured.out.lower()
     assert "contains symlink component" not in captured.out
@@ -5414,6 +5502,53 @@ def test_cli_resume_sanitizes_symbolically_linked_plan_error(
     assert "Plan validation error" in captured.out
     assert "invalid plan path" in captured.out
     assert "symbolically_linked" not in captured.out
+    assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
+    assert "contains symlink component" not in captured.out
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
+
+
+def test_cli_resume_sanitizes_symbolically_linking_plan_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+    workdir = tmp_path / "workdir"
+    workdir.mkdir()
+    run_plan_called = False
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        yield
+
+    def fake_load_plan(_path: Path) -> PlanSpec:
+        raise PlanError("plan path has symbolically-linking issue")
+
+    async def fake_run_plan(*args: object, **kwargs: object) -> object:
+        nonlocal run_plan_called
+        run_plan_called = True
+        return object()
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_plan", fake_load_plan)
+    monkeypatch.setattr(cli_module, "run_plan", fake_run_plan)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.resume(
+            "run1",
+            home=home,
+            max_parallel=1,
+            workdir=workdir,
+            fail_fast=False,
+            failed_only=False,
+        )
+    assert exc_info.value.exit_code == 2
+    assert run_plan_called is False
+    captured = capsys.readouterr()
+    assert "Plan validation error" in captured.out
+    assert "invalid plan path" in captured.out
+    assert "symbolically-linking" not in captured.out
     assert "symbolic links" not in captured.out.lower()
     assert "symbolic link" not in captured.out.lower()
     assert "contains symlink component" not in captured.out

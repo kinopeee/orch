@@ -249,10 +249,14 @@ def test_cli_helpers_mentions_symlink_detection_matrix_exists() -> None:
             '"PATH IS SYMBOLICALLYLINKED",',
             '"path has symbolically links issue",',
             '"path has symbolically-links issue",',
+            '"path has symbolically-linking issue",',
             '"path has symbolically_links issue",',
+            '"path has symbolically_linking issue",',
             '"path has symbolicallylinks issue",',
+            '"path has symbolicallylinking issue",',
             '"PATH HAS SYMBOLICALLYLINKS ISSUE",',
             '"PATH HAS SYMBOLICALLY-LINKS ISSUE",',
+            '"PATH HAS SYMBOLICALLY-LINKING ISSUE",',
             '"PATH HAS SYMBOLICALLY_LINKS ISSUE",',
             '"RUN PATH HAS SYMBOLIC_LINK REFERENCE",',
             "assert _mentions_symlink(detail) is True",
@@ -266,6 +270,7 @@ def test_cli_helpers_mentions_symlink_detection_matrix_exists() -> None:
             '"path has symbolic-linkingly issue",',
             '"path has symbolic-linkers issue",',
             '"path has symbolically_linkedness issue",',
+            '"path has symbolically-linkingly issue",',
             '"this error is about permissions only",',
             "assert _mentions_symlink(detail) is False",
         ),
@@ -308,6 +313,14 @@ def test_cli_helpers_render_non_symlink_symbolic_details_are_preserved() -> None
         ),
         "test_render_runtime_error_detail_keeps_symbolically_linkedness_non_symlink_detail": (
             "run path has symbolically_linkedness issue",
+            "invalid run path",
+        ),
+        "test_render_plan_error_keeps_symbolically_linkingly_non_symlink_detail": (
+            "plan path has symbolically-linkingly issue",
+            "invalid plan path",
+        ),
+        "test_render_runtime_error_detail_keeps_symbolically_linkingly_non_symlink_detail": (
+            "run path has symbolically-linkingly issue",
             "invalid run path",
         ),
     }
@@ -452,6 +465,10 @@ def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
             'err = PlanError("plan path has symbolically-links issue")',
             'assert _render_plan_error(err) == "invalid plan path"',
         ),
+        "test_render_plan_error_sanitizes_symbolically_linking_hyphenated_detail": (
+            'err = PlanError("plan path has symbolically-linking issue")',
+            'assert _render_plan_error(err) == "invalid plan path"',
+        ),
         "test_render_plan_error_sanitizes_symbolically_links_hyphenated_uppercase_detail": (
             'err = PlanError("PLAN PATH HAS SYMBOLICALLY-LINKS ISSUE")',
             'assert _render_plan_error(err) == "invalid plan path"',
@@ -460,12 +477,20 @@ def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
             'err = PlanError("plan path has symbolically_links issue")',
             'assert _render_plan_error(err) == "invalid plan path"',
         ),
+        "test_render_plan_error_sanitizes_symbolically_linking_underscored_detail": (
+            'err = PlanError("plan path has symbolically_linking issue")',
+            'assert _render_plan_error(err) == "invalid plan path"',
+        ),
         "test_render_plan_error_sanitizes_symbolically_links_underscored_uppercase_detail": (
             'err = PlanError("PLAN PATH HAS SYMBOLICALLY_LINKS ISSUE")',
             'assert _render_plan_error(err) == "invalid plan path"',
         ),
         "test_render_plan_error_sanitizes_symbolicallylinks_compact_uppercase_detail": (
             'err = PlanError("PLAN PATH HAS SYMBOLICALLYLINKS ISSUE")',
+            'assert _render_plan_error(err) == "invalid plan path"',
+        ),
+        "test_render_plan_error_sanitizes_symbolicallylinking_compact_detail": (
+            'err = PlanError("plan path has symbolicallylinking issue")',
             'assert _render_plan_error(err) == "invalid plan path"',
         ),
         "test_render_plan_error_sanitizes_symbolicallylinked_compact_uppercase_detail": (
@@ -619,6 +644,10 @@ def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
             'err = OSError("run path has symbolically-links issue")',
             'assert _render_runtime_error_detail(err) == "invalid run path"',
         ),
+        "test_render_runtime_error_detail_sanitizes_symbolically_linking_hyphenated_detail": (
+            'err = OSError("run path has symbolically-linking issue")',
+            'assert _render_runtime_error_detail(err) == "invalid run path"',
+        ),
         (
             "test_render_runtime_error_detail_sanitizes_symbolically_links_"
             "hyphenated_uppercase_detail"
@@ -633,12 +662,20 @@ def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
             'err = OSError("run path has symbolically_links issue")',
             'assert _render_runtime_error_detail(err) == "invalid run path"',
         ),
+        "test_render_runtime_error_detail_sanitizes_symbolically_linking_underscored_detail": (
+            'err = OSError("run path has symbolically_linking issue")',
+            'assert _render_runtime_error_detail(err) == "invalid run path"',
+        ),
         ("test_render_runtime_error_detail_sanitizes_symbolically_links_uppercase_underscored"): (
             'err = OSError("RUN PATH HAS SYMBOLICALLY_LINKS ISSUE")',
             'assert _render_runtime_error_detail(err) == "invalid run path"',
         ),
         ("test_render_runtime_error_detail_sanitizes_symbolicallylinks_compact_uppercase_detail"): (
             'err = OSError("RUN PATH HAS SYMBOLICALLYLINKS ISSUE")',
+            'assert _render_runtime_error_detail(err) == "invalid run path"',
+        ),
+        "test_render_runtime_error_detail_sanitizes_symbolicallylinking_compact_detail": (
+            'err = OSError("run path has symbolicallylinking issue")',
             'assert _render_runtime_error_detail(err) == "invalid run path"',
         ),
         "test_render_runtime_error_detail_sanitizes_symbolicallylinked_uppercase_compact": (
@@ -691,7 +728,9 @@ def test_cli_helpers_run_resume_plan_error_symbolic_variants_are_sanitized() -> 
 
     expected_names = {
         "test_cli_run_sanitizes_symbolically_linked_plan_error",
+        "test_cli_run_sanitizes_symbolically_linking_plan_error",
         "test_cli_resume_sanitizes_symbolically_linked_plan_error",
+        "test_cli_resume_sanitizes_symbolically_linking_plan_error",
     }
 
     matched: set[str] = set()
