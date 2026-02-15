@@ -219,8 +219,18 @@ def test_render_plan_error_sanitizes_symboliclinks_compact_detail() -> None:
     assert _render_plan_error(err) == "invalid plan path"
 
 
+def test_render_plan_error_sanitizes_symboliclinks_compact_uppercase_detail() -> None:
+    err = PlanError("PLAN PATH HAS SYMBOLICLINKS ISSUE")
+    assert _render_plan_error(err) == "invalid plan path"
+
+
 def test_render_plan_error_sanitizes_symboliclink_compact_detail() -> None:
     err = PlanError("plan path has symboliclink issue")
+    assert _render_plan_error(err) == "invalid plan path"
+
+
+def test_render_plan_error_sanitizes_symboliclink_compact_uppercase_detail() -> None:
+    err = PlanError("PLAN PATH HAS SYMBOLICLINK ISSUE")
     assert _render_plan_error(err) == "invalid plan path"
 
 
@@ -355,8 +365,18 @@ def test_render_runtime_error_detail_sanitizes_symboliclinks_compact_detail() ->
     assert _render_runtime_error_detail(err) == "invalid run path"
 
 
+def test_render_runtime_error_detail_sanitizes_symboliclinks_compact_uppercase_detail() -> None:
+    err = OSError("RUN PATH HAS SYMBOLICLINKS ISSUE")
+    assert _render_runtime_error_detail(err) == "invalid run path"
+
+
 def test_render_runtime_error_detail_sanitizes_symboliclink_compact_detail() -> None:
     err = OSError("run path has symboliclink issue")
+    assert _render_runtime_error_detail(err) == "invalid run path"
+
+
+def test_render_runtime_error_detail_sanitizes_symboliclink_compact_uppercase_detail() -> None:
+    err = OSError("RUN PATH HAS SYMBOLICLINK ISSUE")
     assert _render_runtime_error_detail(err) == "invalid run path"
 
 
