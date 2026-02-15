@@ -33,6 +33,8 @@ from orch.util.errors import PlanError
         "path has symbolic_link reference",
         "path has symbolic\rlink reference",
         "path has symbolic\r\nlinks reference",
+        "path has symbolic\flink reference",
+        "path has symbolic\vlinks reference",
         "path has symboliclinks reference",
         "path is symbolically linked",
         "path is symbolically-linked",
@@ -149,6 +151,16 @@ def test_render_plan_error_sanitizes_symbolic_link_carriage_return_separated_det
 
 def test_render_plan_error_sanitizes_symbolic_links_crlf_separated_detail() -> None:
     err = PlanError("plan path has symbolic\r\nlinks reference: /tmp/plan.yaml")
+    assert _render_plan_error(err) == "invalid plan path"
+
+
+def test_render_plan_error_sanitizes_symbolic_link_form_feed_separated_detail() -> None:
+    err = PlanError("plan path has symbolic\flink reference: /tmp/plan.yaml")
+    assert _render_plan_error(err) == "invalid plan path"
+
+
+def test_render_plan_error_sanitizes_symbolic_links_vertical_tab_separated_detail() -> None:
+    err = PlanError("plan path has symbolic\vlinks reference: /tmp/plan.yaml")
     assert _render_plan_error(err) == "invalid plan path"
 
 
@@ -271,6 +283,18 @@ def test_render_runtime_error_detail_sanitizes_symbolic_link_carriage_return_sep
 
 def test_render_runtime_error_detail_sanitizes_symbolic_links_crlf_separated_detail() -> None:
     err = OSError("run path has symbolic\r\nlinks reference")
+    assert _render_runtime_error_detail(err) == "invalid run path"
+
+
+def test_render_runtime_error_detail_sanitizes_symbolic_link_form_feed_separated_detail() -> None:
+    err = OSError("run path has symbolic\flink reference")
+    assert _render_runtime_error_detail(err) == "invalid run path"
+
+
+def test_render_runtime_error_detail_sanitizes_symbolic_links_vertical_tab_separated_detail() -> (
+    None
+):
+    err = OSError("run path has symbolic\vlinks reference")
     assert _render_runtime_error_detail(err) == "invalid run path"
 
 
