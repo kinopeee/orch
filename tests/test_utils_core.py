@@ -8952,6 +8952,7 @@ def test_cli_integration_resume_invalid_workdir_modes_matrix_output_contract() -
     assert '"Invalid home" not in output' in source_segment
     assert '"Run not found or broken" not in output' in source_segment
     assert '"Plan validation error" not in output' in source_segment
+    assert '"contains symlink component" not in output' in source_segment
     assert '"run_id:" not in output' in source_segment
     assert '"state:" not in output' in source_segment
     assert '"report:" not in output' in source_segment
@@ -9106,6 +9107,7 @@ def test_cli_integration_resume_default_home_invalid_workdir_modes_output_contra
     assert '"Invalid home" not in output' in source_segment
     assert '"Run not found or broken" not in output' in source_segment
     assert '"Plan validation error" not in output' in source_segment
+    assert '"contains symlink component" not in output' in source_segment
     assert '"run_id:" not in output' in source_segment
     assert '"state:" not in output' in source_segment
     assert '"report:" not in output' in source_segment
@@ -9198,6 +9200,7 @@ def test_cli_integration_resume_invalid_workdir_mode_matrices_keep_home_boundari
         assert 'assert "Invalid home" not in output, context' in source_segment
         assert 'assert "Run not found or broken" not in output, context' in source_segment
         assert 'assert "Plan validation error" not in output, context' in source_segment
+        assert 'assert "contains symlink component" not in output, context' in source_segment
         assert 'assert "run_id:" not in output, context' in source_segment
         assert 'assert "state:" not in output, context' in source_segment
         assert 'assert "report:" not in output, context' in source_segment
@@ -11687,6 +11690,7 @@ def test_cli_integration_run_and_resume_invalid_workdir_mode_matrices_keep_parit
         if expected["has_resume_state_guard"]:
             assert '"resume"' in source_segment
             assert "run_id = _extract_run_id(run_proc.stdout)" in source_segment
+            assert 'assert "contains symlink component" not in output, context' in source_segment
             assert 'assert "Run not found or broken" not in output, context' in source_segment
             assert "baseline_state" in source_segment
             assert 'state_path.read_text(encoding="utf-8") == baseline_state' in source_segment

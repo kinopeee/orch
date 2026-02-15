@@ -9871,6 +9871,7 @@ def test_cli_resume_rejects_invalid_workdir_modes_matrix(tmp_path: Path) -> None
             assert "Invalid home" not in output, context
             assert "Run not found or broken" not in output, context
             assert "Plan validation error" not in output, context
+            assert "contains symlink component" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
             assert "report:" not in output, context
@@ -9991,6 +9992,7 @@ def test_cli_resume_default_home_rejects_invalid_workdir_modes_matrix(
             assert "Invalid home" not in output, context
             assert "Run not found or broken" not in output, context
             assert "Plan validation error" not in output, context
+            assert "contains symlink component" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
             assert "report:" not in output, context
