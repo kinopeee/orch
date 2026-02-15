@@ -299,6 +299,8 @@ def test_ci_workflow_validates_dod_runtime_summary_json() -> None:
     assert 'expected_home = os.environ["DOD_HOME"]' in ci_workflow
     assert "if not summary_path.exists():" in ci_workflow
     assert "missing DoD summary file:" in ci_workflow
+    assert "if not summary_path.is_file():" in ci_workflow
+    assert "DoD summary path is not a file:" in ci_workflow
     assert "except json.JSONDecodeError as exc:" in ci_workflow
     assert "invalid DoD summary JSON:" in ci_workflow
     assert "if not isinstance(data, dict):" in ci_workflow

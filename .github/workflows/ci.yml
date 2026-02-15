@@ -37,6 +37,8 @@ jobs:
           expected_home = os.environ["DOD_HOME"]
           if not summary_path.exists():
               raise SystemExit(f"missing DoD summary file: {summary_path}")
+          if not summary_path.is_file():
+              raise SystemExit(f"DoD summary path is not a file: {summary_path}")
           try:
               data = json.loads(summary_path.read_text(encoding="utf-8"))
           except json.JSONDecodeError as exc:
