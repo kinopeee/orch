@@ -56,6 +56,7 @@ from orch.util.errors import PlanError
         "path has symbolically-links issue",
         "path has symbolically_links issue",
         "path has symbolicallylinks issue",
+        "PATH HAS SYMBOLICALLYLINKS ISSUE",
         "TOO MANY LEVELS OF SYMBOLIC LINKS",
         "RUN PATH HAS SYMBOLIC_LINK REFERENCE",
     ],
@@ -266,6 +267,11 @@ def test_render_plan_error_sanitizes_symbolically_links_plural_detail() -> None:
     assert _render_plan_error(err) == "invalid plan path"
 
 
+def test_render_plan_error_sanitizes_symbolicallylinks_compact_uppercase_detail() -> None:
+    err = PlanError("PLAN PATH HAS SYMBOLICALLYLINKS ISSUE")
+    assert _render_plan_error(err) == "invalid plan path"
+
+
 def test_render_plan_error_sanitizes_symbolicallylinked_compact_uppercase_detail() -> None:
     err = PlanError("PLAN PATH IS SYMBOLICALLYLINKED TO ANOTHER LOCATION")
     assert _render_plan_error(err) == "invalid plan path"
@@ -453,6 +459,11 @@ def test_render_runtime_error_detail_sanitizes_symbolicallylinked_compact_detail
 
 def test_render_runtime_error_detail_sanitizes_symbolicallylinks_compact_detail() -> None:
     err = OSError("run path has symbolicallylinks issue")
+    assert _render_runtime_error_detail(err) == "invalid run path"
+
+
+def test_render_runtime_error_detail_sanitizes_symbolicallylinks_compact_uppercase_detail() -> None:
+    err = OSError("RUN PATH HAS SYMBOLICALLYLINKS ISSUE")
     assert _render_runtime_error_detail(err) == "invalid run path"
 
 
