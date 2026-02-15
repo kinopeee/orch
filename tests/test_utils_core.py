@@ -11249,6 +11249,68 @@ def test_cli_integration_run_id_precedence_over_invalid_home_shape_families() ->
     assert matched == set(expectations)
 
 
+def test_cli_integration_run_invalid_home_families_suppress_symlink_detail() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    expected_names = {
+        "test_cli_run_dry_run_no_fail_fast_still_rejects_invalid_home",
+        "test_cli_run_dry_run_both_fail_fast_toggles_still_rejects_invalid_home",
+        "test_cli_run_dry_run_both_fail_fast_toggles_reverse_order_rejects_invalid_home",
+        "test_cli_run_rejects_file_home_path",
+        "test_cli_run_rejects_home_with_file_ancestor",
+        "test_cli_run_invalid_home_precedes_invalid_workdir",
+        "test_cli_run_home_file_ancestor_precedes_invalid_workdir",
+        "test_cli_run_home_symlink_to_file_precedes_invalid_workdir",
+        "test_cli_run_home_symlink_directory_precedes_invalid_workdir",
+        "test_cli_run_home_symlink_ancestor_precedes_invalid_workdir",
+        "test_cli_run_home_dangling_symlink_precedes_invalid_workdir",
+        "test_cli_run_invalid_home_precedes_invalid_plan",
+        "test_cli_dry_run_invalid_home_precedes_invalid_plan",
+        "test_cli_run_home_file_ancestor_precedes_invalid_plan",
+        "test_cli_run_home_symlink_to_file_precedes_invalid_plan",
+        "test_cli_run_home_symlink_directory_precedes_invalid_plan",
+        "test_cli_dry_run_home_symlink_directory_precedes_invalid_plan",
+        "test_cli_run_home_symlink_ancestor_precedes_invalid_plan",
+        "test_cli_dry_run_home_symlink_ancestor_precedes_invalid_plan",
+        "test_cli_dry_run_home_symlink_to_file_precedes_invalid_plan",
+        "test_cli_run_home_dangling_symlink_precedes_invalid_plan",
+        "test_cli_dry_run_home_dangling_symlink_precedes_invalid_plan",
+        "test_cli_dry_run_invalid_home_precedes_invalid_workdir",
+        "test_cli_dry_run_home_dangling_symlink_precedes_invalid_workdir",
+        "test_cli_dry_run_home_symlink_precedes_invalid_workdir",
+        "test_cli_dry_run_home_file_ancestor_precedes_invalid_workdir",
+        "test_cli_dry_run_home_symlink_to_file_precedes_invalid_workdir",
+        "test_cli_dry_run_home_symlink_ancestor_precedes_invalid_workdir",
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expected_names:
+            continue
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        assert 'assert "Invalid home" in output' in source_segment
+        assert 'assert "contains symlink component" not in output' in source_segment
+
+        if "invalid_workdir" in node.name:
+            assert 'assert "Invalid workdir" not in output' in source_segment
+
+        if "invalid_plan" in node.name:
+            assert 'assert "Plan validation error" not in output' in source_segment
+
+        if "dry_run" in node.name:
+            assert '"--dry-run"' in source_segment
+
+        matched.add(node.name)
+
+    assert matched == expected_names
+
+
 def test_cli_integration_resume_invalid_run_id_workdir_preserve_supergroup_boundaries() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
