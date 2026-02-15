@@ -189,6 +189,14 @@ def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
             'err = PlanError("plan path has symbolic_link reference: /tmp/plan.yaml")',
             'assert _render_plan_error(err) == "invalid plan path"',
         ),
+        "test_render_plan_error_sanitizes_symbolic_link_tab_separated_detail": (
+            'err = PlanError("plan path has symbolic\\tlink reference: /tmp/plan.yaml")',
+            'assert _render_plan_error(err) == "invalid plan path"',
+        ),
+        "test_render_plan_error_sanitizes_symbolic_link_newline_separated_detail": (
+            'err = PlanError("plan path has symbolic\\nlink reference: /tmp/plan.yaml")',
+            'assert _render_plan_error(err) == "invalid plan path"',
+        ),
         "test_render_plan_error_sanitizes_symbolic_links_plural_detail": (
             'err = PlanError("too many levels of symbolic links in plan path")',
             'assert _render_plan_error(err) == "invalid plan path"',
@@ -251,6 +259,14 @@ def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
         ),
         "test_render_runtime_error_detail_sanitizes_symbolic_link_underscored_detail": (
             'err = OSError("run path has symbolic_link reference")',
+            'assert _render_runtime_error_detail(err) == "invalid run path"',
+        ),
+        "test_render_runtime_error_detail_sanitizes_symbolic_link_tab_separated_detail": (
+            'err = OSError("run path has symbolic\\tlink reference")',
+            'assert _render_runtime_error_detail(err) == "invalid run path"',
+        ),
+        "test_render_runtime_error_detail_sanitizes_symbolic_link_newline_separated_detail": (
+            'err = OSError("run path has symbolic\\nlink reference")',
             'assert _render_runtime_error_detail(err) == "invalid run path"',
         ),
         "test_render_runtime_error_detail_sanitizes_symbolic_links_plural_detail": (
