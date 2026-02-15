@@ -49,6 +49,16 @@ def test_source_does_not_emit_symlink_component_detail_literal() -> None:
     assert offending_files == []
 
 
+def test_source_does_not_emit_symbolic_links_detail_literal() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    offending_files: list[str] = []
+    for file_path in src_root.rglob("*.py"):
+        source = file_path.read_text(encoding="utf-8").lower()
+        if "symbolic links" in source:
+            offending_files.append(str(file_path.relative_to(src_root)))
+    assert offending_files == []
+
+
 def test_cli_error_output_paths_use_sanitizer_helpers() -> None:
     cli_source = (Path(__file__).resolve().parents[1] / "src" / "orch" / "cli.py").read_text(
         encoding="utf-8"
@@ -130,6 +140,10 @@ def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
             'err = PlanError("plan path is symbolicallylinked to another location")',
             'assert _render_plan_error(err) == "invalid plan path"',
         ),
+        "test_render_plan_error_sanitizes_symboliclinks_compact_detail": (
+            'err = PlanError("plan path has symboliclinks issue")',
+            'assert _render_plan_error(err) == "invalid plan path"',
+        ),
         "test_render_plan_error_sanitizes_symlinked_detail": (
             'err = PlanError("plan path is symlinked to another location")',
             'assert _render_plan_error(err) == "invalid plan path"',
@@ -152,6 +166,10 @@ def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
         ),
         "test_render_runtime_error_detail_sanitizes_symbolicallylinked_compact_detail": (
             'err = OSError("run path is symbolicallylinked to another location")',
+            'assert _render_runtime_error_detail(err) == "invalid run path"',
+        ),
+        "test_render_runtime_error_detail_sanitizes_symboliclinks_compact_detail": (
+            'err = OSError("run path has symboliclinks issue")',
             'assert _render_runtime_error_detail(err) == "invalid run path"',
         ),
         "test_render_runtime_error_detail_sanitizes_symlinked_detail": (

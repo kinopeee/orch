@@ -105,6 +105,11 @@ def test_render_plan_error_sanitizes_symbolicallylinked_compact_detail() -> None
     assert _render_plan_error(err) == "invalid plan path"
 
 
+def test_render_plan_error_sanitizes_symboliclinks_compact_detail() -> None:
+    err = PlanError("plan path has symboliclinks issue")
+    assert _render_plan_error(err) == "invalid plan path"
+
+
 def test_render_plan_error_sanitizes_symlinked_detail() -> None:
     err = PlanError("plan path is symlinked to another location")
     assert _render_plan_error(err) == "invalid plan path"
@@ -152,6 +157,11 @@ def test_render_runtime_error_detail_sanitizes_symbolically_linked_underscored_d
 
 def test_render_runtime_error_detail_sanitizes_symbolicallylinked_compact_detail() -> None:
     err = OSError("run path is symbolicallylinked to another location")
+    assert _render_runtime_error_detail(err) == "invalid run path"
+
+
+def test_render_runtime_error_detail_sanitizes_symboliclinks_compact_detail() -> None:
+    err = OSError("run path has symboliclinks issue")
     assert _render_runtime_error_detail(err) == "invalid run path"
 
 
