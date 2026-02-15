@@ -262,6 +262,8 @@ def test_cli_helpers_mentions_symlink_detection_matrix_exists() -> None:
             '"path references linker script",',
             '"path has symbolic-linker issue",',
             '"path has symbolic_linkless issue",',
+            '"path has symbolic-linkedlist issue",',
+            '"path has symbolically_linkedness issue",',
             '"this error is about permissions only",',
             "assert _mentions_symlink(detail) is False",
         ),
@@ -282,6 +284,48 @@ def test_cli_helpers_mentions_symlink_detection_matrix_exists() -> None:
         matched.add(node.name)
 
     assert matched == set(expected)
+
+
+def test_cli_helpers_render_non_symlink_symbolic_details_are_preserved() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    helpers_source = (tests_root / "test_cli_helpers.py").read_text(encoding="utf-8")
+    helpers_module = ast.parse(helpers_source)
+
+    expected_checks = {
+        "test_render_plan_error_keeps_symbolic_linker_non_symlink_detail": (
+            "plan path has symbolic-linker issue",
+            "invalid plan path",
+        ),
+        "test_render_plan_error_keeps_symbolic_linkedlist_non_symlink_detail": (
+            "plan path has symbolic-linkedlist issue",
+            "invalid plan path",
+        ),
+        "test_render_runtime_error_detail_keeps_symbolic_linkless_non_symlink_detail": (
+            "run path has symbolic_linkless issue",
+            "invalid run path",
+        ),
+        "test_render_runtime_error_detail_keeps_symbolically_linkedness_non_symlink_detail": (
+            "run path has symbolically_linkedness issue",
+            "invalid run path",
+        ),
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(helpers_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expected_checks:
+            continue
+
+        source_segment = ast.get_source_segment(helpers_source, node)
+        assert source_segment is not None
+
+        expected_detail, forbidden_detail = expected_checks[node.name]
+        assert expected_detail in source_segment
+        assert forbidden_detail not in source_segment
+        matched.add(node.name)
+
+    assert matched == set(expected_checks)
 
 
 def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:

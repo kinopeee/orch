@@ -74,6 +74,8 @@ def test_mentions_symlink_detects_supported_variants(detail: str) -> None:
         "path references linker script",
         "path has symbolic-linker issue",
         "path has symbolic_linkless issue",
+        "path has symbolic-linkedlist issue",
+        "path has symbolically_linkedness issue",
         "path points to regular directory",
         "symbolism is unrelated to links",
         "this error is about permissions only",
@@ -129,6 +131,11 @@ def test_render_plan_error_keeps_non_symlink_detail() -> None:
 def test_render_plan_error_keeps_symbolic_linker_non_symlink_detail() -> None:
     err = PlanError("plan path has symbolic-linker issue")
     assert _render_plan_error(err) == "plan path has symbolic-linker issue"
+
+
+def test_render_plan_error_keeps_symbolic_linkedlist_non_symlink_detail() -> None:
+    err = PlanError("plan path has symbolic-linkedlist issue")
+    assert _render_plan_error(err) == "plan path has symbolic-linkedlist issue"
 
 
 def test_render_plan_error_sanitizes_symlink_detail_case_insensitive() -> None:
@@ -560,6 +567,11 @@ def test_render_runtime_error_detail_keeps_non_symlink_detail() -> None:
 def test_render_runtime_error_detail_keeps_symbolic_linkless_non_symlink_detail() -> None:
     err = OSError("run path has symbolic_linkless issue")
     assert _render_runtime_error_detail(err) == "run path has symbolic_linkless issue"
+
+
+def test_render_runtime_error_detail_keeps_symbolically_linkedness_non_symlink_detail() -> None:
+    err = OSError("run path has symbolically_linkedness issue")
+    assert _render_runtime_error_detail(err) == "run path has symbolically_linkedness issue"
 
 
 def test_write_plan_snapshot_rejects_symlink_destination(tmp_path: Path) -> None:
