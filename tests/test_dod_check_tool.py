@@ -88,6 +88,15 @@ def test_dod_check_parse_args_keeps_json_out_absolute_path() -> None:
     assert parsed.json_out == Path("/tmp/dod-summary.json")
 
 
+def test_dod_check_parse_args_supports_json_and_json_out_together() -> None:
+    module = _load_dod_check_module()
+    parsed = module._parse_args(  # type: ignore[attr-defined]
+        ["--json", "--json-out", "tmp/dod-summary.json"]
+    )
+    assert parsed.emit_json is True
+    assert parsed.json_out == (module.ROOT / "tmp/dod-summary.json").resolve()  # type: ignore[attr-defined]
+
+
 def test_dod_check_has_parallel_overlap_true_for_successful_root_tasks() -> None:
     module = _load_dod_check_module()
     state = {

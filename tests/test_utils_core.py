@@ -180,6 +180,15 @@ def test_ci_workflow_runs_dod_runtime_smoke() -> None:
     )
 
 
+def test_ci_workflow_runtime_smoke_uses_json_out_without_pipe_tee() -> None:
+    ci_workflow = (
+        Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml"
+    ).read_text(encoding="utf-8")
+    assert "--json-out /tmp/orch_ci_dod_summary.json" in ci_workflow
+    assert "| tee /tmp/orch_ci_dod_summary.json" not in ci_workflow
+    assert "set -o pipefail" not in ci_workflow
+
+
 def test_ci_workflow_uploads_dod_runtime_summary_artifact() -> None:
     ci_workflow = (
         Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml"
