@@ -789,6 +789,7 @@ def test_cli_helpers_run_resume_plan_error_symbolic_variants_are_sanitized() -> 
 
     expected_names = {
         "test_cli_run_sanitizes_symbolically_linked_plan_error",
+        "test_cli_run_sanitizes_symbolically_underscore_linked_plan_error",
         "test_cli_run_sanitizes_symbolically_linking_plan_error",
         "test_cli_run_sanitizes_symbolically_linking_double_underscore_plan_error",
         "test_cli_run_sanitizes_symbolically_dbl_hyphen_linked_plan_error",
@@ -960,6 +961,9 @@ def test_cli_helpers_runtime_symbolic_links_variants_are_sanitized() -> None:
         "test_cli_status_sanitizes_symbolically_linked_runtime_load_error": (
             "Failed to load state"
         ),
+        "test_cli_status_sanitizes_symbolically_underscore_linked_runtime_load_error": (
+            "Failed to load state"
+        ),
         "test_cli_status_sanitizes_symbolically_linking_runtime_load_error": (
             "Failed to load state"
         ),
@@ -971,6 +975,9 @@ def test_cli_helpers_runtime_symbolic_links_variants_are_sanitized() -> None:
         ),
         "test_cli_logs_sanitizes_symbolic_links_runtime_load_error": "Failed to load state",
         "test_cli_logs_sanitizes_symbolically_linked_runtime_load_error": ("Failed to load state"),
+        "test_cli_logs_sanitizes_symbolically_underscore_linked_runtime_load_error": (
+            "Failed to load state"
+        ),
         "test_cli_logs_sanitizes_symbolically_linking_runtime_load_error": ("Failed to load state"),
         "test_cli_logs_sanitizes_symbolically_linking_double_underscore_runtime_load_error": (
             "Failed to load state"
@@ -980,6 +987,9 @@ def test_cli_helpers_runtime_symbolic_links_variants_are_sanitized() -> None:
         ),
         "test_cli_cancel_sanitizes_symbolic_links_write_error": "Failed to request cancel",
         "test_cli_cancel_sanitizes_symbolically_linked_write_error": ("Failed to request cancel"),
+        "test_cli_cancel_sanitizes_symbolically_underscore_linked_write_error": (
+            "Failed to request cancel"
+        ),
         "test_cli_cancel_sanitizes_symbolically_linking_write_error": ("Failed to request cancel"),
         "test_cli_cancel_sanitizes_symbolically_linking_double_underscore_write_error": (
             "Failed to request cancel"
