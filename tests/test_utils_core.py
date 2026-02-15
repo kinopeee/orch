@@ -8117,6 +8117,132 @@ def test_cli_integration_run_invalid_workdir_mode_matrices_keep_home_boundaries(
     assert matched == set(expectations)
 
 
+def test_cli_integration_run_invalid_workdir_with_runs_matrices_keep_axes_and_boundaries() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    explicit_matrix = (
+        "test_cli_run_invalid_workdir_existing_home_with_runs_preserves_entries_matrix"
+    )
+    default_matrix = "test_cli_run_default_home_invalid_workdir_with_runs_preserves_entries_matrix"
+    expectations = {
+        explicit_matrix: {"home_var": "home", "has_cwd": False, "uses_home_flag": True},
+        default_matrix: {"home_var": "default_home", "has_cwd": True, "uses_home_flag": False},
+    }
+    expected_toggle_orders = {
+        ("--fail-fast", "--no-fail-fast"),
+        ("--no-fail-fast", "--fail-fast"),
+    }
+    expected_workdir_modes = {
+        "missing_path",
+        "file_path",
+        "file_ancestor",
+        "symlink_to_file",
+        "dangling_symlink",
+        "symlink_ancestor",
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expectations:
+            continue
+
+        flag_orders_assign = next(
+            (
+                stmt
+                for stmt in node.body
+                if isinstance(stmt, ast.AnnAssign)
+                and isinstance(stmt.target, ast.Name)
+                and stmt.target.id == "flag_orders"
+                and isinstance(stmt.value, ast.List)
+            ),
+            None,
+        )
+        assert flag_orders_assign is not None
+        assert isinstance(flag_orders_assign.value, ast.List)
+        toggle_orders: set[tuple[str, ...]] = set()
+        for order_node in flag_orders_assign.value.elts:
+            assert isinstance(order_node, ast.List)
+            order_values: list[str] = []
+            for item in order_node.elts:
+                assert isinstance(item, ast.Constant)
+                assert isinstance(item.value, str)
+                order_values.append(item.value)
+            toggle_orders.add(tuple(order_values))
+        assert toggle_orders == expected_toggle_orders
+
+        workdir_modes_assign = next(
+            (
+                stmt
+                for stmt in node.body
+                if isinstance(stmt, ast.Assign)
+                and any(
+                    isinstance(target, ast.Name) and target.id == "workdir_modes"
+                    for target in stmt.targets
+                )
+                and isinstance(stmt.value, ast.Tuple)
+            ),
+            None,
+        )
+        assert workdir_modes_assign is not None
+        assert isinstance(workdir_modes_assign.value, ast.Tuple)
+        workdir_modes: set[str] = set()
+        for mode_node in workdir_modes_assign.value.elts:
+            assert isinstance(mode_node, ast.Constant)
+            assert isinstance(mode_node.value, str)
+            workdir_modes.add(mode_node.value)
+        assert workdir_modes == expected_workdir_modes
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        expected = expectations[node.name]
+        home_var = expected["home_var"]
+
+        assert f"assert {home_var}.exists(), context" in source_segment
+        assert f"{home_var}.iterdir()" in source_segment
+        assert '"keep.txt"' in source_segment
+        assert '"keep_dir"' in source_segment
+        assert '"runs"' in source_segment
+        assert "existing_run" in source_segment
+        assert f'({home_var} / "runs").iterdir()' in source_segment
+        assert '"keep_run"' in source_segment
+        assert "sorted(path.name for path in existing_run.iterdir())" in source_segment
+        assert '"plan.yaml"' in source_segment
+        assert 'assert not (existing_run / ".lock").exists(), context' in source_segment
+        assert 'assert not (existing_run / "cancel.request").exists(), context' in source_segment
+        assert 'assert plan_file.read_text(encoding="utf-8") == "tasks: []\\n", context' in (
+            source_segment
+        )
+        assert 'assert "Invalid workdir" in output, context' in source_segment
+        assert 'assert "Invalid home" not in output, context' in source_segment
+        assert 'assert "Plan validation error" not in output, context' in source_segment
+        assert 'assert "Dry Run" not in output, context' in source_segment
+        assert 'assert "run_id:" not in output, context' in source_segment
+        assert 'assert "state:" not in output, context' in source_segment
+        assert 'assert "report:" not in output, context' in source_segment
+        assert "side_effect_files" in source_segment
+        assert "for file_path in side_effect_files:" in source_segment
+
+        if expected["has_cwd"]:
+            assert "cwd=case_root" in source_segment
+        else:
+            assert "cwd=case_root" not in source_segment
+
+        if expected["uses_home_flag"]:
+            assert '"--home"' in source_segment
+        else:
+            assert '"--home"' not in source_segment
+
+        assert '"--workdir"' in source_segment
+        assert "*order" in source_segment
+        matched.add(node.name)
+
+    assert matched == set(expectations)
+
+
 def test_cli_integration_resume_invalid_workdir_modes_matrix_keeps_axes_and_toggles() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_module = ast.parse(
