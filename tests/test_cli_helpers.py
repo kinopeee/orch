@@ -2305,6 +2305,39 @@ def test_cli_resume_sanitizes_symlink_runtime_lock_error(
     assert "must not be symlink" not in captured.out
 
 
+def test_cli_resume_sanitizes_symbolic_links_runtime_lock_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+
+    @contextmanager
+    def boom_lock(*args: object, **kwargs: object) -> object:
+        raise OSError("Too many levels of symbolic links while opening run lock")
+        yield
+
+    monkeypatch.setattr(cli_module, "run_lock", boom_lock)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.resume(
+            "run1",
+            home=home,
+            max_parallel=1,
+            workdir=workdir,
+            fail_fast=False,
+            failed_only=False,
+        )
+    assert exc_info.value.exit_code == 2
+    captured = capsys.readouterr()
+    assert "Run not found or broken" in captured.out
+    assert "invalid run path" in captured.out
+    assert "symbolic links" not in captured.out.lower()
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
+
+
 def test_cli_status_normalizes_runtime_load_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -2422,6 +2455,33 @@ def test_cli_logs_sanitizes_symlink_runtime_load_error(
     captured = capsys.readouterr()
     assert "Failed to load state" in captured.out
     assert "invalid run path" in captured.out
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
+
+
+def test_cli_logs_sanitizes_symbolic_links_runtime_load_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        yield
+
+    def boom_load_state(_run_dir: Path) -> object:
+        raise OSError("Too many levels of symbolic links while reading state file")
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_state", boom_load_state)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.logs("run1", home=home, task=None, tail=10)
+    assert exc_info.value.exit_code == 2
+    captured = capsys.readouterr()
+    assert "Failed to load state" in captured.out
+    assert "invalid run path" in captured.out
+    assert "symbolic links" not in captured.out.lower()
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
 
