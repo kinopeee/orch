@@ -2047,6 +2047,38 @@ def test_cli_resume_normalizes_runtime_lock_error(
     assert exc_info.value.exit_code == 2
 
 
+def test_cli_resume_sanitizes_symlink_runtime_lock_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+
+    @contextmanager
+    def boom_lock(*args: object, **kwargs: object) -> object:
+        raise OSError("run directory path must not include symlink: /tmp/run")
+        yield
+
+    monkeypatch.setattr(cli_module, "run_lock", boom_lock)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.resume(
+            "run1",
+            home=home,
+            max_parallel=1,
+            workdir=workdir,
+            fail_fast=False,
+            failed_only=False,
+        )
+    assert exc_info.value.exit_code == 2
+    captured = capsys.readouterr()
+    assert "Run not found or broken" in captured.out
+    assert "invalid run path" in captured.out
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
+
+
 def test_cli_status_normalizes_runtime_load_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -2068,6 +2100,32 @@ def test_cli_status_normalizes_runtime_load_error(
     assert exc_info.value.exit_code == 2
 
 
+def test_cli_status_sanitizes_symlink_runtime_load_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        yield
+
+    def boom_load_state(_run_dir: Path) -> object:
+        raise OSError("state file path must not include symlink: /tmp/state.json")
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_state", boom_load_state)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.status("run1", home=home, as_json=False)
+    assert exc_info.value.exit_code == 2
+    captured = capsys.readouterr()
+    assert "Failed to load state" in captured.out
+    assert "invalid run path" in captured.out
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
+
+
 def test_cli_logs_normalizes_runtime_load_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -2087,6 +2145,32 @@ def test_cli_logs_normalizes_runtime_load_error(
     with pytest.raises(typer.Exit) as exc_info:
         cli_module.logs("run1", home=home, task=None, tail=10)
     assert exc_info.value.exit_code == 2
+
+
+def test_cli_logs_sanitizes_symlink_runtime_load_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        yield
+
+    def boom_load_state(_run_dir: Path) -> object:
+        raise OSError("state file path must not include symlink: /tmp/state.json")
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_state", boom_load_state)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.logs("run1", home=home, task=None, tail=10)
+    assert exc_info.value.exit_code == 2
+    captured = capsys.readouterr()
+    assert "Failed to load state" in captured.out
+    assert "invalid run path" in captured.out
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
 
 
 def test_cli_cancel_normalizes_runtime_write_error(
