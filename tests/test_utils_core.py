@@ -92,6 +92,7 @@ def test_cli_error_output_paths_use_sanitizer_helpers() -> None:
         "[red]Failed to load state:[/red] {_render_runtime_error_detail(exc)}",
         "[red]Failed to inspect run:[/red] {_render_runtime_error_detail(exc)}",
         "[red]Failed to request cancel:[/red] {_render_runtime_error_detail(exc)}",
+        "[red]{_render_runtime_error_detail(exc)}[/red]",
     }
     for fragment in required_runtime_fragments:
         assert fragment in cli_source
@@ -110,6 +111,7 @@ def test_cli_error_output_paths_use_sanitizer_helpers() -> None:
         "[red]Failed to load state:[/red] {exc}",
         "[red]Failed to inspect run:[/red] {exc}",
         "[red]Failed to request cancel:[/red] {exc}",
+        "[red]{exc}[/red]",
         "[yellow]Warning:[/yellow] failed to write report: {exc}",
     }
     for fragment in forbidden_runtime_fragments:
@@ -594,6 +596,8 @@ def test_cli_helpers_run_resume_non_symlink_symbolic_details_are_preserved() -> 
         "test_cli_run_keeps_symbolic_linkless_plan_error_detail": "symbolic_linkless issue",
         "test_cli_resume_keeps_symbolic_linker_plan_error_detail": "symbolic-linker issue",
         "test_cli_resume_keeps_symbolic_linkless_plan_error_detail": "symbolic_linkless issue",
+        "test_cli_resume_keeps_symbolic_linker_conflict_error_detail": "symbolic-linker issue",
+        "test_cli_resume_keeps_symbolic_linkless_conflict_error_detail": "symbolic_linkless issue",
         "test_cli_status_keeps_symbolic_linkless_runtime_load_error_detail": (
             "symbolic_linkless issue"
         ),
@@ -625,6 +629,9 @@ def test_cli_helpers_run_resume_non_symlink_symbolic_details_are_preserved() -> 
         elif "write_error" in node.name:
             assert 'assert "Failed to request cancel" in captured.out' in source_segment
             assert 'assert "invalid run path" not in captured.out' in source_segment
+        elif "conflict_error" in node.name:
+            assert "exc_info.value.exit_code == 3" in source_segment
+            assert 'assert "invalid run path" not in captured.out' in source_segment
         else:
             assert 'assert "Plan validation error" in captured.out' in source_segment
             assert 'assert "invalid plan path" not in captured.out' in source_segment
@@ -641,6 +648,7 @@ def test_cli_helpers_runtime_symbolic_links_variants_are_sanitized() -> None:
     expected_checks = {
         "test_cli_run_sanitizes_symbolic_links_execution_error": "Run execution failed",
         "test_cli_resume_sanitizes_symbolic_links_runtime_lock_error": "Run not found or broken",
+        "test_cli_resume_sanitizes_symbolic_links_conflict_error": "invalid run path",
         "test_cli_status_sanitizes_symbolic_links_runtime_load_error": "Failed to load state",
         "test_cli_logs_sanitizes_symbolic_links_runtime_load_error": "Failed to load state",
         "test_cli_cancel_sanitizes_symbolic_links_write_error": "Failed to request cancel",

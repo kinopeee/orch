@@ -349,7 +349,7 @@ def resume(
         console.print(f"[red]Plan validation error:[/red] {_render_plan_error(exc)}")
         raise typer.Exit(2) from exc
     except RunConflictError as exc:
-        console.print(f"[red]{exc}[/red]")
+        console.print(f"[red]{_render_runtime_error_detail(exc)}[/red]")
         raise typer.Exit(3) from exc
 
     try:

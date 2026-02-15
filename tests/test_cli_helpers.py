@@ -20,7 +20,7 @@ from orch.cli import (
 from orch.config.loader import load_plan
 from orch.config.schema import PlanSpec, TaskSpec
 from orch.state.model import RunState
-from orch.util.errors import PlanError
+from orch.util.errors import PlanError, RunConflictError
 
 
 @pytest.mark.parametrize(
@@ -2839,6 +2839,99 @@ def test_cli_resume_sanitizes_symbolic_links_runtime_lock_error(
     assert "symbolic link" not in captured.out.lower()
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
+
+
+def test_cli_resume_sanitizes_symbolic_links_conflict_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+
+    @contextmanager
+    def boom_conflict(*args: object, **kwargs: object) -> object:
+        raise RunConflictError("Too many levels of symbolic links while opening run lock")
+        yield
+
+    monkeypatch.setattr(cli_module, "run_lock", boom_conflict)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.resume(
+            "run1",
+            home=home,
+            max_parallel=1,
+            workdir=workdir,
+            fail_fast=False,
+            failed_only=False,
+        )
+    assert exc_info.value.exit_code == 3
+    captured = capsys.readouterr()
+    assert "invalid run path" in captured.out
+    assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
+
+
+def test_cli_resume_keeps_symbolic_linkless_conflict_error_detail(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+
+    @contextmanager
+    def boom_conflict(*args: object, **kwargs: object) -> object:
+        raise RunConflictError("run lock path has symbolic_linkless issue")
+        yield
+
+    monkeypatch.setattr(cli_module, "run_lock", boom_conflict)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.resume(
+            "run1",
+            home=home,
+            max_parallel=1,
+            workdir=workdir,
+            fail_fast=False,
+            failed_only=False,
+        )
+    assert exc_info.value.exit_code == 3
+    captured = capsys.readouterr()
+    assert "symbolic_linkless issue" in captured.out
+    assert "invalid run path" not in captured.out
+
+
+def test_cli_resume_keeps_symbolic_linker_conflict_error_detail(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+
+    @contextmanager
+    def boom_conflict(*args: object, **kwargs: object) -> object:
+        raise RunConflictError("run lock path has symbolic-linker issue")
+        yield
+
+    monkeypatch.setattr(cli_module, "run_lock", boom_conflict)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.resume(
+            "run1",
+            home=home,
+            max_parallel=1,
+            workdir=workdir,
+            fail_fast=False,
+            failed_only=False,
+        )
+    assert exc_info.value.exit_code == 3
+    captured = capsys.readouterr()
+    assert "symbolic-linker issue" in captured.out
+    assert "invalid run path" not in captured.out
 
 
 def test_cli_status_normalizes_runtime_load_error(
