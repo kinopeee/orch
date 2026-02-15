@@ -2248,6 +2248,44 @@ def test_cli_run_keeps_symbolic_linkless_plan_error_detail(
     assert "invalid plan path" not in captured.out
 
 
+def test_cli_run_keeps_symbolic_linkedlist_plan_error_detail(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    plan_path.write_text("tasks: []\n", encoding="utf-8")
+    home = tmp_path / ".orch"
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+    resolve_workdir_called = False
+
+    def fake_load_plan(_path: Path) -> PlanSpec:
+        raise PlanError("plan path has symbolic-linkedlist issue")
+
+    def fake_resolve_workdir(_workdir: Path) -> Path:
+        nonlocal resolve_workdir_called
+        resolve_workdir_called = True
+        return _workdir
+
+    monkeypatch.setattr(cli_module, "load_plan", fake_load_plan)
+    monkeypatch.setattr(cli_module, "_resolve_workdir_or_exit", fake_resolve_workdir)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.run(
+            plan_path,
+            max_parallel=1,
+            home=home,
+            workdir=workdir,
+            fail_fast=False,
+            dry_run=False,
+        )
+    assert exc_info.value.exit_code == 2
+    assert resolve_workdir_called is False
+    captured = capsys.readouterr()
+    assert "Plan validation error" in captured.out
+    assert "symbolic-linkedlist issue" in captured.out
+    assert "invalid plan path" not in captured.out
+
+
 def test_cli_run_dry_run_short_circuits_before_workdir_resolution_and_init(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -3070,6 +3108,31 @@ def test_cli_status_keeps_symbolic_linker_runtime_load_error_detail(
     captured = capsys.readouterr()
     assert "Failed to load state" in captured.out
     assert "symbolic-linker issue" in captured.out
+    assert "invalid run path" not in captured.out
+
+
+def test_cli_status_keeps_symbolically_linkedness_runtime_load_error_detail(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        yield
+
+    def boom_load_state(_run_dir: Path) -> object:
+        raise OSError("run path has symbolically_linkedness issue")
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_state", boom_load_state)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.status("run1", home=home, as_json=False)
+    assert exc_info.value.exit_code == 2
+    captured = capsys.readouterr()
+    assert "Failed to load state" in captured.out
+    assert "symbolically_linkedness issue" in captured.out
     assert "invalid run path" not in captured.out
 
 

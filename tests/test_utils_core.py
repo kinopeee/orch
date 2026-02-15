@@ -720,6 +720,7 @@ def test_cli_helpers_run_resume_non_symlink_symbolic_details_are_preserved() -> 
     expected_checks = {
         "test_cli_run_keeps_symbolic_linker_plan_error_detail": "symbolic-linker issue",
         "test_cli_run_keeps_symbolic_linkless_plan_error_detail": "symbolic_linkless issue",
+        "test_cli_run_keeps_symbolic_linkedlist_plan_error_detail": "symbolic-linkedlist issue",
         "test_cli_resume_keeps_symbolic_linker_plan_error_detail": "symbolic-linker issue",
         "test_cli_resume_keeps_symbolic_linkless_plan_error_detail": "symbolic_linkless issue",
         "test_cli_resume_keeps_symbolic_linker_conflict_error_detail": "symbolic-linker issue",
@@ -729,6 +730,9 @@ def test_cli_helpers_run_resume_non_symlink_symbolic_details_are_preserved() -> 
         ),
         "test_cli_status_keeps_symbolic_linker_runtime_load_error_detail": (
             "symbolic-linker issue"
+        ),
+        "test_cli_status_keeps_symbolically_linkedness_runtime_load_error_detail": (
+            "symbolically_linkedness issue"
         ),
         "test_cli_logs_keeps_symbolic_linker_runtime_load_error_detail": ("symbolic-linker issue"),
         "test_cli_logs_keeps_symbolic_linkless_runtime_load_error_detail": (
