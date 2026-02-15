@@ -111,6 +111,7 @@ def test_tools_dod_check_supports_json_summary_output() -> None:
         "if options.emit_json:",
         "if options.json_out is not None:",
         "summary_json_path=",
+        "failed to write summary json:",
     )
     for fragment in required_fragments:
         assert fragment in source

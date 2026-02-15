@@ -473,3 +473,19 @@ def test_dod_check_write_summary_json_creates_file(tmp_path: Path) -> None:
         '"fail_run_id": "fail123", "home": "/tmp/dod-home", '
         '"parallel_run_id": "parallel123", "result": "PASS"}\n'
     )
+
+
+def test_dod_check_write_summary_json_raises_runtime_error_on_io_failure(tmp_path: Path) -> None:
+    module = _load_dod_check_module()
+    payload = {
+        "result": "PASS",
+        "basic_run_id": "basic123",
+        "parallel_run_id": "parallel123",
+        "fail_run_id": "fail123",
+        "cancel_run_id": "cancel123",
+        "home": "/tmp/dod-home",
+    }
+    out_dir = tmp_path / "as-directory"
+    out_dir.mkdir()
+    with pytest.raises(RuntimeError, match="failed to write summary json"):
+        module._write_summary_json(out_dir, payload)  # type: ignore[attr-defined]

@@ -340,8 +340,11 @@ def _build_summary_payload(
 
 
 def _write_summary_json(path: Path, payload: dict[str, str]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+    except OSError as exc:
+        raise RuntimeError(f"failed to write summary json: {path}") from exc
 
 
 def main(options: Options) -> int:
