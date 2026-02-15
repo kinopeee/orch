@@ -275,6 +275,18 @@ def test_dod_check_parse_run_id_raises_when_missing() -> None:
         module._parse_run_id("state: SUCCESS\n")  # type: ignore[attr-defined]
 
 
+def test_dod_check_parse_run_id_rejects_invalid_format() -> None:
+    module = _load_dod_check_module()
+    with pytest.raises(RuntimeError, match="run_id format mismatch"):
+        module._parse_run_id("run_id: invalid\nstate: SUCCESS\n")  # type: ignore[attr-defined]
+
+
+def test_dod_check_parse_run_id_rejects_uppercase_hex_suffix() -> None:
+    module = _load_dod_check_module()
+    with pytest.raises(RuntimeError, match="run_id format mismatch"):
+        module._parse_run_id("run_id: 20260215_000000_ABCDEF\nstate: SUCCESS\n")  # type: ignore[attr-defined]
+
+
 def test_dod_check_has_parallel_overlap_rejects_non_object_tasks() -> None:
     module = _load_dod_check_module()
     with pytest.raises(RuntimeError, match="state.tasks must be an object"):

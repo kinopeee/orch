@@ -164,6 +164,15 @@ def test_tools_dod_check_summary_payload_uses_key_formatter_for_mixed_types() ->
     assert "_format_key_set_for_error(set(actual_keys - required_keys))" in function_source
 
 
+def test_tools_dod_check_uses_shared_run_id_pattern_for_parse_and_summary() -> None:
+    source = (Path(__file__).resolve().parents[1] / "tools" / "dod_check.py").read_text(
+        encoding="utf-8"
+    )
+    assert 'RUN_ID_PATTERN = re.compile(r"^\\d{8}_\\d{6}_[0-9a-f]{6}$")' in source
+    assert source.count("RUN_ID_PATTERN.fullmatch(run_id) is None") >= 2
+    assert "run_id format mismatch in command output" in source
+
+
 def test_tools_dod_check_enforces_command_timeouts() -> None:
     source = (Path(__file__).resolve().parents[1] / "tools" / "dod_check.py").read_text(
         encoding="utf-8"

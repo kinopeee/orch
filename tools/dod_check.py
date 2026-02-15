@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+RUN_ID_PATTERN = re.compile(r"^\d{8}_\d{6}_[0-9a-f]{6}$")
 
 
 @dataclass
@@ -129,7 +130,10 @@ def _parse_run_id(output: str) -> str:
     match = re.search(r"run_id:\s*([A-Za-z0-9_-]+)", output)
     if match is None:
         raise RuntimeError("run_id not found in command output")
-    return match.group(1)
+    run_id = match.group(1)
+    if RUN_ID_PATTERN.fullmatch(run_id) is None:
+        raise RuntimeError(f"run_id format mismatch in command output: {run_id!r}")
+    return run_id
 
 
 def _runs_dir(home: Path) -> Path:
@@ -375,12 +379,11 @@ def _assert_summary_payload_consistent(payload: dict[str, str]) -> None:
     if not Path(payload["home"]).is_absolute():
         raise RuntimeError(f"invalid summary home: not absolute {payload['home']!r}")
 
-    run_id_pattern = re.compile(r"^\d{8}_\d{6}_[0-9a-f]{6}$")
     run_id_keys = ("basic_run_id", "parallel_run_id", "fail_run_id", "cancel_run_id")
     run_ids: list[str] = []
     for key in run_id_keys:
         run_id = payload[key]
-        if run_id_pattern.fullmatch(run_id) is None:
+        if RUN_ID_PATTERN.fullmatch(run_id) is None:
             raise RuntimeError(f"invalid summary run_id: {key}={run_id!r}")
         run_ids.append(run_id)
     if len(set(run_ids)) != len(run_ids):
