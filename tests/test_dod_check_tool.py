@@ -456,6 +456,13 @@ def test_dod_check_build_summary_payload_contains_all_keys() -> None:
     }
 
 
+def test_dod_check_format_key_set_for_error_supports_mixed_key_types() -> None:
+    module = _load_dod_check_module()
+    keys = {"result", 1}
+    formatted = module._format_key_set_for_error(keys)  # type: ignore[attr-defined]
+    assert formatted == sorted(repr(key) for key in keys)
+
+
 def test_dod_check_assert_summary_payload_consistent_accepts_valid_payload() -> None:
     module = _load_dod_check_module()
     payload = {
