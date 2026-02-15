@@ -43,7 +43,9 @@ from orch.util.errors import PlanError, RunConflictError
         "path has symbolic__links reference",
         "path has symboliclinks reference",
         "path has symbolic-linking issue",
+        "path has symbolic--linking issue",
         "path has symbolic_linking issue",
+        "path has symbolic__linking issue",
         "path is symbolically linked",
         "path is symbolically-linked",
         "path is symbolically_linked",
@@ -55,8 +57,10 @@ from orch.util.errors import PlanError, RunConflictError
         "path has symbolically links issue",
         "path has symbolically-links issue",
         "path has symbolically-linking issue",
+        "path has symbolically--linking issue",
         "path has symbolically_links issue",
         "path has symbolically_linking issue",
+        "path has symbolically__linking issue",
         "path has symbolicallylinks issue",
         "path has symbolicallylinking issue",
         "PATH HAS SYMBOLICALLYLINKS ISSUE",
@@ -87,6 +91,8 @@ def test_mentions_symlink_detects_supported_variants(detail: str) -> None:
         "path has symbolically-linkingly issue",
         "path has symbolically_linkingly issue",
         "path has symbolicallylinkingly issue",
+        "path has symbolically--linkingly issue",
+        "path has symbolically__linkingly issue",
         "path points to regular directory",
         "symbolism is unrelated to links",
         "this error is about permissions only",
@@ -157,6 +163,11 @@ def test_render_plan_error_keeps_symbolically_linkingly_non_symlink_detail() -> 
 def test_render_plan_error_keeps_symbolically_linkingly_underscored_non_symlink_detail() -> None:
     err = PlanError("plan path has symbolically_linkingly issue")
     assert _render_plan_error(err) == "plan path has symbolically_linkingly issue"
+
+
+def test_render_plan_error_keeps_symbolically_linkingly_double_underscore_non_symlink() -> None:
+    err = PlanError("plan path has symbolically__linkingly issue")
+    assert _render_plan_error(err) == "plan path has symbolically__linkingly issue"
 
 
 def test_render_plan_error_sanitizes_symlink_detail_case_insensitive() -> None:
@@ -314,6 +325,11 @@ def test_render_plan_error_sanitizes_symbolically_linking_hyphenated_detail() ->
     assert _render_plan_error(err) == "invalid plan path"
 
 
+def test_render_plan_error_sanitizes_symbolically_linking_double_hyphen_detail() -> None:
+    err = PlanError("plan path has symbolically--linking issue")
+    assert _render_plan_error(err) == "invalid plan path"
+
+
 def test_render_plan_error_sanitizes_symbolically_links_hyphenated_uppercase_detail() -> None:
     err = PlanError("PLAN PATH HAS SYMBOLICALLY-LINKS ISSUE")
     assert _render_plan_error(err) == "invalid plan path"
@@ -326,6 +342,11 @@ def test_render_plan_error_sanitizes_symbolically_links_underscored_plural_detai
 
 def test_render_plan_error_sanitizes_symbolically_linking_underscored_detail() -> None:
     err = PlanError("plan path has symbolically_linking issue")
+    assert _render_plan_error(err) == "invalid plan path"
+
+
+def test_render_plan_error_sanitizes_symbolically_linking_double_underscore_detail() -> None:
+    err = PlanError("plan path has symbolically__linking issue")
     assert _render_plan_error(err) == "invalid plan path"
 
 
@@ -556,6 +577,11 @@ def test_render_runtime_error_detail_sanitizes_symbolically_linking_hyphenated_d
     assert _render_runtime_error_detail(err) == "invalid run path"
 
 
+def test_render_runtime_error_detail_sanitizes_symbolically_linking_double_hyphen_detail() -> None:
+    err = OSError("run path has symbolically--linking issue")
+    assert _render_runtime_error_detail(err) == "invalid run path"
+
+
 def test_render_runtime_error_detail_sanitizes_symbolically_links_hyphenated_uppercase_detail() -> (
     None
 ):
@@ -572,6 +598,13 @@ def test_render_runtime_error_detail_sanitizes_symbolically_links_underscored_pl
 
 def test_render_runtime_error_detail_sanitizes_symbolically_linking_underscored_detail() -> None:
     err = OSError("run path has symbolically_linking issue")
+    assert _render_runtime_error_detail(err) == "invalid run path"
+
+
+def test_render_runtime_error_detail_sanitizes_symbolically_linking_double_underscore_detail() -> (
+    None
+):
+    err = OSError("run path has symbolically__linking issue")
     assert _render_runtime_error_detail(err) == "invalid run path"
 
 
@@ -653,6 +686,11 @@ def test_render_runtime_error_detail_keeps_symbolically_linkingly_non_symlink_de
 def test_render_runtime_error_detail_keeps_symbolicallylinkingly_non_symlink_detail() -> None:
     err = OSError("run path has symbolicallylinkingly issue")
     assert _render_runtime_error_detail(err) == "run path has symbolicallylinkingly issue"
+
+
+def test_render_runtime_error_keeps_symbolically_linkingly_double_underscore_non_symlink() -> None:
+    err = OSError("run path has symbolically__linkingly issue")
+    assert _render_runtime_error_detail(err) == "run path has symbolically__linkingly issue"
 
 
 def test_write_plan_snapshot_rejects_symlink_destination(tmp_path: Path) -> None:
@@ -3499,6 +3537,35 @@ def test_cli_logs_sanitizes_symbolically_linking_runtime_load_error(
     assert "must not be symlink" not in captured.out
 
 
+def test_cli_logs_sanitizes_symbolically_linking_double_underscore_runtime_load_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        yield
+
+    def boom_load_state(_run_dir: Path) -> object:
+        raise OSError("run path has symbolically__linking issue")
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_state", boom_load_state)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.logs("run1", home=home, task=None, tail=10)
+    assert exc_info.value.exit_code == 2
+    captured = capsys.readouterr()
+    assert "Failed to load state" in captured.out
+    assert "invalid run path" in captured.out
+    assert "symbolically__linking" not in captured.out
+    assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
+
+
 def test_cli_logs_keeps_symbolic_linker_runtime_load_error_detail(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -3571,6 +3638,31 @@ def test_cli_logs_keeps_symbolic_linkingly_runtime_load_error_detail(
     captured = capsys.readouterr()
     assert "Failed to load state" in captured.out
     assert "symbolic-linkingly issue" in captured.out
+    assert "invalid run path" not in captured.out
+
+
+def test_cli_logs_keeps_symbolically_linkingly_double_underscore_runtime_load_error_detail(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        yield
+
+    def boom_load_state(_run_dir: Path) -> object:
+        raise OSError("run path has symbolically__linkingly issue")
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_state", boom_load_state)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.logs("run1", home=home, task=None, tail=10)
+    assert exc_info.value.exit_code == 2
+    captured = capsys.readouterr()
+    assert "Failed to load state" in captured.out
+    assert "symbolically__linkingly issue" in captured.out
     assert "invalid run path" not in captured.out
 
 

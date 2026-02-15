@@ -240,7 +240,9 @@ def test_cli_helpers_mentions_symlink_detection_matrix_exists() -> None:
             '"path has symbolic--link reference",',
             '"path has symbolic__links reference",',
             '"path has symbolic-linking issue",',
+            '"path has symbolic--linking issue",',
             '"path has symbolic_linking issue",',
+            '"path has symbolic__linking issue",',
             '"path is symbolically-linked",',
             '"path is symbolically--linked",',
             '"path is symbolically__linked",',
@@ -250,8 +252,10 @@ def test_cli_helpers_mentions_symlink_detection_matrix_exists() -> None:
             '"path has symbolically links issue",',
             '"path has symbolically-links issue",',
             '"path has symbolically-linking issue",',
+            '"path has symbolically--linking issue",',
             '"path has symbolically_links issue",',
             '"path has symbolically_linking issue",',
+            '"path has symbolically__linking issue",',
             '"path has symbolicallylinks issue",',
             '"path has symbolicallylinking issue",',
             '"PATH HAS SYMBOLICALLYLINKS ISSUE",',
@@ -275,6 +279,8 @@ def test_cli_helpers_mentions_symlink_detection_matrix_exists() -> None:
             '"path has symbolically-linkingly issue",',
             '"path has symbolically_linkingly issue",',
             '"path has symbolicallylinkingly issue",',
+            '"path has symbolically--linkingly issue",',
+            '"path has symbolically__linkingly issue",',
             '"this error is about permissions only",',
             "assert _mentions_symlink(detail) is False",
         ),
@@ -331,8 +337,16 @@ def test_cli_helpers_render_non_symlink_symbolic_details_are_preserved() -> None
             "plan path has symbolically_linkingly issue",
             "invalid plan path",
         ),
+        "test_render_plan_error_keeps_symbolically_linkingly_double_underscore_non_symlink": (
+            "plan path has symbolically__linkingly issue",
+            "invalid plan path",
+        ),
         "test_render_runtime_error_detail_keeps_symbolicallylinkingly_non_symlink_detail": (
             "run path has symbolicallylinkingly issue",
+            "invalid run path",
+        ),
+        ("test_render_runtime_error_keeps_symbolically_linkingly_double_underscore_non_symlink"): (
+            "run path has symbolically__linkingly issue",
             "invalid run path",
         ),
     }
@@ -481,6 +495,10 @@ def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
             'err = PlanError("plan path has symbolically-linking issue")',
             'assert _render_plan_error(err) == "invalid plan path"',
         ),
+        "test_render_plan_error_sanitizes_symbolically_linking_double_hyphen_detail": (
+            'err = PlanError("plan path has symbolically--linking issue")',
+            'assert _render_plan_error(err) == "invalid plan path"',
+        ),
         "test_render_plan_error_sanitizes_symbolically_links_hyphenated_uppercase_detail": (
             'err = PlanError("PLAN PATH HAS SYMBOLICALLY-LINKS ISSUE")',
             'assert _render_plan_error(err) == "invalid plan path"',
@@ -491,6 +509,10 @@ def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
         ),
         "test_render_plan_error_sanitizes_symbolically_linking_underscored_detail": (
             'err = PlanError("plan path has symbolically_linking issue")',
+            'assert _render_plan_error(err) == "invalid plan path"',
+        ),
+        ("test_render_plan_error_sanitizes_symbolically_linking_double_underscore_detail"): (
+            'err = PlanError("plan path has symbolically__linking issue")',
             'assert _render_plan_error(err) == "invalid plan path"',
         ),
         "test_render_plan_error_sanitizes_symbolically_linking_underscored_uppercase_detail": (
@@ -668,6 +690,10 @@ def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
             'err = OSError("run path has symbolically-linking issue")',
             'assert _render_runtime_error_detail(err) == "invalid run path"',
         ),
+        "test_render_runtime_error_detail_sanitizes_symbolically_linking_double_hyphen_detail": (
+            'err = OSError("run path has symbolically--linking issue")',
+            'assert _render_runtime_error_detail(err) == "invalid run path"',
+        ),
         (
             "test_render_runtime_error_detail_sanitizes_symbolically_links_"
             "hyphenated_uppercase_detail"
@@ -684,6 +710,13 @@ def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
         ),
         "test_render_runtime_error_detail_sanitizes_symbolically_linking_underscored_detail": (
             'err = OSError("run path has symbolically_linking issue")',
+            'assert _render_runtime_error_detail(err) == "invalid run path"',
+        ),
+        (
+            "test_render_runtime_error_detail_sanitizes_symbolically_linking_"
+            "double_underscore_detail"
+        ): (
+            'err = OSError("run path has symbolically__linking issue")',
             'assert _render_runtime_error_detail(err) == "invalid run path"',
         ),
         "test_render_runtime_error_detail_sanitizes_symbolically_linking_underscored_uppercase": (
@@ -815,6 +848,9 @@ def test_cli_helpers_run_resume_non_symlink_symbolic_details_are_preserved() -> 
         "test_cli_logs_keeps_symbolic_linkingly_runtime_load_error_detail": (
             "symbolic-linkingly issue"
         ),
+        "test_cli_logs_keeps_symbolically_linkingly_double_underscore_runtime_load_error_detail": (
+            "symbolically__linkingly issue"
+        ),
         "test_cli_cancel_keeps_symbolic_linkless_write_error_detail": ("symbolic_linkless issue"),
         "test_cli_cancel_keeps_symbolic_linker_write_error_detail": ("symbolic-linker issue"),
         "test_cli_cancel_keeps_symbolic_linkers_write_error_detail": ("symbolic-linkers issue"),
@@ -878,6 +914,9 @@ def test_cli_helpers_runtime_symbolic_links_variants_are_sanitized() -> None:
         ),
         "test_cli_logs_sanitizes_symbolic_links_runtime_load_error": "Failed to load state",
         "test_cli_logs_sanitizes_symbolically_linking_runtime_load_error": ("Failed to load state"),
+        "test_cli_logs_sanitizes_symbolically_linking_double_underscore_runtime_load_error": (
+            "Failed to load state"
+        ),
         "test_cli_cancel_sanitizes_symbolic_links_write_error": "Failed to request cancel",
         "test_cli_cancel_sanitizes_symbolically_linking_write_error": ("Failed to request cancel"),
         "test_cli_run_sanitizes_symbolic_links_report_write_warning": "failed to write report",
