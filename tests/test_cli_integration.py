@@ -9588,6 +9588,7 @@ def test_cli_run_sanitizes_runs_symlink_path_initialize_error(tmp_path: Path) ->
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
+    assert "symbolic links" not in output.lower()
     assert sorted(path.name for path in real_runs.iterdir()) == []
 
 
@@ -10611,6 +10612,7 @@ def test_cli_resume_continues_when_report_path_is_symlink(tmp_path: Path) -> Non
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
+    assert "symbolic links" not in output.lower()
     assert outside.read_text(encoding="utf-8") == "outside\n"
     state = json.loads((home / "runs" / run_id / "state.json").read_text(encoding="utf-8"))
     assert state["status"] == "SUCCESS"
@@ -10832,6 +10834,7 @@ def test_cli_cancel_sanitizes_symlink_cancel_request_write_error(tmp_path: Path)
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
+    assert "symbolic links" not in output.lower()
     assert real_cancel.read_text(encoding="utf-8") == "sentinel\n"
 
 
@@ -14103,6 +14106,7 @@ def test_cli_status_rejects_symlink_state_file(tmp_path: Path) -> None:
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
+    assert "symbolic links" not in output.lower()
 
 
 def test_cli_status_rejects_state_path_with_symlink_ancestor(tmp_path: Path) -> None:
@@ -14169,6 +14173,7 @@ def test_cli_status_rejects_state_path_with_symlink_ancestor(tmp_path: Path) -> 
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
+    assert "symbolic links" not in output.lower()
 
 
 def test_cli_status_rejects_run_dir_with_symlink_ancestor_without_lock_side_effect(
@@ -14288,6 +14293,7 @@ def test_cli_status_logs_resume_sanitize_runs_symlink_path_error(tmp_path: Path)
         assert "contains symlink component" not in output, command
         assert "must not include symlink" not in output, command
         assert "must not be symlink" not in output, command
+        assert "symbolic links" not in output.lower(), command
 
     assert not (real_run_dir / ".lock").exists()
 
