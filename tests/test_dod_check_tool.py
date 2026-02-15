@@ -300,6 +300,36 @@ def test_dod_check_assert_resume_kept_successful_tasks_unchanged_rejects_attempt
         )
 
 
+def test_dod_check_assert_resume_kept_successful_tasks_unchanged_rejects_started_at_change() -> (
+    None
+):
+    module = _load_dod_check_module()
+    baseline = {"inspect": (1, "2026-02-15T17:00:00+00:00")}
+    resumed_state = {
+        "tasks": {
+            "inspect": {
+                "status": "SUCCESS",
+                "attempts": 1,
+                "started_at": "2026-02-15T17:00:01+00:00",
+            }
+        }
+    }
+    with pytest.raises(RuntimeError, match="resume changed started_at"):
+        module._assert_resume_kept_successful_tasks_unchanged(  # type: ignore[attr-defined]
+            baseline, resumed_state
+        )
+
+
+def test_dod_check_assert_resume_kept_successful_tasks_unchanged_rejects_missing_task() -> None:
+    module = _load_dod_check_module()
+    baseline = {"inspect": (1, "2026-02-15T17:00:00+00:00")}
+    resumed_state = {"tasks": {}}
+    with pytest.raises(RuntimeError, match="task missing after resume"):
+        module._assert_resume_kept_successful_tasks_unchanged(  # type: ignore[attr-defined]
+            baseline, resumed_state
+        )
+
+
 def test_dod_check_assert_report_exists_passes_when_file_exists(tmp_path: Path) -> None:
     module = _load_dod_check_module()
     run_id = "20260215_000000_abcdef"
