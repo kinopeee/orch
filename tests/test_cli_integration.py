@@ -14068,8 +14068,13 @@ def test_cli_status_rejects_symlink_state_file(tmp_path: Path) -> None:
         text=True,
         check=False,
     )
+    output = proc.stdout + proc.stderr
     assert proc.returncode == 2
-    assert "Failed to load state" in proc.stdout
+    assert "Failed to load state" in output
+    assert "invalid run path" in output
+    assert "contains symlink component" not in output
+    assert "must not include symlink" not in output
+    assert "must not be symlink" not in output
 
 
 def test_cli_status_rejects_state_path_with_symlink_ancestor(tmp_path: Path) -> None:
@@ -14129,8 +14134,13 @@ def test_cli_status_rejects_state_path_with_symlink_ancestor(tmp_path: Path) -> 
         text=True,
         check=False,
     )
+    output = proc.stdout + proc.stderr
     assert proc.returncode == 2
-    assert "Failed to load state" in proc.stdout
+    assert "Failed to load state" in output
+    assert "invalid run path" in output
+    assert "contains symlink component" not in output
+    assert "must not include symlink" not in output
+    assert "must not be symlink" not in output
 
 
 def test_cli_status_rejects_run_dir_with_symlink_ancestor_without_lock_side_effect(

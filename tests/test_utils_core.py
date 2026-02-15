@@ -11633,6 +11633,35 @@ def test_cli_integration_resume_report_symlink_warning_is_sanitized() -> None:
     assert 'assert "must not be symlink" not in output' in source_segment
 
 
+def test_cli_integration_status_state_symlink_errors_are_sanitized() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    expected_names = {
+        "test_cli_status_rejects_symlink_state_file",
+        "test_cli_status_rejects_state_path_with_symlink_ancestor",
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expected_names:
+            continue
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        assert 'assert "Failed to load state" in output' in source_segment
+        assert 'assert "invalid run path" in output' in source_segment
+        assert 'assert "contains symlink component" not in output' in source_segment
+        assert 'assert "must not include symlink" not in output' in source_segment
+        assert 'assert "must not be symlink" not in output' in source_segment
+        matched.add(node.name)
+
+    assert matched == expected_names
+
+
 def test_cli_integration_resume_invalid_run_id_workdir_preserve_supergroup_boundaries() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
