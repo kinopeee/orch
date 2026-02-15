@@ -121,6 +121,58 @@ def test_cli_error_output_paths_use_sanitizer_helpers() -> None:
     assert "[red]Plan validation error:[/red] {exc}" not in cli_source
 
 
+def test_source_cli_resume_conflict_handler_uses_runtime_sanitizer() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_module = ast.parse((src_root / "cli.py").read_text(encoding="utf-8"))
+
+    resume_function = next(
+        (
+            node
+            for node in ast.walk(cli_module)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "resume"
+        ),
+        None,
+    )
+    assert resume_function is not None
+
+    conflict_handler = next(
+        (
+            handler
+            for node in ast.walk(resume_function)
+            if isinstance(node, ast.Try)
+            for handler in node.handlers
+            if isinstance(handler, ast.ExceptHandler)
+            and isinstance(handler.type, ast.Name)
+            and handler.type.id == "RunConflictError"
+            and handler.name == "exc"
+        ),
+        None,
+    )
+    assert conflict_handler is not None
+
+    print_calls = [
+        stmt
+        for stmt in conflict_handler.body
+        if isinstance(stmt, ast.Expr)
+        and isinstance(stmt.value, ast.Call)
+        and isinstance(stmt.value.func, ast.Attribute)
+        and isinstance(stmt.value.func.value, ast.Name)
+        and stmt.value.func.value.id == "console"
+        and stmt.value.func.attr == "print"
+    ]
+    assert len(print_calls) == 1
+    print_call = print_calls[0].value
+    assert isinstance(print_call, ast.Call)
+    assert print_call.args
+
+    rendered_segment = ast.get_source_segment(
+        (src_root / "cli.py").read_text(encoding="utf-8"), print_call.args[0]
+    )
+    assert rendered_segment is not None
+    assert "_render_runtime_error_detail(exc)" in rendered_segment
+    assert "{exc}" not in rendered_segment
+
+
 def test_cli_symlink_hint_pattern_shape_and_usage_are_stable() -> None:
     cli_source = (Path(__file__).resolve().parents[1] / "src" / "orch" / "cli.py").read_text(
         encoding="utf-8"
