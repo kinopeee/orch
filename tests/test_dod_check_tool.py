@@ -183,6 +183,26 @@ def test_dod_check_has_parallel_overlap_rejects_non_object_tasks() -> None:
         module._has_parallel_overlap({"tasks": []})  # type: ignore[attr-defined]
 
 
+def test_dod_check_state_tasks_returns_task_mapping() -> None:
+    module = _load_dod_check_module()
+    tasks = module._state_tasks(  # type: ignore[attr-defined]
+        {"tasks": {"inspect": {"status": "SUCCESS", "depends_on": []}}}
+    )
+    assert tasks["inspect"]["status"] == "SUCCESS"
+
+
+def test_dod_check_state_tasks_rejects_non_object_task_state() -> None:
+    module = _load_dod_check_module()
+    with pytest.raises(RuntimeError, match="task state must be an object: inspect"):
+        module._state_tasks({"tasks": {"inspect": []}})  # type: ignore[attr-defined]
+
+
+def test_dod_check_state_tasks_rejects_non_string_task_id() -> None:
+    module = _load_dod_check_module()
+    with pytest.raises(RuntimeError, match="task id must be a string"):
+        module._state_tasks({"tasks": {1: {"status": "SUCCESS"}}})  # type: ignore[attr-defined]
+
+
 def test_dod_check_assert_report_exists_passes_when_file_exists(tmp_path: Path) -> None:
     module = _load_dod_check_module()
     run_id = "20260215_000000_abcdef"

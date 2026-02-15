@@ -113,6 +113,21 @@ def _load_state(run_id: str, runs_dir: Path) -> dict[str, object]:
     return json.loads(state_path.read_text(encoding="utf-8"))
 
 
+def _state_tasks(state: dict[str, object]) -> dict[str, dict[str, object]]:
+    tasks_obj = state.get("tasks")
+    if not isinstance(tasks_obj, dict):
+        raise RuntimeError("state.tasks must be an object")
+
+    tasks: dict[str, dict[str, object]] = {}
+    for task_id, task_obj in tasks_obj.items():
+        if not isinstance(task_id, str):
+            raise RuntimeError("task id must be a string")
+        if not isinstance(task_obj, dict):
+            raise RuntimeError(f"task state must be an object: {task_id}")
+        tasks[task_id] = task_obj
+    return tasks
+
+
 def _assert_report_exists(run_id: str, runs_dir: Path) -> None:
     report_path = runs_dir / run_id / "report" / "final_report.md"
     _assert(report_path.exists(), f"final report file was not generated: {report_path}")
@@ -143,14 +158,8 @@ def _intervals_overlap(
 
 
 def _has_parallel_overlap(state: dict[str, object]) -> bool:
-    tasks_obj = state.get("tasks")
-    if not isinstance(tasks_obj, dict):
-        raise RuntimeError("state.tasks must be an object")
-
     windows: list[tuple[object, object]] = []
-    for task_obj in tasks_obj.values():
-        if not isinstance(task_obj, dict):
-            raise RuntimeError("task state must be an object")
+    for task_obj in _state_tasks(state).values():
         if task_obj.get("status") != "SUCCESS":
             continue
         depends_on = task_obj.get("depends_on")
@@ -272,8 +281,10 @@ def main(options: Options) -> int:
     fail_run_id = _parse_run_id(fail.stdout)
     _assert_report_exists(fail_run_id, runs_dir)
     fail_state = _load_state(fail_run_id, runs_dir)
-    fail_tasks = fail_state["tasks"]  # type: ignore[index]
-    downstream = fail_tasks["downstream"]  # type: ignore[index]
+    fail_tasks = _state_tasks(fail_state)
+    downstream = fail_tasks.get("downstream")
+    if downstream is None:
+        raise RuntimeError("downstream task not found in fail_retry state")
     _assert(downstream["status"] == "SKIPPED", "downstream must be SKIPPED")
     _assert(
         downstream["skip_reason"] == "dependency_not_success",
@@ -286,9 +297,11 @@ def main(options: Options) -> int:
         title="resume completed run",
     )
     _ = resume
-    resumed_state = _load_state(basic_run_id, runs_dir)
-    for task_id, task_state in resumed_state["tasks"].items():  # type: ignore[index]
-        attempts = task_state["attempts"]  # type: ignore[index]
+    resumed_tasks = _state_tasks(_load_state(basic_run_id, runs_dir))
+    for task_id, task_state in resumed_tasks.items():
+        attempts = task_state.get("attempts")
+        if not isinstance(attempts, int):
+            raise RuntimeError(f"task attempts must be int: {task_id}")
         _assert(attempts == 1, f"resume reran successful task: {task_id}")
 
     _run(
