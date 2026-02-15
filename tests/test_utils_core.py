@@ -11978,6 +11978,7 @@ def test_cli_integration_runs_symlink_path_error_is_sanitized() -> None:
     assert 'assert "must not include symlink" not in output, command' in source_segment
     assert 'assert "must not be symlink" not in output, command' in source_segment
     assert 'assert "symbolic links" not in output.lower(), command' in source_segment
+    assert 'assert "symbolic link" not in output.lower(), command' in source_segment
 
 
 def test_cli_integration_cancel_symlink_cancel_request_error_is_sanitized() -> None:
@@ -12004,6 +12005,7 @@ def test_cli_integration_cancel_symlink_cancel_request_error_is_sanitized() -> N
     assert 'assert "must not include symlink" not in output' in source_segment
     assert 'assert "must not be symlink" not in output' in source_segment
     assert 'assert "symbolic links" not in output.lower()' in source_segment
+    assert 'assert "symbolic link" not in output.lower()' in source_segment
 
 
 def test_cli_integration_run_initialize_symlink_error_is_sanitized() -> None:
@@ -12030,6 +12032,7 @@ def test_cli_integration_run_initialize_symlink_error_is_sanitized() -> None:
     assert 'assert "must not include symlink" not in output' in source_segment
     assert 'assert "must not be symlink" not in output' in source_segment
     assert 'assert "symbolic links" not in output.lower()' in source_segment
+    assert 'assert "symbolic link" not in output.lower()' in source_segment
 
 
 def test_cli_integration_resume_report_symlink_warning_is_sanitized() -> None:
@@ -12056,6 +12059,7 @@ def test_cli_integration_resume_report_symlink_warning_is_sanitized() -> None:
     assert 'assert "must not include symlink" not in output' in source_segment
     assert 'assert "must not be symlink" not in output' in source_segment
     assert 'assert "symbolic links" not in output.lower()' in source_segment
+    assert 'assert "symbolic link" not in output.lower()' in source_segment
 
 
 def test_cli_integration_status_state_symlink_errors_are_sanitized() -> None:
@@ -12083,6 +12087,7 @@ def test_cli_integration_status_state_symlink_errors_are_sanitized() -> None:
         assert 'assert "must not include symlink" not in output' in source_segment
         assert 'assert "must not be symlink" not in output' in source_segment
         assert 'assert "symbolic links" not in output.lower()' in source_segment
+        assert 'assert "symbolic link" not in output.lower()' in source_segment
         matched.add(node.name)
 
     assert matched == expected_names
