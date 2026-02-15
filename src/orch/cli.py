@@ -38,7 +38,8 @@ console = Console()
 _RUN_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _RUN_ID_MAX_LEN = 128
 _SYMLINK_HINT_PATTERN = re.compile(
-    r"\bsymlink\w*\b|\bsymbolic(?:ally)?(?:[\s_-]+)?link\w*\b", re.IGNORECASE
+    r"\bsymlink\w*\b|\bsymbolic(?:ally)?(?:[\s_-]+)?link(?:s|ed|ing)?\b",
+    re.IGNORECASE,
 )
 
 

@@ -125,7 +125,7 @@ def test_cli_symlink_hint_pattern_shape_and_usage_are_stable() -> None:
     )
 
     assert "_SYMLINK_HINT_PATTERN = re.compile(" in cli_source
-    assert r"\bsymlink\w*\b|\bsymbolic(?:ally)?(?:[\s_-]+)?link\w*\b" in cli_source
+    assert r"\bsymlink\w*\b|\bsymbolic(?:ally)?(?:[\s_-]+)?link(?:s|ed|ing)?\b" in cli_source
     assert "re.IGNORECASE" in cli_source
 
     assert "def _mentions_symlink(detail: str) -> bool:" in cli_source
@@ -176,6 +176,8 @@ def test_cli_helpers_mentions_symlink_detection_matrix_exists() -> None:
         "test_mentions_symlink_rejects_non_symlink_variants": (
             '"path has hardlink reference",',
             '"path references linker script",',
+            '"path has symbolic-linker issue",',
+            '"path has symbolic_linkless issue",',
             '"this error is about permissions only",',
             "assert _mentions_symlink(detail) is False",
         ),
