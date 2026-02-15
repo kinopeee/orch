@@ -11422,6 +11422,52 @@ def test_cli_integration_invalid_home_symlink_detail_suppression_extended() -> N
     assert matched == expected_names
 
 
+def test_cli_integration_plan_validation_errors_suppress_symlink_detail() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    expected_names = {
+        "test_cli_run_dry_run_fail_fast_still_rejects_invalid_plan",
+        "test_cli_run_dry_run_no_fail_fast_still_rejects_invalid_plan",
+        "test_cli_run_dry_run_both_fail_fast_toggles_still_rejects_invalid_plan",
+        "test_cli_run_dry_run_both_fail_fast_toggles_reverse_order_rejects_invalid_plan",
+        "test_cli_run_dry_run_both_toggles_rejects_symlink_plan_path",
+        "test_cli_run_dry_run_both_toggles_reverse_rejects_symlink_plan_path",
+        "test_cli_run_dry_run_both_toggles_rejects_plan_path_with_symlink_ancestor",
+        "test_cli_run_dry_run_both_toggles_reverse_rejects_plan_path_with_symlink_ancestor",
+        "test_cli_run_dry_run_both_toggles_symlinked_plan_precedes_invalid_workdir",
+        "test_cli_run_invalid_plan_precedes_invalid_workdir",
+        "test_cli_run_invalid_plan_returns_two_and_creates_no_run",
+        "test_cli_dry_run_invalid_plan_returns_two",
+        "test_cli_dry_run_rejects_plan_with_unknown_root_field",
+        "test_cli_dry_run_rejects_plan_with_unknown_task_field",
+        "test_cli_dry_run_rejects_symlink_plan_path",
+        "test_cli_dry_run_rejects_plan_path_with_symlink_ancestor",
+        "test_cli_dry_run_rejects_non_regular_plan_path",
+        "test_cli_dry_run_rejects_plan_with_case_insensitive_duplicate_outputs",
+        "test_cli_dry_run_rejects_plan_with_backoff_longer_than_retries",
+        "test_cli_dry_run_cycle_plan_returns_two",
+        "test_cli_resume_invalid_plan_copy_returns_two",
+        "test_cli_resume_rejects_symlink_plan_file",
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expected_names:
+            continue
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        assert 'assert "Plan validation error" in output' in source_segment
+        assert 'assert "contains symlink component" not in output' in source_segment
+        matched.add(node.name)
+
+    assert matched == expected_names
+
+
 def test_cli_integration_resume_invalid_run_id_workdir_preserve_supergroup_boundaries() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
