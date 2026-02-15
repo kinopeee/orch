@@ -169,7 +169,22 @@ def test_ci_workflow_runs_dod_runtime_smoke() -> None:
         Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml"
     ).read_text(encoding="utf-8")
     assert "name: DoD runtime smoke" in ci_workflow
-    assert "python tools/dod_check.py --skip-quality-gates --home /tmp/orch_ci_dod" in ci_workflow
+    assert "set -o pipefail" in ci_workflow
+    assert (
+        "python tools/dod_check.py --skip-quality-gates --home /tmp/orch_ci_dod --json"
+        in ci_workflow
+    )
+    assert "tee /tmp/orch_ci_dod_summary.json" in ci_workflow
+
+
+def test_ci_workflow_uploads_dod_runtime_summary_artifact() -> None:
+    ci_workflow = (
+        Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml"
+    ).read_text(encoding="utf-8")
+    assert "name: Upload DoD runtime summary" in ci_workflow
+    assert "uses: actions/upload-artifact@v4" in ci_workflow
+    assert "name: dod-runtime-summary" in ci_workflow
+    assert "path: /tmp/orch_ci_dod_summary.json" in ci_workflow
 
 
 def test_ci_workflow_keeps_release_0_1_quality_gates() -> None:
@@ -178,7 +193,8 @@ def test_ci_workflow_keeps_release_0_1_quality_gates() -> None:
     ).read_text(encoding="utf-8")
     expected_steps = (
         "name: DoD runtime smoke",
-        "run: python tools/dod_check.py --skip-quality-gates --home /tmp/orch_ci_dod",
+        "python tools/dod_check.py --skip-quality-gates --home /tmp/orch_ci_dod --json",
+        "name: Upload DoD runtime summary",
         "name: Lint format check",
         "run: ruff format --check .",
         "name: Lint",
