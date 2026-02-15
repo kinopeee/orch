@@ -149,3 +149,21 @@ def test_dod_check_detect_orch_prefix_falls_back_when_orch_missing(
 
     monkeypatch.setattr(module.subprocess, "run", fake_run)  # type: ignore[attr-defined]
     assert module._detect_orch_prefix() == [sys.executable, "-m", "orch.cli"]  # type: ignore[attr-defined]
+
+
+def test_dod_check_parse_run_id_extracts_value() -> None:
+    module = _load_dod_check_module()
+    run_id = module._parse_run_id("run_id: 20260215_000000_abcdef\nstate: SUCCESS\n")  # type: ignore[attr-defined]
+    assert run_id == "20260215_000000_abcdef"
+
+
+def test_dod_check_parse_run_id_raises_when_missing() -> None:
+    module = _load_dod_check_module()
+    with pytest.raises(RuntimeError, match="run_id not found"):
+        module._parse_run_id("state: SUCCESS\n")  # type: ignore[attr-defined]
+
+
+def test_dod_check_has_parallel_overlap_rejects_non_object_tasks() -> None:
+    module = _load_dod_check_module()
+    with pytest.raises(RuntimeError, match="state.tasks must be an object"):
+        module._has_parallel_overlap({"tasks": []})  # type: ignore[attr-defined]
