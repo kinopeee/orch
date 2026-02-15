@@ -540,6 +540,24 @@ def test_cli_helpers_invalid_plan_path_output_requires_full_suppression() -> Non
     assert examined
 
 
+def test_cli_helpers_plural_symbolic_links_assertions_require_singular_pair() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    helpers_source = (tests_root / "test_cli_helpers.py").read_text(encoding="utf-8")
+    helper_lines = helpers_source.splitlines()
+
+    examined = 0
+    for index, line in enumerate(helper_lines):
+        stripped = line.strip()
+        if stripped != 'assert "symbolic links" not in captured.out.lower()':
+            continue
+
+        examined += 1
+        next_line = helper_lines[index + 1].strip() if index + 1 < len(helper_lines) else ""
+        assert next_line == 'assert "symbolic link" not in captured.out.lower()'
+
+    assert examined > 0
+
+
 def test_new_run_id_format_includes_timestamp_and_suffix() -> None:
     now = datetime(2026, 2, 13, 12, 34, 56, tzinfo=UTC)
     run_id = new_run_id(now)
