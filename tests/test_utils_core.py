@@ -88,6 +88,22 @@ def test_cli_error_output_paths_use_sanitizer_helpers() -> None:
     assert "[red]Plan validation error:[/red] {exc}" not in cli_source
 
 
+def test_cli_symlink_hint_pattern_shape_and_usage_are_stable() -> None:
+    cli_source = (Path(__file__).resolve().parents[1] / "src" / "orch" / "cli.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "_SYMLINK_HINT_PATTERN = re.compile(" in cli_source
+    assert r"\bsymlink\w*\b|\bsymbolic(?:ally)?(?:[\s_-]+)?link\w*\b" in cli_source
+    assert "re.IGNORECASE" in cli_source
+
+    assert "def _mentions_symlink(detail: str) -> bool:" in cli_source
+    assert "return _SYMLINK_HINT_PATTERN.search(detail) is not None" in cli_source
+
+    assert 'return "symlink" in normalized or "symbolic link" in normalized' not in cli_source
+    assert 'return "symlink" in detail.lower()' not in cli_source
+
+
 def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     helpers_source = (tests_root / "test_cli_helpers.py").read_text(encoding="utf-8")
