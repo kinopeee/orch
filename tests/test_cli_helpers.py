@@ -10,6 +10,7 @@ import typer
 import orch.cli as cli_module
 from orch.cli import (
     _render_plan_error,
+    _render_runtime_error_detail,
     _resolve_workdir_or_exit,
     _validate_home_or_exit,
     _write_plan_snapshot,
@@ -62,6 +63,16 @@ def test_render_plan_error_sanitizes_symlink_detail() -> None:
 def test_render_plan_error_keeps_non_symlink_detail() -> None:
     err = PlanError("plan contains unknown fields: ['extra']")
     assert _render_plan_error(err) == "plan contains unknown fields: ['extra']"
+
+
+def test_render_runtime_error_detail_sanitizes_symlink_detail() -> None:
+    err = OSError("run directory path must not include symlink: /tmp/run")
+    assert _render_runtime_error_detail(err) == "invalid run path"
+
+
+def test_render_runtime_error_detail_keeps_non_symlink_detail() -> None:
+    err = OSError("state file not found")
+    assert _render_runtime_error_detail(err) == "state file not found"
 
 
 def test_write_plan_snapshot_rejects_symlink_destination(tmp_path: Path) -> None:

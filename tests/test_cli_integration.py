@@ -14125,6 +14125,63 @@ def test_cli_status_rejects_run_dir_with_symlink_ancestor_without_lock_side_effe
     assert not (real_run_dir / ".lock").exists()
 
 
+def test_cli_status_logs_resume_sanitize_runs_symlink_path_error(tmp_path: Path) -> None:
+    run_id = "20260101_000000_abcdef"
+    home = tmp_path / ".orch_cli"
+    home.mkdir()
+    real_runs = tmp_path / "real_runs"
+    real_runs.mkdir()
+    (home / "runs").symlink_to(real_runs, target_is_directory=True)
+    real_run_dir = real_runs / run_id
+    real_run_dir.mkdir()
+    (real_run_dir / "state.json").write_text(
+        json.dumps(
+            {
+                "run_id": run_id,
+                "created_at": "2026-01-01T00:00:00+00:00",
+                "updated_at": "2026-01-01T00:00:00+00:00",
+                "status": "RUNNING",
+                "goal": None,
+                "plan_relpath": "plan.yaml",
+                "home": str(home.resolve()),
+                "workdir": str(tmp_path.resolve()),
+                "max_parallel": 1,
+                "fail_fast": False,
+                "tasks": {},
+            }
+        ),
+        encoding="utf-8",
+    )
+    (real_run_dir / "plan.yaml").write_text(
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+        encoding="utf-8",
+    )
+
+    for command in ("status", "logs", "resume"):
+        proc = subprocess.run(
+            [sys.executable, "-m", "orch.cli", command, run_id, "--home", str(home)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        output = proc.stdout + proc.stderr
+        assert proc.returncode == 2, command
+        if command == "resume":
+            assert "Run not found or broken" in output, command
+        else:
+            assert "Failed to load state" in output, command
+        assert "invalid run path" in output, command
+        assert "contains symlink component" not in output, command
+        assert "must not include symlink" not in output, command
+        assert "must not be symlink" not in output, command
+
+    assert not (real_run_dir / ".lock").exists()
+
+
 def test_cli_logs_rejects_symlink_home_path(tmp_path: Path) -> None:
     real_home = tmp_path / "real_home"
     run_id = "20260101_000000_abcdef"

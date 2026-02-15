@@ -58,6 +58,13 @@ def _render_plan_error(exc: PlanError) -> str:
     return detail
 
 
+def _render_runtime_error_detail(exc: BaseException) -> str:
+    detail = str(exc)
+    if "symlink" in detail.lower():
+        return "invalid run path"
+    return detail
+
+
 def _task_to_plan_dict(task: TaskSpec) -> dict[str, object]:
     task_data: dict[str, object] = {
         "id": task.id,
@@ -326,7 +333,7 @@ def resume(
                 )
             )
     except (StateError, FileNotFoundError, OSError, RuntimeError) as exc:
-        console.print(f"[red]Run not found or broken:[/red] {exc}")
+        console.print(f"[red]Run not found or broken:[/red] {_render_runtime_error_detail(exc)}")
         raise typer.Exit(2) from exc
     except PlanError as exc:
         console.print(f"[red]Plan validation error:[/red] {_render_plan_error(exc)}")
@@ -359,13 +366,13 @@ def status(
         with run_lock(current_run_dir, retries=5, retry_interval=0.1):
             state = load_state(current_run_dir)
     except (StateError, FileNotFoundError, OSError, RuntimeError) as exc:
-        console.print(f"[red]Failed to load state:[/red] {exc}")
+        console.print(f"[red]Failed to load state:[/red] {_render_runtime_error_detail(exc)}")
         raise typer.Exit(2) from exc
     except RunConflictError:
         try:
             state = load_state(current_run_dir)
         except (StateError, FileNotFoundError, OSError, RuntimeError) as exc:
-            console.print(f"[red]Failed to load state:[/red] {exc}")
+            console.print(f"[red]Failed to load state:[/red] {_render_runtime_error_detail(exc)}")
             raise typer.Exit(2) from exc
 
     if as_json:
@@ -403,13 +410,13 @@ def logs(
         with run_lock(current_run_dir, retries=5, retry_interval=0.1):
             state = load_state(current_run_dir)
     except (StateError, FileNotFoundError, OSError, RuntimeError) as exc:
-        console.print(f"[red]Failed to load state:[/red] {exc}")
+        console.print(f"[red]Failed to load state:[/red] {_render_runtime_error_detail(exc)}")
         raise typer.Exit(2) from exc
     except RunConflictError:
         try:
             state = load_state(current_run_dir)
         except (StateError, FileNotFoundError, OSError, RuntimeError) as exc:
-            console.print(f"[red]Failed to load state:[/red] {exc}")
+            console.print(f"[red]Failed to load state:[/red] {_render_runtime_error_detail(exc)}")
             raise typer.Exit(2) from exc
     task_ids = [task] if task else list(state.tasks.keys())
     missing_task = False
