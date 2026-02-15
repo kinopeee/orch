@@ -875,11 +875,17 @@ def test_cli_helpers_run_resume_non_symlink_symbolic_details_are_preserved() -> 
         "test_cli_run_keeps_symbolically_linkingly_double_underscore_report_warning": (
             "symbolically__linkingly issue"
         ),
+        "test_cli_run_keeps_symbolically_linkingly_double_hyphen_report_warning": (
+            "symbolically--linkingly issue"
+        ),
         "test_cli_resume_keeps_symbolic_linkers_report_write_warning_detail": (
             "symbolic-linkers issue"
         ),
         "test_cli_resume_keeps_symbolically_linkingly_double_underscore_report_warning": (
             "symbolically__linkingly issue"
+        ),
+        "test_cli_resume_keeps_symbolically_linkingly_double_hyphen_report_warning": (
+            "symbolically--linkingly issue"
         ),
     }
 
@@ -950,8 +956,14 @@ def test_cli_helpers_runtime_symbolic_links_variants_are_sanitized() -> None:
         "test_cli_run_sanitizes_symbolically_linking_double_underscore_report_warning": (
             "failed to write report"
         ),
+        "test_cli_run_sanitizes_symbolically_linking_double_hyphen_report_warning": (
+            "failed to write report"
+        ),
         "test_cli_resume_sanitizes_symbolic_links_report_write_warning": "failed to write report",
         "test_cli_resume_sanitizes_symbolically_linking_double_underscore_report_warning": (
+            "failed to write report"
+        ),
+        "test_cli_resume_sanitizes_symbolically_linking_double_hyphen_report_warning": (
             "failed to write report"
         ),
     }
