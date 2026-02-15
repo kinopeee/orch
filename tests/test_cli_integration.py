@@ -10579,6 +10579,10 @@ def test_cli_resume_continues_when_report_path_is_symlink(tmp_path: Path) -> Non
     output = resumed.stdout + resumed.stderr
     assert resumed.returncode == 0
     assert "failed to write report" in output
+    assert "invalid run path" in output
+    assert "contains symlink component" not in output
+    assert "must not include symlink" not in output
+    assert "must not be symlink" not in output
     assert outside.read_text(encoding="utf-8") == "outside\n"
     state = json.loads((home / "runs" / run_id / "state.json").read_text(encoding="utf-8"))
     assert state["status"] == "SUCCESS"
