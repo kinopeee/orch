@@ -339,6 +339,10 @@ def _build_summary_payload(
     }
 
 
+def _format_key_set_for_error(keys: set[object]) -> list[str]:
+    return sorted(repr(key) for key in keys)
+
+
 def _assert_summary_payload_consistent(payload: dict[str, str]) -> None:
     if not isinstance(payload, dict):
         raise RuntimeError(f"invalid summary payload type: {type(payload).__name__}")
@@ -353,8 +357,8 @@ def _assert_summary_payload_consistent(payload: dict[str, str]) -> None:
     }
     actual_keys = set(payload)
     if actual_keys != required_keys:
-        missing = sorted(required_keys - actual_keys)
-        extra = sorted(actual_keys - required_keys)
+        missing = _format_key_set_for_error(set(required_keys - actual_keys))
+        extra = _format_key_set_for_error(set(actual_keys - required_keys))
         raise RuntimeError(f"invalid summary keys: missing={missing}, extra={extra}")
 
     for key in sorted(required_keys):

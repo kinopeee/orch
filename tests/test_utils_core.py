@@ -106,6 +106,7 @@ def test_tools_dod_check_supports_json_summary_output() -> None:
         "emit_json",
         "json_out",
         "def _build_summary_payload(",
+        "def _format_key_set_for_error(",
         "def _assert_summary_payload_consistent(",
         "def _write_summary_json(",
         "json.dumps(",
