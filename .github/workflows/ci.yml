@@ -41,6 +41,8 @@ jobs:
               raise SystemExit(f"DoD summary path is not a file: {summary_path}")
           try:
               summary_text = summary_path.read_text(encoding="utf-8")
+          except UnicodeDecodeError as exc:
+              raise SystemExit(f"DoD summary file is not utf-8: {summary_path}") from exc
           except OSError as exc:
               raise SystemExit(f"failed to read DoD summary file: {summary_path}") from exc
           try:

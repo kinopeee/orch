@@ -148,6 +148,8 @@ def _load_state(run_id: str, runs_dir: Path) -> dict[str, object]:
         raise RuntimeError(f"state path is not file: {state_path}")
     try:
         state_payload = state_path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        raise RuntimeError(f"state file is not utf-8: {state_path}") from exc
     except OSError as exc:
         raise RuntimeError(f"failed to read state file: {state_path}") from exc
 

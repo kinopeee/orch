@@ -342,6 +342,16 @@ def test_dod_check_load_state_raises_on_read_oserror(
         module._load_state(run_id, tmp_path)  # type: ignore[attr-defined]
 
 
+def test_dod_check_load_state_raises_on_invalid_utf8(tmp_path: Path) -> None:
+    module = _load_dod_check_module()
+    run_id = "20260215_000000_load_invalid_utf8"
+    state_path = tmp_path / run_id / "state.json"
+    state_path.parent.mkdir(parents=True)
+    state_path.write_bytes(b"\xff")
+    with pytest.raises(RuntimeError, match="state file is not utf-8"):
+        module._load_state(run_id, tmp_path)  # type: ignore[attr-defined]
+
+
 def test_dod_check_load_state_raises_when_state_path_is_not_file(tmp_path: Path) -> None:
     module = _load_dod_check_module()
     run_id = "20260215_000000_load_not_file"
