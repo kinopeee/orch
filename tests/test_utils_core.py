@@ -720,6 +720,8 @@ def test_cli_helpers_run_resume_non_symlink_symbolic_details_are_preserved() -> 
     helpers_module = ast.parse(helpers_source)
 
     expected_checks = {
+        "test_cli_run_keeps_symbolic_linkers_initialize_error_detail": "symbolic-linkers issue",
+        "test_cli_run_keeps_symbolic_linkingly_execution_error_detail": "symbolic-linkingly issue",
         "test_cli_run_keeps_symbolic_linker_plan_error_detail": "symbolic-linker issue",
         "test_cli_run_keeps_symbolic_linkless_plan_error_detail": "symbolic_linkless issue",
         "test_cli_run_keeps_symbolic_linkedlist_plan_error_detail": "symbolic-linkedlist issue",
@@ -749,6 +751,12 @@ def test_cli_helpers_run_resume_non_symlink_symbolic_details_are_preserved() -> 
         "test_cli_cancel_keeps_symbolic_linkless_write_error_detail": ("symbolic_linkless issue"),
         "test_cli_cancel_keeps_symbolic_linker_write_error_detail": ("symbolic-linker issue"),
         "test_cli_cancel_keeps_symbolic_linkers_write_error_detail": ("symbolic-linkers issue"),
+        "test_cli_run_keeps_symbolically_linkedness_report_write_warning_detail": (
+            "symbolically_linkedness issue"
+        ),
+        "test_cli_resume_keeps_symbolic_linkers_report_write_warning_detail": (
+            "symbolic-linkers issue"
+        ),
     }
 
     matched: set[str] = set()
@@ -765,8 +773,17 @@ def test_cli_helpers_run_resume_non_symlink_symbolic_details_are_preserved() -> 
         if "runtime_load_error" in node.name:
             assert 'assert "Failed to load state" in captured.out' in source_segment
             assert 'assert "invalid run path" not in captured.out' in source_segment
+        elif "initialize_error" in node.name:
+            assert 'assert "Failed to initialize run" in captured.out' in source_segment
+            assert 'assert "invalid run path" not in captured.out' in source_segment
+        elif "execution_error" in node.name:
+            assert 'assert "Run execution failed" in captured.out' in source_segment
+            assert 'assert "invalid run path" not in captured.out' in source_segment
         elif "write_error" in node.name:
             assert 'assert "Failed to request cancel" in captured.out' in source_segment
+            assert 'assert "invalid run path" not in captured.out' in source_segment
+        elif "report_write_warning" in node.name:
+            assert 'assert "failed to write report" in captured.out' in source_segment
             assert 'assert "invalid run path" not in captured.out' in source_segment
         elif "conflict_error" in node.name:
             assert "exc_info.value.exit_code == 3" in source_segment
