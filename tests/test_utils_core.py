@@ -11772,6 +11772,11 @@ def test_cli_integration_path_validation_output_markers_require_symlink_suppress
                 'assert "must not be symlink" not in output' in source_segment
                 or 'assert "must not be symlink" not in proc.stdout' in source_segment
             )
+            assert (
+                'assert "symbolic links" not in output.lower()' in source_segment
+                or 'assert "symbolic links" not in proc.stdout.lower()' in source_segment
+                or 'assert "symbolic links" not in output.lower(), context' in source_segment
+            )
         examined.add(node.name)
 
     assert examined
