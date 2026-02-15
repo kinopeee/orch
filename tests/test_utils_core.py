@@ -597,6 +597,8 @@ def test_cli_helpers_run_resume_non_symlink_symbolic_details_are_preserved() -> 
         "test_cli_status_keeps_symbolic_linkless_runtime_load_error_detail": (
             "symbolic_linkless issue"
         ),
+        "test_cli_logs_keeps_symbolic_linker_runtime_load_error_detail": ("symbolic-linker issue"),
+        "test_cli_cancel_keeps_symbolic_linkless_write_error_detail": ("symbolic_linkless issue"),
     }
 
     matched: set[str] = set()
@@ -612,6 +614,9 @@ def test_cli_helpers_run_resume_non_symlink_symbolic_details_are_preserved() -> 
         assert expected_fragment in source_segment
         if "runtime_load_error" in node.name:
             assert 'assert "Failed to load state" in captured.out' in source_segment
+            assert 'assert "invalid run path" not in captured.out' in source_segment
+        elif "write_error" in node.name:
+            assert 'assert "Failed to request cancel" in captured.out' in source_segment
             assert 'assert "invalid run path" not in captured.out' in source_segment
         else:
             assert 'assert "Plan validation error" in captured.out' in source_segment
