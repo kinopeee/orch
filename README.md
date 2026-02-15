@@ -10,6 +10,15 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
+`python -m venv` が `ensurepip is not available` で失敗する環境では、次の代替手順を使用できます。
+
+```bash
+python3 -m pip install --user virtualenv
+python3 -m virtualenv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+```
+
 実行:
 
 ```bash
