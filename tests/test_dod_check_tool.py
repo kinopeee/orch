@@ -190,6 +190,46 @@ def test_dod_check_run_raises_runtime_error_on_timeout(
         module._run(["orch", "run"], title="timeout test", timeout_sec=1)  # type: ignore[attr-defined]
 
 
+def test_dod_check_run_passes_custom_timeout_to_subprocess(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_dod_check_module()
+    captured_timeout: dict[str, object] = {}
+
+    class Completed:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    def fake_run(*args: object, **kwargs: object) -> Completed:
+        captured_timeout["value"] = kwargs.get("timeout")
+        return Completed()
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)  # type: ignore[attr-defined]
+    module._run(["orch", "status"], title="timeout passthrough", timeout_sec=12.5)  # type: ignore[attr-defined]
+    assert captured_timeout["value"] == 12.5
+
+
+def test_dod_check_run_uses_default_timeout_when_not_specified(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_dod_check_module()
+    captured_timeout: dict[str, object] = {}
+
+    class Completed:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    def fake_run(*args: object, **kwargs: object) -> Completed:
+        captured_timeout["value"] = kwargs.get("timeout")
+        return Completed()
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)  # type: ignore[attr-defined]
+    module._run(["orch", "status"], title="default timeout")  # type: ignore[attr-defined]
+    assert captured_timeout["value"] == 180.0
+
+
 def test_dod_check_parse_run_id_extracts_value() -> None:
     module = _load_dod_check_module()
     run_id = module._parse_run_id("run_id: 20260215_000000_abcdef\nstate: SUCCESS\n")  # type: ignore[attr-defined]
