@@ -3136,6 +3136,10 @@ def test_cli_run_dry_run_both_toggles_invalid_plan_precedes_invalid_workdir_matr
             assert "contains symlink component" not in output, context
             assert "must not include symlink" not in output, context
             assert "must not be symlink" not in output, context
+            if plan_mode in {"symlink_plan", "symlink_ancestor_plan"}:
+                assert "invalid plan path" in output, context
+            else:
+                assert "invalid plan path" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
@@ -3258,6 +3262,10 @@ def test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_existing_hom
             assert "contains symlink component" not in output, context
             assert "must not include symlink" not in output, context
             assert "must not be symlink" not in output, context
+            if plan_mode in {"symlink_plan", "symlink_ancestor_plan"}:
+                assert "invalid plan path" in output, context
+            else:
+                assert "invalid plan path" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
@@ -3377,6 +3385,10 @@ def test_cli_run_dry_run_both_toggles_reject_invalid_plan_existing_home_matrix(
             assert "contains symlink component" not in output, context
             assert "must not include symlink" not in output, context
             assert "must not be symlink" not in output, context
+            if plan_mode in {"symlink_plan", "symlink_ancestor_plan"}:
+                assert "invalid plan path" in output, context
+            else:
+                assert "invalid plan path" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
@@ -3498,6 +3510,10 @@ def test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_default_home
             assert "contains symlink component" not in output, context
             assert "must not include symlink" not in output, context
             assert "must not be symlink" not in output, context
+            if plan_mode in {"symlink_plan", "symlink_ancestor_plan"}:
+                assert "invalid plan path" in output, context
+            else:
+                assert "invalid plan path" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
@@ -3619,6 +3635,10 @@ def test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_default_exis
             assert "contains symlink component" not in output, context
             assert "must not include symlink" not in output, context
             assert "must not be symlink" not in output, context
+            if plan_mode in {"symlink_plan", "symlink_ancestor_plan"}:
+                assert "invalid plan path" in output, context
+            else:
+                assert "invalid plan path" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
@@ -3736,6 +3756,10 @@ def test_cli_run_dry_run_both_toggles_reject_invalid_plan_default_home_matrix(
             assert "contains symlink component" not in output, context
             assert "must not include symlink" not in output, context
             assert "must not be symlink" not in output, context
+            if plan_mode in {"symlink_plan", "symlink_ancestor_plan"}:
+                assert "invalid plan path" in output, context
+            else:
+                assert "invalid plan path" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context
@@ -3855,6 +3879,10 @@ def test_cli_run_dry_run_both_toggles_reject_invalid_plan_default_existing_home_
             assert "contains symlink component" not in output, context
             assert "must not include symlink" not in output, context
             assert "must not be symlink" not in output, context
+            if plan_mode in {"symlink_plan", "symlink_ancestor_plan"}:
+                assert "invalid plan path" in output, context
+            else:
+                assert "invalid plan path" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context
             assert "state:" not in output, context

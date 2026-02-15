@@ -11462,6 +11462,15 @@ def test_cli_integration_plan_validation_errors_suppress_symlink_detail() -> Non
         "test_cli_resume_invalid_plan_copy_returns_two",
         "test_cli_resume_rejects_symlink_plan_file",
     }
+    matrix_mode_names = {
+        "test_cli_run_dry_run_both_toggles_invalid_plan_precedes_invalid_workdir_matrix",
+        "test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_existing_home_matrix",
+        "test_cli_run_dry_run_both_toggles_reject_invalid_plan_existing_home_matrix",
+        "test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_default_home_matrix",
+        "test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_default_existing_home_matrix",
+        "test_cli_run_dry_run_both_toggles_reject_invalid_plan_default_home_matrix",
+        "test_cli_run_dry_run_both_toggles_reject_invalid_plan_default_existing_home_matrix",
+    }
 
     matched: set[str] = set()
     for node in ast.walk(integration_module):
@@ -11478,6 +11487,10 @@ def test_cli_integration_plan_validation_errors_suppress_symlink_detail() -> Non
         assert 'assert "must not be symlink" not in output' in source_segment
         if "symlink" in node.name:
             assert 'assert "invalid plan path" in output' in source_segment
+        if node.name in matrix_mode_names:
+            assert 'if plan_mode in {"symlink_plan", "symlink_ancestor_plan"}:' in source_segment
+            assert 'assert "invalid plan path" in output, context' in source_segment
+            assert 'assert "invalid plan path" not in output, context' in source_segment
         matched.add(node.name)
 
     assert matched == expected_names
