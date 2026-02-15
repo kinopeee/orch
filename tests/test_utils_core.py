@@ -597,8 +597,15 @@ def test_cli_helpers_run_resume_non_symlink_symbolic_details_are_preserved() -> 
         "test_cli_status_keeps_symbolic_linkless_runtime_load_error_detail": (
             "symbolic_linkless issue"
         ),
+        "test_cli_status_keeps_symbolic_linker_runtime_load_error_detail": (
+            "symbolic-linker issue"
+        ),
         "test_cli_logs_keeps_symbolic_linker_runtime_load_error_detail": ("symbolic-linker issue"),
+        "test_cli_logs_keeps_symbolic_linkless_runtime_load_error_detail": (
+            "symbolic_linkless issue"
+        ),
         "test_cli_cancel_keeps_symbolic_linkless_write_error_detail": ("symbolic_linkless issue"),
+        "test_cli_cancel_keeps_symbolic_linker_write_error_detail": ("symbolic-linker issue"),
     }
 
     matched: set[str] = set()

@@ -2943,6 +2943,31 @@ def test_cli_status_keeps_symbolic_linkless_runtime_load_error_detail(
     assert "invalid run path" not in captured.out
 
 
+def test_cli_status_keeps_symbolic_linker_runtime_load_error_detail(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        yield
+
+    def boom_load_state(_run_dir: Path) -> object:
+        raise OSError("run path has symbolic-linker issue")
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_state", boom_load_state)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.status("run1", home=home, as_json=False)
+    assert exc_info.value.exit_code == 2
+    captured = capsys.readouterr()
+    assert "Failed to load state" in captured.out
+    assert "symbolic-linker issue" in captured.out
+    assert "invalid run path" not in captured.out
+
+
 def test_cli_logs_normalizes_runtime_load_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -3042,6 +3067,31 @@ def test_cli_logs_keeps_symbolic_linker_runtime_load_error_detail(
     captured = capsys.readouterr()
     assert "Failed to load state" in captured.out
     assert "symbolic-linker issue" in captured.out
+    assert "invalid run path" not in captured.out
+
+
+def test_cli_logs_keeps_symbolic_linkless_runtime_load_error_detail(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        yield
+
+    def boom_load_state(_run_dir: Path) -> object:
+        raise OSError("run path has symbolic_linkless issue")
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_state", boom_load_state)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.logs("run1", home=home, task=None, tail=10)
+    assert exc_info.value.exit_code == 2
+    captured = capsys.readouterr()
+    assert "Failed to load state" in captured.out
+    assert "symbolic_linkless issue" in captured.out
     assert "invalid run path" not in captured.out
 
 
@@ -3825,6 +3875,28 @@ def test_cli_cancel_keeps_symbolic_linkless_write_error_detail(
     captured = capsys.readouterr()
     assert "Failed to request cancel" in captured.out
     assert "symbolic_linkless issue" in captured.out
+    assert "invalid run path" not in captured.out
+
+
+def test_cli_cancel_keeps_symbolic_linker_write_error_detail(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    run_dir = home / "runs" / "run1"
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").write_text("{}", encoding="utf-8")
+
+    def boom_write_cancel(_run_dir: Path) -> None:
+        raise OSError("cancel request path has symbolic-linker issue")
+
+    monkeypatch.setattr(cli_module, "write_cancel_request", boom_write_cancel)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.cancel("run1", home=home)
+    assert exc_info.value.exit_code == 2
+    captured = capsys.readouterr()
+    assert "Failed to request cancel" in captured.out
+    assert "symbolic-linker issue" in captured.out
     assert "invalid run path" not in captured.out
 
 
