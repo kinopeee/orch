@@ -469,6 +469,13 @@ def test_dod_check_assert_summary_payload_consistent_accepts_valid_payload() -> 
     module._assert_summary_payload_consistent(payload)  # type: ignore[attr-defined]
 
 
+def test_dod_check_assert_summary_payload_consistent_rejects_non_mapping_payload() -> None:
+    module = _load_dod_check_module()
+    payload = ["result", "PASS"]
+    with pytest.raises(RuntimeError, match="invalid summary payload type: list"):
+        module._assert_summary_payload_consistent(payload)  # type: ignore[arg-type, attr-defined]
+
+
 def test_dod_check_assert_summary_payload_consistent_rejects_missing_key() -> None:
     module = _load_dod_check_module()
     payload = {

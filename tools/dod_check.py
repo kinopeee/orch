@@ -340,6 +340,9 @@ def _build_summary_payload(
 
 
 def _assert_summary_payload_consistent(payload: dict[str, str]) -> None:
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"invalid summary payload type: {type(payload).__name__}")
+
     required_keys = {
         "result",
         "basic_run_id",

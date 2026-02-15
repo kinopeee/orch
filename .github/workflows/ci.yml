@@ -35,6 +35,8 @@ jobs:
           if not summary_path.exists():
               raise SystemExit(f"missing DoD summary file: {summary_path}")
           data = json.loads(summary_path.read_text(encoding="utf-8"))
+          if not isinstance(data, dict):
+              raise SystemExit(f"invalid DoD summary root type: {type(data).__name__}")
           required_keys = {
               "result",
               "basic_run_id",
