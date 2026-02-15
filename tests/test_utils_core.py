@@ -57,6 +57,8 @@ def test_source_does_not_emit_symbolic_links_detail_literal() -> None:
         "symbolic links",
         "symbolic-link",
         "symbolic_link",
+        "symboliclink",
+        "symboliclinks",
         "symbolically linked",
         "symbolically-linked",
         "symbolically_linked",
