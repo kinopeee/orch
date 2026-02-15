@@ -88,6 +88,63 @@ def test_cli_error_output_paths_use_sanitizer_helpers() -> None:
     assert "[red]Plan validation error:[/red] {exc}" not in cli_source
 
 
+def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    helpers_source = (tests_root / "test_cli_helpers.py").read_text(encoding="utf-8")
+    helpers_module = ast.parse(helpers_source)
+
+    required_cases = {
+        "test_render_plan_error_sanitizes_symbolic_links_plural_detail": (
+            'err = PlanError("too many levels of symbolic links in plan path")',
+            'assert _render_plan_error(err) == "invalid plan path"',
+        ),
+        "test_render_plan_error_sanitizes_symbolically_linked_detail": (
+            'err = PlanError("plan path is symbolically linked to another location")',
+            'assert _render_plan_error(err) == "invalid plan path"',
+        ),
+        "test_render_plan_error_sanitizes_symbolically_linked_hyphenated_detail": (
+            'err = PlanError("plan path is symbolically-linked to another location")',
+            'assert _render_plan_error(err) == "invalid plan path"',
+        ),
+        "test_render_plan_error_sanitizes_symlinked_detail": (
+            'err = PlanError("plan path is symlinked to another location")',
+            'assert _render_plan_error(err) == "invalid plan path"',
+        ),
+        "test_render_runtime_error_detail_sanitizes_symbolic_links_plural_detail": (
+            'err = OSError("too many levels of symbolic links in run path")',
+            'assert _render_runtime_error_detail(err) == "invalid run path"',
+        ),
+        "test_render_runtime_error_detail_sanitizes_symbolically_linked_detail": (
+            'err = OSError("run path is symbolically linked to another location")',
+            'assert _render_runtime_error_detail(err) == "invalid run path"',
+        ),
+        "test_render_runtime_error_detail_sanitizes_symbolically_linked_underscored_detail": (
+            'err = OSError("run path is symbolically_linked to another location")',
+            'assert _render_runtime_error_detail(err) == "invalid run path"',
+        ),
+        "test_render_runtime_error_detail_sanitizes_symlinked_detail": (
+            'err = OSError("run path is symlinked to another location")',
+            'assert _render_runtime_error_detail(err) == "invalid run path"',
+        ),
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(helpers_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in required_cases:
+            continue
+
+        source_segment = ast.get_source_segment(helpers_source, node)
+        assert source_segment is not None
+        expected_error_line, expected_assert_line = required_cases[node.name]
+        assert expected_error_line in source_segment
+        assert expected_assert_line in source_segment
+        matched.add(node.name)
+
+    assert matched == set(required_cases)
+
+
 def test_new_run_id_format_includes_timestamp_and_suffix() -> None:
     now = datetime(2026, 2, 13, 12, 34, 56, tzinfo=UTC)
     run_id = new_run_id(now)
