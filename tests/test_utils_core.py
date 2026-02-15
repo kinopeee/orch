@@ -237,6 +237,9 @@ def test_ci_workflow_keeps_release_0_1_quality_gates() -> None:
     assert ci_workflow.index("name: Validate DoD runtime summary JSON") < ci_workflow.index(
         "name: Upload DoD runtime summary"
     )
+    assert ci_workflow.index("name: Upload DoD runtime summary") < ci_workflow.index(
+        "name: Lint format check"
+    )
     assert ci_workflow.index("name: DoD runtime smoke") < ci_workflow.index(
         "name: Lint format check"
     )
