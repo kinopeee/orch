@@ -119,6 +119,20 @@ def test_tools_dod_check_supports_json_summary_output() -> None:
         assert fragment in source
 
 
+def test_tools_dod_check_write_summary_json_validates_payload_first() -> None:
+    source = (Path(__file__).resolve().parents[1] / "tools" / "dod_check.py").read_text(
+        encoding="utf-8"
+    )
+    marker = "def _write_summary_json(path: Path, payload: dict[str, str]) -> None:"
+    start = source.index(marker)
+    end = source.index("\n\ndef main(options: Options) -> int:", start)
+    function_source = source[start:end]
+    assert "_assert_summary_payload_consistent(payload)" in function_source
+    assert function_source.index(
+        "_assert_summary_payload_consistent(payload)"
+    ) < function_source.index("try:")
+
+
 def test_tools_dod_check_enforces_command_timeouts() -> None:
     source = (Path(__file__).resolve().parents[1] / "tools" / "dod_check.py").read_text(
         encoding="utf-8"

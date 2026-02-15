@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -570,33 +571,43 @@ def test_dod_check_write_summary_json_creates_file(tmp_path: Path) -> None:
     module = _load_dod_check_module()
     payload = {
         "result": "PASS",
-        "basic_run_id": "basic123",
-        "parallel_run_id": "parallel123",
-        "fail_run_id": "fail123",
-        "cancel_run_id": "cancel123",
+        "basic_run_id": "20260215_000000_a1b2c3",
+        "parallel_run_id": "20260215_000001_d4e5f6",
+        "fail_run_id": "20260215_000002_0a1b2c",
+        "cancel_run_id": "20260215_000003_3d4e5f",
         "home": "/tmp/dod-home",
     }
     out_path = tmp_path / "nested" / "dod-summary.json"
     module._write_summary_json(out_path, payload)  # type: ignore[attr-defined]
     written = out_path.read_text(encoding="utf-8")
-    assert written == (
-        '{"basic_run_id": "basic123", "cancel_run_id": "cancel123", '
-        '"fail_run_id": "fail123", "home": "/tmp/dod-home", '
-        '"parallel_run_id": "parallel123", "result": "PASS"}\n'
-    )
+    assert written == json.dumps(payload, sort_keys=True) + "\n"
 
 
 def test_dod_check_write_summary_json_raises_runtime_error_on_io_failure(tmp_path: Path) -> None:
     module = _load_dod_check_module()
     payload = {
         "result": "PASS",
-        "basic_run_id": "basic123",
-        "parallel_run_id": "parallel123",
-        "fail_run_id": "fail123",
-        "cancel_run_id": "cancel123",
+        "basic_run_id": "20260215_000000_a1b2c3",
+        "parallel_run_id": "20260215_000001_d4e5f6",
+        "fail_run_id": "20260215_000002_0a1b2c",
+        "cancel_run_id": "20260215_000003_3d4e5f",
         "home": "/tmp/dod-home",
     }
     out_dir = tmp_path / "as-directory"
     out_dir.mkdir()
     with pytest.raises(RuntimeError, match="failed to write summary json"):
         module._write_summary_json(out_dir, payload)  # type: ignore[attr-defined]
+
+
+def test_dod_check_write_summary_json_rejects_invalid_payload(tmp_path: Path) -> None:
+    module = _load_dod_check_module()
+    payload = {
+        "result": "PASS",
+        "basic_run_id": "20260215_000000_a1b2c3",
+        "parallel_run_id": "20260215_000001_d4e5f6",
+        "fail_run_id": "20260215_000002_0a1b2c",
+        "cancel_run_id": "20260215_000003_3d4e5f",
+    }
+    out_path = tmp_path / "dod-summary.json"
+    with pytest.raises(RuntimeError, match="invalid summary keys"):
+        module._write_summary_json(out_path, payload)  # type: ignore[attr-defined]

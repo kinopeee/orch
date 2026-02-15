@@ -372,6 +372,7 @@ def _assert_summary_payload_consistent(payload: dict[str, str]) -> None:
 
 
 def _write_summary_json(path: Path, payload: dict[str, str]) -> None:
+    _assert_summary_payload_consistent(payload)
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
