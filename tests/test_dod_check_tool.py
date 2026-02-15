@@ -311,6 +311,13 @@ def test_dod_check_load_state_returns_object(tmp_path: Path) -> None:
     assert state["status"] == "SUCCESS"
 
 
+def test_dod_check_load_state_raises_when_state_file_missing(tmp_path: Path) -> None:
+    module = _load_dod_check_module()
+    run_id = "20260215_000000_load_missing"
+    with pytest.raises(RuntimeError, match="state file not found"):
+        module._load_state(run_id, tmp_path)  # type: ignore[attr-defined]
+
+
 def test_dod_check_load_state_raises_on_invalid_json(tmp_path: Path) -> None:
     module = _load_dod_check_module()
     run_id = "20260215_000000_load_invalid_json"
