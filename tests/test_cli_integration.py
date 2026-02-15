@@ -256,6 +256,7 @@ def test_cli_run_dry_run_fail_fast_still_rejects_invalid_plan(tmp_path: Path) ->
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
+    assert "symbolic links" not in output.lower()
     assert "Dry Run" not in output
     assert "run_id:" not in output
     assert "state:" not in output
@@ -369,6 +370,7 @@ def test_cli_run_dry_run_no_fail_fast_still_rejects_invalid_plan(tmp_path: Path)
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
+    assert "symbolic links" not in output.lower()
     assert "Dry Run" not in output
     assert "run_id:" not in output
     assert "state:" not in output
@@ -520,6 +522,7 @@ def test_cli_run_dry_run_both_fail_fast_toggles_still_rejects_invalid_plan(tmp_p
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
+    assert "symbolic links" not in output.lower()
     assert "Dry Run" not in output
     assert "run_id:" not in output
     assert "state:" not in output
@@ -597,6 +600,7 @@ def test_cli_run_dry_run_both_fail_fast_toggles_reverse_order_rejects_invalid_pl
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
+    assert "symbolic links" not in output.lower()
     assert "Dry Run" not in output
     assert "run_id:" not in output
     assert "state:" not in output
@@ -3021,6 +3025,7 @@ def test_cli_run_dry_run_both_fail_fast_toggles_invalid_plan_precedes_invalid_wo
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
+    assert "symbolic links" not in output.lower()
     assert "Dry Run" not in output
     assert "run_id:" not in output
     assert "state:" not in output
@@ -4173,6 +4178,7 @@ def test_cli_run_dry_run_both_toggles_existing_home_preserves_entries_plan_error
                 assert "must not include symlink" not in output, context
                 assert "must not be symlink" not in output, context
 
+            assert "symbolic links" not in output.lower(), context
             assert "Invalid home" not in output, context
             assert "Invalid workdir" not in output, context
             assert "Dry Run" not in output, context
@@ -4573,6 +4579,7 @@ def test_cli_run_dry_run_both_toggles_default_existing_home_preserves_entries_pl
                 assert "must not include symlink" not in output, context
                 assert "must not be symlink" not in output, context
 
+            assert "symbolic links" not in output.lower(), context
             assert "Invalid home" not in output, context
             assert "Invalid workdir" not in output, context
             assert "Dry Run" not in output, context
@@ -6496,6 +6503,7 @@ def test_cli_run_dry_run_both_fail_fast_toggles_reverse_order_invalid_plan_prece
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
+    assert "symbolic links" not in output.lower()
     assert "Dry Run" not in output
     assert "run_id:" not in output
     assert "state:" not in output
@@ -8534,6 +8542,7 @@ def test_cli_run_invalid_plan_precedes_invalid_workdir(tmp_path: Path) -> None:
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
+    assert "symbolic links" not in output.lower()
     assert "Invalid workdir" not in output
     assert not (home / "runs").exists()
 
@@ -18851,6 +18860,7 @@ def test_cli_run_invalid_plan_returns_two_and_creates_no_run(tmp_path: Path) -> 
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
+    assert "symbolic links" not in output.lower()
     assert not (home / "runs").exists()
 
 
@@ -18878,6 +18888,7 @@ def test_cli_dry_run_invalid_plan_returns_two(tmp_path: Path) -> None:
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
+    assert "symbolic links" not in output.lower()
 
 
 def test_cli_dry_run_rejects_plan_with_unknown_root_field(tmp_path: Path) -> None:
@@ -18905,6 +18916,7 @@ def test_cli_dry_run_rejects_plan_with_unknown_root_field(tmp_path: Path) -> Non
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
+    assert "symbolic links" not in output.lower()
 
 
 def test_cli_dry_run_rejects_plan_with_unknown_task_field(tmp_path: Path) -> None:
@@ -18931,6 +18943,7 @@ def test_cli_dry_run_rejects_plan_with_unknown_task_field(tmp_path: Path) -> Non
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
+    assert "symbolic links" not in output.lower()
 
 
 def test_cli_dry_run_rejects_symlink_plan_path(tmp_path: Path) -> None:
@@ -19012,6 +19025,7 @@ def test_cli_dry_run_rejects_non_regular_plan_path(tmp_path: Path) -> None:
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
+    assert "symbolic links" not in output.lower()
 
 
 def test_cli_dry_run_rejects_plan_with_case_insensitive_duplicate_outputs(
@@ -19040,6 +19054,7 @@ def test_cli_dry_run_rejects_plan_with_case_insensitive_duplicate_outputs(
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
+    assert "symbolic links" not in output.lower()
 
 
 def test_cli_dry_run_rejects_plan_with_backoff_longer_than_retries(tmp_path: Path) -> None:
@@ -19067,6 +19082,7 @@ def test_cli_dry_run_rejects_plan_with_backoff_longer_than_retries(tmp_path: Pat
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
+    assert "symbolic links" not in output.lower()
 
 
 def test_cli_timeout_with_retry_records_attempts_and_fails(tmp_path: Path) -> None:
@@ -19232,6 +19248,7 @@ def test_cli_dry_run_cycle_plan_returns_two(tmp_path: Path) -> None:
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
+    assert "symbolic links" not in output.lower()
 
 
 def test_cli_resume_missing_run_returns_two(tmp_path: Path) -> None:
@@ -19282,6 +19299,7 @@ def test_cli_resume_invalid_plan_copy_returns_two(tmp_path: Path) -> None:
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
+    assert "symbolic links" not in output.lower()
 
 
 def test_cli_resume_rejects_symlink_plan_file(tmp_path: Path) -> None:

@@ -11710,6 +11710,10 @@ def test_cli_integration_plan_validation_errors_suppress_symlink_detail() -> Non
         assert 'assert "contains symlink component" not in output' in source_segment
         assert 'assert "must not include symlink" not in output' in source_segment
         assert 'assert "must not be symlink" not in output' in source_segment
+        assert (
+            'assert "symbolic links" not in output.lower()' in source_segment
+            or 'assert "symbolic links" not in output.lower(), context' in source_segment
+        )
         if "symlink" in node.name:
             assert 'assert "invalid plan path" in output' in source_segment
             assert 'assert "symbolic links" not in output.lower()' in source_segment
