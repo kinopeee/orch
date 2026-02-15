@@ -1773,6 +1773,7 @@ def test_cli_run_sanitizes_symbolically_linked_plan_error(
     assert "Plan validation error" in captured.out
     assert "invalid plan path" in captured.out
     assert "symbolically-linked" not in captured.out
+    assert "symbolic links" not in captured.out.lower()
     assert "contains symlink component" not in captured.out
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
@@ -4482,6 +4483,7 @@ def test_cli_resume_sanitizes_symbolically_linked_plan_error(
     assert "Plan validation error" in captured.out
     assert "invalid plan path" in captured.out
     assert "symbolically_linked" not in captured.out
+    assert "symbolic links" not in captured.out.lower()
     assert "contains symlink component" not in captured.out
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out

@@ -230,6 +230,7 @@ def test_cli_helpers_run_resume_plan_error_symbolic_variants_are_sanitized() -> 
         assert source_segment is not None
         assert 'assert "Plan validation error" in captured.out' in source_segment
         assert 'assert "invalid plan path" in captured.out' in source_segment
+        assert 'assert "symbolic links" not in captured.out.lower()' in source_segment
         assert 'assert "contains symlink component" not in captured.out' in source_segment
         assert 'assert "must not include symlink" not in captured.out' in source_segment
         assert 'assert "must not be symlink" not in captured.out' in source_segment
