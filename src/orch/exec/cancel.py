@@ -35,7 +35,7 @@ def cancel_requested(run_dir: Path) -> bool:
 def write_cancel_request(run_dir: Path) -> None:
     path = run_dir / "cancel.request"
     if has_symlink_ancestor(path):
-        raise OSError("cancel request path contains symlink component")
+        raise OSError("cancel request path must not include symlink")
     try:
         run_meta = run_dir.lstat()
     except FileNotFoundError as exc:

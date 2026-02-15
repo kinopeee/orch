@@ -1067,7 +1067,7 @@ def test_cancel_helpers_ignore_symlink_ancestor_paths(tmp_path: Path) -> None:
     clear_cancel_request(linked_run_dir)
     assert cancel_path.exists()
 
-    with pytest.raises(OSError, match="contains symlink component"):
+    with pytest.raises(OSError, match="must not include symlink"):
         write_cancel_request(linked_run_dir)
     assert cancel_path.read_text(encoding="utf-8") == "cancel requested\n"
 
@@ -1084,7 +1084,7 @@ def test_cancel_helpers_ignore_symlink_run_dir_paths(tmp_path: Path) -> None:
     clear_cancel_request(linked_run_dir)
     assert cancel_path.exists()
 
-    with pytest.raises(OSError, match="contains symlink component"):
+    with pytest.raises(OSError, match="must not include symlink"):
         write_cancel_request(linked_run_dir)
     assert cancel_path.read_text(encoding="utf-8") == "cancel requested\n"
 
@@ -1130,7 +1130,7 @@ def test_write_cancel_request_symlink_run_dir_skips_target_ops_and_open(
     monkeypatch.setattr(Path, "is_symlink", capture_is_symlink)
     monkeypatch.setattr(os, "open", capture_open)
 
-    with pytest.raises(OSError, match="contains symlink component"):
+    with pytest.raises(OSError, match="must not include symlink"):
         write_cancel_request(linked_run_dir)
     assert run_dir_lstat_calls == 1
     assert target_lstat_calls == 0
@@ -1326,7 +1326,7 @@ def test_write_cancel_request_rejects_symlink_ancestor_without_open_side_effect(
     monkeypatch.setattr(Path, "lstat", capture_lstat)
     monkeypatch.setattr(Path, "is_symlink", capture_is_symlink)
 
-    with pytest.raises(OSError, match="contains symlink component"):
+    with pytest.raises(OSError, match="must not include symlink"):
         write_cancel_request(linked_run_dir)
     assert open_called is False
     assert run_dir_lstat_calls == 1
@@ -1357,7 +1357,7 @@ def test_write_cancel_request_fails_closed_when_ancestor_lstat_oserror_without_o
     monkeypatch.setattr(os, "open", capture_open)
     monkeypatch.setattr(Path, "lstat", flaky_lstat)
 
-    with pytest.raises(OSError, match="contains symlink component"):
+    with pytest.raises(OSError, match="must not include symlink"):
         write_cancel_request(run_dir)
     assert open_called is False
     assert not (run_dir / "cancel.request").exists()
@@ -1385,7 +1385,7 @@ def test_write_cancel_request_fails_closed_ancestor_runtime_without_open_side_ef
     monkeypatch.setattr(os, "open", capture_open)
     monkeypatch.setattr(Path, "lstat", flaky_lstat)
 
-    with pytest.raises(OSError, match="contains symlink component"):
+    with pytest.raises(OSError, match="must not include symlink"):
         write_cancel_request(run_dir)
     assert open_called is False
     assert not (run_dir / "cancel.request").exists()

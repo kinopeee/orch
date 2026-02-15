@@ -591,7 +591,7 @@ def _validate_state_shape(raw: dict[str, object], run_dir: Path) -> None:
 def load_state(run_dir: Path) -> RunState:
     state_path = run_dir / "state.json"
     if has_symlink_ancestor(state_path):
-        raise StateError(f"state file path contains symlink component: {state_path}")
+        raise StateError(f"state file path must not include symlink: {state_path}")
     try:
         meta = state_path.lstat()
     except FileNotFoundError:
@@ -644,7 +644,7 @@ def save_state_atomic(run_dir: Path, state: RunState) -> None:
     state_path = run_dir / "state.json"
     tmp_path = run_dir / "state.json.tmp"
     if has_symlink_ancestor(state_path) or has_symlink_ancestor(tmp_path):
-        raise OSError(f"state file path contains symlink component: {state_path}")
+        raise OSError(f"state file path must not include symlink: {state_path}")
     if is_symlink_path(state_path):
         raise OSError(f"state file path must not be symlink: {state_path}")
     try:

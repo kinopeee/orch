@@ -665,7 +665,7 @@ def test_run_lock_rejects_path_with_symlink_ancestor(tmp_path: Path) -> None:
     link_parent.symlink_to(real_parent, target_is_directory=True)
 
     run_dir = link_parent / "run"
-    with pytest.raises(OSError, match="path contains symlink component"), run_lock(run_dir):
+    with pytest.raises(OSError, match="must not include symlink"), run_lock(run_dir):
         pass
     assert not (real_run_dir / ".lock").exists()
 
@@ -690,7 +690,7 @@ def test_run_lock_rejects_path_with_symlink_ancestor_without_open_side_effect(
 
     monkeypatch.setattr(os, "open", capture_open)
 
-    with pytest.raises(OSError, match="path contains symlink component"), run_lock(run_dir):
+    with pytest.raises(OSError, match="must not include symlink"), run_lock(run_dir):
         pass
     assert open_called is False
     assert not (real_run_dir / ".lock").exists()
@@ -730,7 +730,7 @@ def test_run_lock_rejects_symlink_ancestor_without_run_dir_symlink_check(
     monkeypatch.setattr(Path, "is_symlink", capture_is_symlink)
     monkeypatch.setattr(Path, "lstat", capture_lstat)
 
-    with pytest.raises(OSError, match="path contains symlink component"), run_lock(run_dir):
+    with pytest.raises(OSError, match="must not include symlink"), run_lock(run_dir):
         pass
     assert run_dir_symlink_checks == 0
     assert lock_path_symlink_checks == 0
@@ -760,7 +760,7 @@ def test_run_lock_fails_closed_when_ancestor_lstat_oserror_without_open_side_eff
     monkeypatch.setattr(os, "open", capture_open)
     monkeypatch.setattr(Path, "lstat", flaky_lstat)
 
-    with pytest.raises(OSError, match="path contains symlink component"), run_lock(run_dir):
+    with pytest.raises(OSError, match="must not include symlink"), run_lock(run_dir):
         pass
     assert open_called is False
     assert not (run_dir / ".lock").exists()
@@ -788,7 +788,7 @@ def test_run_lock_fails_closed_when_ancestor_lstat_runtime_error_without_open_si
     monkeypatch.setattr(os, "open", capture_open)
     monkeypatch.setattr(Path, "lstat", flaky_lstat)
 
-    with pytest.raises(OSError, match="path contains symlink component"), run_lock(run_dir):
+    with pytest.raises(OSError, match="must not include symlink"), run_lock(run_dir):
         pass
     assert open_called is False
     assert not (run_dir / ".lock").exists()

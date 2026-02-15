@@ -269,7 +269,7 @@ def test_save_state_atomic_rejects_state_path_with_symlink_ancestor(tmp_path: Pa
     run_dir = linked_parent / "run_linked"
     state = RunState.from_dict(_minimal_state_payload(run_id=run_dir.name))
 
-    with pytest.raises(OSError, match="contains symlink component"):
+    with pytest.raises(OSError, match="must not include symlink"):
         save_state_atomic(run_dir, state)
     assert not (run_real / "state.json").exists()
     assert not (run_real / "state.json.tmp").exists()
@@ -866,7 +866,7 @@ def test_load_state_rejects_state_path_with_symlink_ancestor(tmp_path: Path) -> 
     payload = _minimal_state_payload(run_id=symlink_run_dir.name)
     (real_run_dir / "state.json").write_text(json.dumps(payload), encoding="utf-8")
 
-    with pytest.raises(StateError, match="contains symlink component"):
+    with pytest.raises(StateError, match="must not include symlink"):
         load_state(symlink_run_dir)
 
 
@@ -888,7 +888,7 @@ def test_load_state_rejects_when_ancestor_stat_errors(
 
     monkeypatch.setattr(Path, "lstat", flaky_lstat)
 
-    with pytest.raises(StateError, match="contains symlink component"):
+    with pytest.raises(StateError, match="must not include symlink"):
         load_state(run_dir)
 
 

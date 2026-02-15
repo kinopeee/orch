@@ -13,7 +13,7 @@ def run_dir(home: Path, run_id: str) -> Path:
 
 def _ensure_directory(path: Path, *, parents: bool = False) -> None:
     if has_symlink_ancestor(path):
-        raise OSError(f"path contains symlink component: {path}")
+        raise OSError(f"path must not include symlink: {path}")
     if is_symlink_path(path):
         raise OSError(f"path must not be symlink: {path}")
     try:

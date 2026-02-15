@@ -77,7 +77,7 @@ def _write_plan_snapshot(plan: PlanSpec, destination: Path) -> None:
         plan_data["artifacts_dir"] = plan.artifacts_dir
     payload = yaml.safe_dump(plan_data, sort_keys=False, allow_unicode=True)
     if has_symlink_ancestor(destination):
-        raise OSError(f"plan snapshot path contains symlink component: {destination}")
+        raise OSError(f"plan snapshot path must not include symlink: {destination}")
     if is_symlink_path(destination.parent) or is_symlink_path(destination):
         raise OSError(f"plan snapshot path must not be symlink: {destination}")
     try:
@@ -121,7 +121,7 @@ def _write_report(state: RunState, current_run_dir: Path) -> Path:
     md = render_markdown(summary)
     report_path = current_run_dir / "report" / "final_report.md"
     if has_symlink_ancestor(report_path):
-        raise OSError(f"report path contains symlink component: {report_path}")
+        raise OSError(f"report path must not include symlink: {report_path}")
     if is_symlink_path(report_path.parent) or is_symlink_path(report_path):
         raise OSError(f"report path must not be symlink: {report_path}")
     try:

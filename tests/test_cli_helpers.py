@@ -96,7 +96,7 @@ def test_write_plan_snapshot_rejects_symlink_ancestor_destination(tmp_path: Path
     symlink_parent = tmp_path / "link_parent"
     symlink_parent.symlink_to(real_parent, target_is_directory=True)
 
-    with pytest.raises(OSError, match="contains symlink component"):
+    with pytest.raises(OSError, match="must not include symlink"):
         _write_plan_snapshot(plan, symlink_parent / "plan.yaml")
 
 
@@ -206,7 +206,7 @@ def test_write_report_rejects_symlink_ancestor_path(tmp_path: Path) -> None:
         tasks={},
     )
 
-    with pytest.raises(OSError, match="contains symlink component"):
+    with pytest.raises(OSError, match="must not include symlink"):
         _write_report(state, symlink_parent / "run")
     assert not (real_run_dir / "report" / "final_report.md").exists()
 

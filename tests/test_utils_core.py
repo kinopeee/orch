@@ -39,6 +39,16 @@ def _collect_direct_attribute_calls(
     return violations
 
 
+def test_source_does_not_emit_symlink_component_detail_literal() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    offending_files: list[str] = []
+    for file_path in src_root.rglob("*.py"):
+        source = file_path.read_text(encoding="utf-8")
+        if "contains symlink component" in source:
+            offending_files.append(str(file_path.relative_to(src_root)))
+    assert offending_files == []
+
+
 def test_new_run_id_format_includes_timestamp_and_suffix() -> None:
     now = datetime(2026, 2, 13, 12, 34, 56, tzinfo=UTC)
     run_id = new_run_id(now)
@@ -98,7 +108,7 @@ def test_ensure_run_layout_rejects_symlink_ancestor(tmp_path: Path) -> None:
     linked_home.symlink_to(real_home, target_is_directory=True)
     path = run_dir(linked_home, "run_1")
 
-    with pytest.raises(OSError, match="contains symlink component"):
+    with pytest.raises(OSError, match="must not include symlink"):
         ensure_run_layout(path)
     assert not (real_home / "runs").exists()
 

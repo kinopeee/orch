@@ -17,7 +17,7 @@ def run_lock(
     run_dir: Path, stale_sec: int = 3600, *, retries: int = 0, retry_interval: float = 0.2
 ) -> Iterator[None]:
     if has_symlink_ancestor(run_dir):
-        raise OSError(f"run directory path contains symlink component: {run_dir}")
+        raise OSError(f"run directory path must not include symlink: {run_dir}")
     if is_symlink_path(run_dir):
         raise OSError(f"run directory must not be symlink: {run_dir}")
     try:
