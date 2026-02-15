@@ -215,6 +215,22 @@ def test_tools_dod_check_enforces_command_timeouts() -> None:
         assert fragment in source
 
 
+def test_tools_dod_check_run_validates_command_args_before_subprocess() -> None:
+    source = (Path(__file__).resolve().parents[1] / "tools" / "dod_check.py").read_text(
+        encoding="utf-8"
+    )
+    marker = "def _run("
+    start = source.index(marker)
+    end = source.index("\n\ndef _detect_orch_prefix()", start)
+    function_source = source[start:end]
+    assert "if not args:" in function_source
+    assert "command args must not be empty" in function_source
+    assert "command arg must be string at index" in function_source
+    assert function_source.index("if not args:") < function_source.index(
+        "completed = subprocess.run("
+    )
+
+
 def test_tools_dod_check_asserts_resume_success_tasks_unchanged() -> None:
     source = (Path(__file__).resolve().parents[1] / "tools" / "dod_check.py").read_text(
         encoding="utf-8"

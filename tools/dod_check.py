@@ -43,11 +43,20 @@ def _run(
     title: str,
     timeout_sec: float = 180.0,
 ) -> CommandResult:
+    if not args:
+        raise RuntimeError("command args must not be empty")
+
+    normalized_args = list(args)
+    for index, arg in enumerate(normalized_args):
+        if not isinstance(arg, str):
+            raise RuntimeError(f"command arg must be string at index {index}: {type(arg).__name__}")
+    command_text = " ".join(normalized_args)
+
     _print_header(title)
-    print("+", " ".join(args))
+    print("+", command_text)
     try:
         completed = subprocess.run(
-            list(args),
+            normalized_args,
             cwd=ROOT,
             capture_output=True,
             text=True,
@@ -55,9 +64,9 @@ def _run(
             timeout=timeout_sec,
         )
     except subprocess.TimeoutExpired as exc:
-        raise RuntimeError(f"command timed out after {timeout_sec}s: {' '.join(args)}") from exc
+        raise RuntimeError(f"command timed out after {timeout_sec}s: {command_text}") from exc
     except OSError as exc:
-        raise RuntimeError(f"failed to execute command: {' '.join(args)}") from exc
+        raise RuntimeError(f"failed to execute command: {command_text}") from exc
     print(f"exit: {completed.returncode}")
     if completed.stdout.strip():
         print("stdout:")
@@ -68,7 +77,7 @@ def _run(
     if expected is not None and completed.returncode != expected:
         raise RuntimeError(f"unexpected exit code: got={completed.returncode}, want={expected}")
     return CommandResult(
-        args=list(args),
+        args=normalized_args,
         returncode=completed.returncode,
         stdout=completed.stdout,
         stderr=completed.stderr,

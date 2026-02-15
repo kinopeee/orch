@@ -223,6 +223,18 @@ def test_dod_check_run_raises_runtime_error_on_timeout(
         module._run(["orch", "run"], title="timeout test", timeout_sec=1)  # type: ignore[attr-defined]
 
 
+def test_dod_check_run_rejects_empty_args() -> None:
+    module = _load_dod_check_module()
+    with pytest.raises(RuntimeError, match="command args must not be empty"):
+        module._run([], title="empty args")  # type: ignore[attr-defined]
+
+
+def test_dod_check_run_rejects_non_string_arg() -> None:
+    module = _load_dod_check_module()
+    with pytest.raises(RuntimeError, match="command arg must be string at index 1: int"):
+        module._run(["orch", 1], title="non-string arg")  # type: ignore[list-item, attr-defined]
+
+
 def test_dod_check_run_raises_runtime_error_on_oserror(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
