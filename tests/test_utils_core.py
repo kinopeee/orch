@@ -204,10 +204,17 @@ def test_ci_workflow_validates_dod_runtime_summary_json() -> None:
         Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml"
     ).read_text(encoding="utf-8")
     assert "name: Validate DoD runtime summary JSON" in ci_workflow
+    assert "import re" in ci_workflow
     assert 'summary_path = Path("/tmp/orch_ci_dod_summary.json")' in ci_workflow
     assert "required_keys = {" in ci_workflow
     assert 'if data["result"] != "PASS":' in ci_workflow
     assert 'if data["home"] != "/tmp/orch_ci_dod":' in ci_workflow
+    assert 'run_id_pattern = re.compile(r"^\\d{8}_\\d{6}_[0-9a-f]{6}$")' in ci_workflow
+    assert (
+        'run_id_keys = ("basic_run_id", "parallel_run_id", "fail_run_id", "cancel_run_id")'
+        in ci_workflow
+    )
+    assert "if len(set(run_ids)) != len(run_ids):" in ci_workflow
 
 
 def test_ci_workflow_keeps_release_0_1_quality_gates() -> None:
