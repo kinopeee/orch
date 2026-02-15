@@ -207,6 +207,7 @@ def test_ci_workflow_validates_dod_runtime_summary_json() -> None:
     assert 'summary_path = Path("/tmp/orch_ci_dod_summary.json")' in ci_workflow
     assert "required_keys = {" in ci_workflow
     assert 'if data["result"] != "PASS":' in ci_workflow
+    assert 'if data["home"] != "/tmp/orch_ci_dod":' in ci_workflow
 
 
 def test_ci_workflow_keeps_release_0_1_quality_gates() -> None:
