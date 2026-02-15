@@ -980,6 +980,7 @@ tasks:
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
     assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
 
 
 def test_cli_run_normalizes_runtime_execution_error(
@@ -1052,6 +1053,7 @@ tasks:
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
     assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
 
 
 def test_cli_run_sanitizes_symbolic_links_execution_error(
@@ -1089,6 +1091,7 @@ tasks:
     assert "Run execution failed" in captured.out
     assert "invalid run path" in captured.out
     assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
 
@@ -1784,6 +1787,7 @@ def test_cli_run_sanitizes_symbolically_linked_plan_error(
     assert "invalid plan path" in captured.out
     assert "symbolically-linked" not in captured.out
     assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
     assert "contains symlink component" not in captured.out
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
@@ -2357,6 +2361,7 @@ def test_cli_resume_sanitizes_symlink_runtime_lock_error(
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
     assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
 
 
 def test_cli_resume_sanitizes_symbolic_links_runtime_lock_error(
@@ -2388,6 +2393,7 @@ def test_cli_resume_sanitizes_symbolic_links_runtime_lock_error(
     assert "Run not found or broken" in captured.out
     assert "invalid run path" in captured.out
     assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
 
@@ -2438,6 +2444,7 @@ def test_cli_status_sanitizes_symlink_runtime_load_error(
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
     assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
 
 
 def test_cli_status_sanitizes_symbolic_links_runtime_load_error(
@@ -2463,6 +2470,7 @@ def test_cli_status_sanitizes_symbolic_links_runtime_load_error(
     assert "Failed to load state" in captured.out
     assert "invalid run path" in captured.out
     assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
 
@@ -2513,6 +2521,7 @@ def test_cli_logs_sanitizes_symlink_runtime_load_error(
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
     assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
 
 
 def test_cli_logs_sanitizes_symbolic_links_runtime_load_error(
@@ -2538,6 +2547,7 @@ def test_cli_logs_sanitizes_symbolic_links_runtime_load_error(
     assert "Failed to load state" in captured.out
     assert "invalid run path" in captured.out
     assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
 
@@ -3226,6 +3236,7 @@ def test_cli_cancel_sanitizes_symlink_runtime_run_exists_error_without_write(
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
     assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
 
 
 def test_cli_cancel_normalizes_oserror_run_exists_error_without_write(
@@ -3274,6 +3285,7 @@ def test_cli_cancel_sanitizes_symlink_write_error(
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
     assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
 
 
 def test_cli_cancel_sanitizes_symbolic_links_write_error(
@@ -3296,6 +3308,7 @@ def test_cli_cancel_sanitizes_symbolic_links_write_error(
     assert "Failed to request cancel" in captured.out
     assert "invalid run path" in captured.out
     assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
 
@@ -4494,6 +4507,7 @@ def test_cli_resume_sanitizes_symbolically_linked_plan_error(
     assert "invalid plan path" in captured.out
     assert "symbolically_linked" not in captured.out
     assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
     assert "contains symlink component" not in captured.out
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
@@ -5047,6 +5061,7 @@ tasks:
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
     assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
 
 
 def test_cli_run_sanitizes_symbolic_links_report_write_warning(
@@ -5100,6 +5115,7 @@ tasks:
     assert "failed to write report" in captured.out
     assert "invalid run path" in captured.out
     assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
 
@@ -5216,5 +5232,6 @@ def test_cli_resume_sanitizes_symbolic_links_report_write_warning(
     assert "failed to write report" in captured.out
     assert "invalid run path" in captured.out
     assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out

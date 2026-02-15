@@ -337,6 +337,7 @@ def test_cli_helpers_sanitizer_output_tests_require_symbolic_links_suppression()
             continue
 
         assert 'assert "symbolic links" not in captured.out.lower()' in source_segment
+        assert 'assert "symbolic link" not in captured.out.lower()' in source_segment
         assert 'assert "must not include symlink" not in captured.out' in source_segment
         assert 'assert "must not be symlink" not in captured.out' in source_segment
         examined.add(node.name)
@@ -360,6 +361,7 @@ def test_cli_helpers_invalid_plan_path_output_requires_full_suppression() -> Non
             continue
 
         assert 'assert "symbolic links" not in captured.out.lower()' in source_segment
+        assert 'assert "symbolic link" not in captured.out.lower()' in source_segment
         assert 'assert "contains symlink component" not in captured.out' in source_segment
         assert 'assert "must not include symlink" not in captured.out' in source_segment
         assert 'assert "must not be symlink" not in captured.out' in source_segment
