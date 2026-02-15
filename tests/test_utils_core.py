@@ -263,6 +263,8 @@ def test_cli_helpers_mentions_symlink_detection_matrix_exists() -> None:
             '"path has symbolic-linker issue",',
             '"path has symbolic_linkless issue",',
             '"path has symbolic-linkedlist issue",',
+            '"path has symbolic-linkingly issue",',
+            '"path has symbolic-linkers issue",',
             '"path has symbolically_linkedness issue",',
             '"this error is about permissions only",',
             "assert _mentions_symlink(detail) is False",
@@ -725,6 +727,9 @@ def test_cli_helpers_run_resume_non_symlink_symbolic_details_are_preserved() -> 
         "test_cli_resume_keeps_symbolic_linkless_plan_error_detail": "symbolic_linkless issue",
         "test_cli_resume_keeps_symbolic_linker_conflict_error_detail": "symbolic-linker issue",
         "test_cli_resume_keeps_symbolic_linkless_conflict_error_detail": "symbolic_linkless issue",
+        "test_cli_resume_keeps_symbolically_linkedness_conflict_error_detail": (
+            "symbolically_linkedness issue"
+        ),
         "test_cli_status_keeps_symbolic_linkless_runtime_load_error_detail": (
             "symbolic_linkless issue"
         ),
@@ -738,8 +743,12 @@ def test_cli_helpers_run_resume_non_symlink_symbolic_details_are_preserved() -> 
         "test_cli_logs_keeps_symbolic_linkless_runtime_load_error_detail": (
             "symbolic_linkless issue"
         ),
+        "test_cli_logs_keeps_symbolic_linkingly_runtime_load_error_detail": (
+            "symbolic-linkingly issue"
+        ),
         "test_cli_cancel_keeps_symbolic_linkless_write_error_detail": ("symbolic_linkless issue"),
         "test_cli_cancel_keeps_symbolic_linker_write_error_detail": ("symbolic-linker issue"),
+        "test_cli_cancel_keeps_symbolic_linkers_write_error_detail": ("symbolic-linkers issue"),
     }
 
     matched: set[str] = set()
