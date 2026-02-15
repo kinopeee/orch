@@ -51,6 +51,13 @@ def _state_to_jsonable(state: RunState) -> dict[str, Any]:
     return state.to_dict()
 
 
+def _render_plan_error(exc: PlanError) -> str:
+    detail = str(exc)
+    if "symlink" in detail.lower():
+        return "invalid plan path"
+    return detail
+
+
 def _task_to_plan_dict(task: TaskSpec) -> dict[str, object]:
     task_data: dict[str, object] = {
         "id": task.id,
@@ -241,7 +248,7 @@ def run(
         dependents, in_degree = build_adjacency(plan)
         order = assert_acyclic([task.id for task in plan.tasks], dependents, in_degree)
     except PlanError as exc:
-        console.print(f"[red]Plan validation error:[/red] {exc}")
+        console.print(f"[red]Plan validation error:[/red] {_render_plan_error(exc)}")
         raise typer.Exit(2) from exc
 
     if dry_run:
@@ -322,7 +329,7 @@ def resume(
         console.print(f"[red]Run not found or broken:[/red] {exc}")
         raise typer.Exit(2) from exc
     except PlanError as exc:
-        console.print(f"[red]Plan validation error:[/red] {exc}")
+        console.print(f"[red]Plan validation error:[/red] {_render_plan_error(exc)}")
         raise typer.Exit(2) from exc
     except RunConflictError as exc:
         console.print(f"[red]{exc}[/red]")

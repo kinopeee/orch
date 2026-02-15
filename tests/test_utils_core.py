@@ -11437,6 +11437,17 @@ def test_cli_integration_plan_validation_errors_suppress_symlink_detail() -> Non
         "test_cli_run_dry_run_both_toggles_rejects_plan_path_with_symlink_ancestor",
         "test_cli_run_dry_run_both_toggles_reverse_rejects_plan_path_with_symlink_ancestor",
         "test_cli_run_dry_run_both_toggles_symlinked_plan_precedes_invalid_workdir",
+        "test_cli_run_dry_run_both_fail_fast_toggles_invalid_plan_precedes_invalid_workdir",
+        "test_cli_run_dry_run_both_toggles_invalid_plan_precedes_invalid_workdir_matrix",
+        "test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_existing_home_matrix",
+        "test_cli_run_dry_run_both_toggles_reject_invalid_plan_existing_home_matrix",
+        "test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_default_home_matrix",
+        "test_cli_run_dry_run_both_toggles_invalid_plan_precedes_workdir_default_existing_home_matrix",
+        "test_cli_run_dry_run_both_toggles_reject_invalid_plan_default_home_matrix",
+        "test_cli_run_dry_run_both_toggles_reject_invalid_plan_default_existing_home_matrix",
+        "test_cli_run_dry_run_both_toggles_existing_home_preserves_entries_plan_error_matrix",
+        "test_cli_run_dry_run_both_toggles_default_existing_home_preserves_entries_plan_error_matrix",
+        "test_cli_run_dry_run_both_fail_fast_toggles_reverse_order_invalid_plan_precedes_invalid_workdir",
         "test_cli_run_invalid_plan_precedes_invalid_workdir",
         "test_cli_run_invalid_plan_returns_two_and_creates_no_run",
         "test_cli_dry_run_invalid_plan_returns_two",
@@ -11463,6 +11474,8 @@ def test_cli_integration_plan_validation_errors_suppress_symlink_detail() -> Non
         assert source_segment is not None
         assert 'assert "Plan validation error" in output' in source_segment
         assert 'assert "contains symlink component" not in output' in source_segment
+        assert 'assert "must not include symlink" not in output' in source_segment
+        assert 'assert "must not be symlink" not in output' in source_segment
         matched.add(node.name)
 
     assert matched == expected_names
@@ -11500,6 +11513,19 @@ def test_cli_integration_path_validation_output_markers_require_symlink_suppress
             'assert "contains symlink component" not in output' in source_segment
             or 'assert "contains symlink component" not in proc.stdout' in source_segment
         )
+
+        if (
+            'assert "Plan validation error" in output' in source_segment
+            or 'assert "Plan validation error" in proc.stdout' in source_segment
+        ):
+            assert (
+                'assert "must not include symlink" not in output' in source_segment
+                or 'assert "must not include symlink" not in proc.stdout' in source_segment
+            )
+            assert (
+                'assert "must not be symlink" not in output' in source_segment
+                or 'assert "must not be symlink" not in proc.stdout' in source_segment
+            )
         examined.add(node.name)
 
     assert examined

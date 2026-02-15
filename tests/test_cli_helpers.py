@@ -9,6 +9,7 @@ import typer
 
 import orch.cli as cli_module
 from orch.cli import (
+    _render_plan_error,
     _resolve_workdir_or_exit,
     _validate_home_or_exit,
     _write_plan_snapshot,
@@ -51,6 +52,16 @@ def test_write_plan_snapshot_roundtrips_to_valid_plan(tmp_path: Path) -> None:
     _write_plan_snapshot(plan, snapshot_path)
     loaded = load_plan(snapshot_path)
     assert loaded == plan
+
+
+def test_render_plan_error_sanitizes_symlink_detail() -> None:
+    err = PlanError("plan file path must not include symlink: /tmp/plan.yaml")
+    assert _render_plan_error(err) == "invalid plan path"
+
+
+def test_render_plan_error_keeps_non_symlink_detail() -> None:
+    err = PlanError("plan contains unknown fields: ['extra']")
+    assert _render_plan_error(err) == "plan contains unknown fields: ['extra']"
 
 
 def test_write_plan_snapshot_rejects_symlink_destination(tmp_path: Path) -> None:
