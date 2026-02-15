@@ -96,6 +96,25 @@ def test_tools_dod_check_supports_skip_quality_gates_option() -> None:
     assert "--home" in source
 
 
+def test_tools_dod_check_enforces_command_timeouts() -> None:
+    source = (Path(__file__).resolve().parents[1] / "tools" / "dod_check.py").read_text(
+        encoding="utf-8"
+    )
+    required_fragments = (
+        "timeout_sec: float = 180.0",
+        "timeout=timeout_sec",
+        "command timed out after",
+        "cancel scenario run did not stop within timeout",
+        'title="status command",\n        timeout_sec=60.0,',
+        'title="logs command",\n        timeout_sec=60.0,',
+        'title="ruff format check",\n            timeout_sec=120.0,',
+        'title="ruff lint check",\n            timeout_sec=120.0,',
+        'title="pytest",\n            timeout_sec=900.0,',
+    )
+    for fragment in required_fragments:
+        assert fragment in source
+
+
 def test_tools_dod_check_passes_home_to_all_orch_commands() -> None:
     source = (Path(__file__).resolve().parents[1] / "tools" / "dod_check.py").read_text(
         encoding="utf-8"
