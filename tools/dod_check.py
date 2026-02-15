@@ -1,0 +1,245 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+import re
+import subprocess
+import sys
+import time
+from collections.abc import Sequence
+from dataclasses import dataclass
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+RUNS_DIR = ROOT / ".orch" / "runs"
+
+
+@dataclass
+class CommandResult:
+    args: list[str]
+    returncode: int
+    stdout: str
+    stderr: str
+
+
+def _print_header(title: str) -> None:
+    print(f"\n=== {title} ===")
+
+
+def _run(args: Sequence[str], *, expected: int | None = None, title: str) -> CommandResult:
+    _print_header(title)
+    print("+", " ".join(args))
+    completed = subprocess.run(
+        list(args),
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    print(f"exit: {completed.returncode}")
+    if completed.stdout.strip():
+        print("stdout:")
+        print(completed.stdout.rstrip())
+    if completed.stderr.strip():
+        print("stderr:")
+        print(completed.stderr.rstrip())
+    if expected is not None and completed.returncode != expected:
+        raise RuntimeError(f"unexpected exit code: got={completed.returncode}, want={expected}")
+    return CommandResult(
+        args=list(args),
+        returncode=completed.returncode,
+        stdout=completed.stdout,
+        stderr=completed.stderr,
+    )
+
+
+def _detect_orch_prefix() -> list[str]:
+    try:
+        probe = subprocess.run(
+            ["orch", "--help"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        probe = None
+
+    if probe is not None and probe.returncode == 0:
+        return ["orch"]
+    return [sys.executable, "-m", "orch.cli"]
+
+
+def _parse_run_id(output: str) -> str:
+    match = re.search(r"run_id:\s*([A-Za-z0-9_-]+)", output)
+    if match is None:
+        raise RuntimeError("run_id not found in command output")
+    return match.group(1)
+
+
+def _load_state(run_id: str) -> dict[str, object]:
+    state_path = RUNS_DIR / run_id / "state.json"
+    if not state_path.exists():
+        raise RuntimeError(f"state file not found: {state_path}")
+    return json.loads(state_path.read_text(encoding="utf-8"))
+
+
+def _assert(condition: bool, message: str) -> None:
+    if not condition:
+        raise RuntimeError(message)
+
+
+def _run_cancel_scenario(orch_prefix: list[str]) -> str:
+    RUNS_DIR.mkdir(parents=True, exist_ok=True)
+    existing = {p.name for p in RUNS_DIR.iterdir() if p.is_dir()}
+    proc = subprocess.Popen(
+        [*orch_prefix, "run", "examples/plan_cancel.yaml"],
+        cwd=ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+    detected_run_id: str | None = None
+    deadline = time.time() + 20
+    while time.time() < deadline and detected_run_id is None:
+        for path in RUNS_DIR.iterdir():
+            if not path.is_dir() or path.name in existing:
+                continue
+            state_path = path / "state.json"
+            if not state_path.exists():
+                continue
+            try:
+                state = json.loads(state_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                continue
+            if state.get("status") == "RUNNING":
+                detected_run_id = path.name
+                break
+        time.sleep(0.05)
+
+    if detected_run_id is None:
+        proc.terminate()
+        proc.communicate(timeout=10)
+        raise RuntimeError("could not detect running cancel scenario run_id")
+
+    cancel = _run(
+        [*orch_prefix, "cancel", detected_run_id],
+        expected=0,
+        title="cancel running run",
+    )
+    run_stdout, run_stderr = proc.communicate(timeout=30)
+    print("run(exit):", proc.returncode)
+    if run_stdout.strip():
+        print("run(stdout):")
+        print(run_stdout.rstrip())
+    if run_stderr.strip():
+        print("run(stderr):")
+        print(run_stderr.rstrip())
+
+    _assert(proc.returncode == 4, "cancel scenario run must exit with code 4")
+    state = _load_state(detected_run_id)
+    _assert(state.get("status") == "CANCELED", "cancel scenario state must be CANCELED")
+    _assert(
+        "cancel requested" in cancel.stdout.lower(),
+        "cancel command must print cancel requested message",
+    )
+    return detected_run_id
+
+
+def main() -> int:
+    orch_prefix = _detect_orch_prefix()
+    print("orch command:", " ".join(orch_prefix))
+
+    basic = _run(
+        [*orch_prefix, "run", "examples/plan_basic.yaml"],
+        expected=0,
+        title="run basic plan",
+    )
+    basic_run_id = _parse_run_id(basic.stdout)
+
+    parallel = _run(
+        [*orch_prefix, "run", "examples/plan_parallel.yaml", "--max-parallel", "2"],
+        expected=0,
+        title="run parallel plan",
+    )
+    parallel_run_id = _parse_run_id(parallel.stdout)
+    parallel_state = _load_state(parallel_run_id)
+    tasks = parallel_state.get("tasks", {})
+    inspect_a = tasks["inspect_a"]["started_at"]  # type: ignore[index]
+    inspect_b = tasks["inspect_b"]["started_at"]  # type: ignore[index]
+    _assert(inspect_a == inspect_b, "parallel evidence check failed")
+
+    fail = _run(
+        [*orch_prefix, "run", "examples/plan_fail_retry.yaml"],
+        expected=3,
+        title="run failure plan for skip propagation",
+    )
+    fail_run_id = _parse_run_id(fail.stdout)
+    fail_state = _load_state(fail_run_id)
+    fail_tasks = fail_state["tasks"]  # type: ignore[index]
+    downstream = fail_tasks["downstream"]  # type: ignore[index]
+    _assert(downstream["status"] == "SKIPPED", "downstream must be SKIPPED")
+    _assert(
+        downstream["skip_reason"] == "dependency_not_success",
+        "downstream skip_reason must be dependency_not_success",
+    )
+
+    resume = _run(
+        [*orch_prefix, "resume", basic_run_id],
+        expected=0,
+        title="resume completed run",
+    )
+    _ = resume
+    resumed_state = _load_state(basic_run_id)
+    for task_id, task_state in resumed_state["tasks"].items():  # type: ignore[index]
+        attempts = task_state["attempts"]  # type: ignore[index]
+        _assert(attempts == 1, f"resume reran successful task: {task_id}")
+
+    _run(
+        [*orch_prefix, "status", basic_run_id],
+        expected=0,
+        title="status command",
+    )
+    _run(
+        [*orch_prefix, "logs", basic_run_id, "--task", "inspect", "--tail", "5"],
+        expected=0,
+        title="logs command",
+    )
+
+    report_path = RUNS_DIR / basic_run_id / "report" / "final_report.md"
+    _assert(report_path.exists(), "final report file was not generated")
+
+    cancel_run_id = _run_cancel_scenario(orch_prefix)
+
+    _run(
+        [sys.executable, "-m", "ruff", "format", "--check", "."],
+        expected=0,
+        title="ruff format check",
+    )
+    _run(
+        [sys.executable, "-m", "ruff", "check", "."],
+        expected=0,
+        title="ruff lint check",
+    )
+    _run(
+        [sys.executable, "-m", "pytest"],
+        expected=0,
+        title="pytest",
+    )
+
+    _print_header("DoD check summary")
+    print(f"basic_run_id={basic_run_id}")
+    print(f"parallel_run_id={parallel_run_id}")
+    print(f"fail_run_id={fail_run_id}")
+    print(f"cancel_run_id={cancel_run_id}")
+    print("result=PASS")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except Exception as exc:  # noqa: BLE001
+        print(f"DoD check failed: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc

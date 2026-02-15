@@ -97,6 +97,12 @@ ruff check .
 pytest
 ```
 
+ワンコマンドで確認する場合は次を実行してください。
+
+```bash
+python tools/dod_check.py
+```
+
 - `plan_fail_retry.yaml` は失敗系確認用です（終了コード `3` が期待値）。
 - `resume` は SUCCESS 済みタスクを再実行しません。
 - `cancel` は実行中 run に対して実施してください（run 側終了コード `4`）。
