@@ -58,6 +58,12 @@ def test_dod_check_parse_args_resolves_relative_home() -> None:
     assert parsed.home == (module.ROOT / "tmp/dod-home").resolve()  # type: ignore[attr-defined]
 
 
+def test_dod_check_parse_args_keeps_absolute_home() -> None:
+    module = _load_dod_check_module()
+    parsed = module._parse_args(["--home", "/tmp/dod-home-absolute"])  # type: ignore[attr-defined]
+    assert parsed.home == Path("/tmp/dod-home-absolute")
+
+
 def test_dod_check_has_parallel_overlap_true_for_successful_root_tasks() -> None:
     module = _load_dod_check_module()
     state = {
