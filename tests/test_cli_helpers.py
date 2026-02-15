@@ -90,6 +90,11 @@ def test_render_plan_error_sanitizes_symbolically_linked_detail() -> None:
     assert _render_plan_error(err) == "invalid plan path"
 
 
+def test_render_plan_error_sanitizes_symbolically_linked_hyphenated_detail() -> None:
+    err = PlanError("plan path is symbolically-linked to another location")
+    assert _render_plan_error(err) == "invalid plan path"
+
+
 def test_render_plan_error_sanitizes_symlinked_detail() -> None:
     err = PlanError("plan path is symlinked to another location")
     assert _render_plan_error(err) == "invalid plan path"
@@ -122,6 +127,11 @@ def test_render_runtime_error_detail_sanitizes_symbolic_links_plural_detail() ->
 
 def test_render_runtime_error_detail_sanitizes_symbolically_linked_detail() -> None:
     err = OSError("run path is symbolically linked to another location")
+    assert _render_runtime_error_detail(err) == "invalid run path"
+
+
+def test_render_runtime_error_detail_sanitizes_symbolically_linked_underscored_detail() -> None:
+    err = OSError("run path is symbolically_linked to another location")
     assert _render_runtime_error_detail(err) == "invalid run path"
 
 
