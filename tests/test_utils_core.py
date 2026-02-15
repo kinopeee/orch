@@ -173,6 +173,36 @@ def test_source_cli_resume_conflict_handler_uses_runtime_sanitizer() -> None:
     assert "{exc}" not in rendered_segment
 
 
+def test_source_cli_console_print_never_interpolates_exc_directly() -> None:
+    src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
+    cli_source = (src_root / "cli.py").read_text(encoding="utf-8")
+    cli_module = ast.parse(cli_source)
+
+    violations: list[int] = []
+    for node in ast.walk(cli_module):
+        if not isinstance(node, ast.Call):
+            continue
+        if not (
+            isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "console"
+            and node.func.attr == "print"
+            and node.args
+            and isinstance(node.args[0], ast.JoinedStr)
+        ):
+            continue
+
+        if any(
+            isinstance(part, ast.FormattedValue)
+            and isinstance(part.value, ast.Name)
+            and part.value.id == "exc"
+            for part in node.args[0].values
+        ):
+            violations.append(node.lineno)
+
+    assert violations == []
+
+
 def test_cli_symlink_hint_pattern_shape_and_usage_are_stable() -> None:
     cli_source = (Path(__file__).resolve().parents[1] / "src" / "orch" / "cli.py").read_text(
         encoding="utf-8"
