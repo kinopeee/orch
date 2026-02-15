@@ -11749,6 +11749,59 @@ def test_cli_integration_runtime_symlink_errors_require_sanitized_run_path() -> 
     assert examined
 
 
+def test_cli_integration_positive_runtime_symlink_errors_require_sanitized_run_path() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    positive_runtime_markers = {
+        'assert "Failed to initialize run" in output',
+        'assert "Failed to load state" in output',
+        'assert "Run not found or broken" in output',
+        'assert "Failed to request cancel" in output',
+        'assert "Run execution failed" in output',
+        'assert "failed to write report" in output',
+        'assert "Failed to initialize run" in proc.stdout',
+        'assert "Failed to load state" in proc.stdout',
+        'assert "Run not found or broken" in proc.stdout',
+        'assert "Failed to request cancel" in proc.stdout',
+        'assert "Run execution failed" in proc.stdout',
+        'assert "failed to write report" in proc.stdout',
+    }
+
+    examined: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef) or not node.name.startswith("test_"):
+            continue
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        if not any(marker in source_segment for marker in positive_runtime_markers):
+            continue
+        if "symlink" not in source_segment.lower():
+            continue
+
+        assert (
+            'assert "invalid run path" in output' in source_segment
+            or 'assert "invalid run path" in proc.stdout' in source_segment
+        )
+        assert (
+            'assert "contains symlink component" not in output' in source_segment
+            or 'assert "contains symlink component" not in proc.stdout' in source_segment
+        )
+        assert (
+            'assert "must not include symlink" not in output' in source_segment
+            or 'assert "must not include symlink" not in proc.stdout' in source_segment
+        )
+        assert (
+            'assert "must not be symlink" not in output' in source_segment
+            or 'assert "must not be symlink" not in proc.stdout' in source_segment
+        )
+        examined.add(node.name)
+
+    assert examined
+
+
 def test_cli_integration_resume_invalid_run_id_workdir_preserve_supergroup_boundaries() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
