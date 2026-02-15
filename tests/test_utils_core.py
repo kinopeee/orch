@@ -175,17 +175,15 @@ def test_ci_workflow_runs_dod_runtime_smoke() -> None:
         Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml"
     ).read_text(encoding="utf-8")
     assert "name: DoD runtime smoke" in ci_workflow
-    assert (
-        "python tools/dod_check.py --skip-quality-gates --home /tmp/orch_ci_dod --json-out "
-        "/tmp/orch_ci_dod_summary.json" in ci_workflow
-    )
+    assert 'python tools/dod_check.py --skip-quality-gates --home "$DOD_HOME"' in ci_workflow
+    assert '--json-out "$DOD_SUMMARY_PATH"' in ci_workflow
 
 
 def test_ci_workflow_runtime_smoke_uses_json_out_without_pipe_tee() -> None:
     ci_workflow = (
         Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml"
     ).read_text(encoding="utf-8")
-    assert "--json-out /tmp/orch_ci_dod_summary.json" in ci_workflow
+    assert '--json-out "$DOD_SUMMARY_PATH"' in ci_workflow
     assert "| tee /tmp/orch_ci_dod_summary.json" not in ci_workflow
     assert "set -o pipefail" not in ci_workflow
 
@@ -197,7 +195,7 @@ def test_ci_workflow_uploads_dod_runtime_summary_artifact() -> None:
     assert "name: Upload DoD runtime summary" in ci_workflow
     assert "uses: actions/upload-artifact@v4" in ci_workflow
     assert "name: dod-runtime-summary" in ci_workflow
-    assert "path: /tmp/orch_ci_dod_summary.json" in ci_workflow
+    assert "path: ${{ env.DOD_SUMMARY_PATH }}" in ci_workflow
 
 
 def test_ci_workflow_validates_dod_runtime_summary_json() -> None:
@@ -205,11 +203,15 @@ def test_ci_workflow_validates_dod_runtime_summary_json() -> None:
         Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml"
     ).read_text(encoding="utf-8")
     assert "name: Validate DoD runtime summary JSON" in ci_workflow
+    assert "DOD_HOME: /tmp/orch_ci_dod" in ci_workflow
+    assert "DOD_SUMMARY_PATH: /tmp/orch_ci_dod_summary.json" in ci_workflow
+    assert "import os" in ci_workflow
     assert "import re" in ci_workflow
-    assert 'summary_path = Path("/tmp/orch_ci_dod_summary.json")' in ci_workflow
+    assert 'summary_path = Path(os.environ["DOD_SUMMARY_PATH"])' in ci_workflow
+    assert 'expected_home = os.environ["DOD_HOME"]' in ci_workflow
     assert "required_keys = {" in ci_workflow
     assert 'if data["result"] != "PASS":' in ci_workflow
-    assert 'if data["home"] != "/tmp/orch_ci_dod":' in ci_workflow
+    assert 'if data["home"] != expected_home:' in ci_workflow
     assert 'run_id_pattern = re.compile(r"^\\d{8}_\\d{6}_[0-9a-f]{6}$")' in ci_workflow
     assert (
         'run_id_keys = ("basic_run_id", "parallel_run_id", "fail_run_id", "cancel_run_id")'
@@ -225,8 +227,8 @@ def test_ci_workflow_keeps_release_0_1_quality_gates() -> None:
     ).read_text(encoding="utf-8")
     expected_steps = (
         "name: DoD runtime smoke",
-        "python tools/dod_check.py --skip-quality-gates --home /tmp/orch_ci_dod --json-out "
-        "/tmp/orch_ci_dod_summary.json",
+        'python tools/dod_check.py --skip-quality-gates --home "$DOD_HOME" --json-out '
+        '"$DOD_SUMMARY_PATH"',
         "name: Validate DoD runtime summary JSON",
         "name: Upload DoD runtime summary",
         "name: Lint format check",
