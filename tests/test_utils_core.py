@@ -110,6 +110,24 @@ def test_source_does_not_emit_symbolic_links_detail_literal() -> None:
     assert offending_files == []
 
 
+def test_readme_quickstart_documents_virtualenv_fallback() -> None:
+    readme = (Path(__file__).resolve().parents[1] / "README.md").read_text(encoding="utf-8")
+    expected_fragments = (
+        "python -m venv .venv",
+        "python3 -m pip install --user virtualenv",
+        "python3 -m virtualenv .venv",
+        'pip install -e ".[dev]"',
+    )
+    for fragment in expected_fragments:
+        assert fragment in readme
+
+
+def test_readme_mentions_release_0_1_dod_self_check_script() -> None:
+    readme = (Path(__file__).resolve().parents[1] / "README.md").read_text(encoding="utf-8")
+    assert "## Release 0.1 DoD セルフチェック" in readme
+    assert "python tools/dod_check.py" in readme
+
+
 def test_cli_error_output_paths_use_sanitizer_helpers() -> None:
     cli_source = (Path(__file__).resolve().parents[1] / "src" / "orch" / "cli.py").read_text(
         encoding="utf-8"
