@@ -51,16 +51,21 @@ def _state_to_jsonable(state: RunState) -> dict[str, Any]:
     return state.to_dict()
 
 
+def _mentions_symlink(detail: str) -> bool:
+    normalized = detail.lower()
+    return "symlink" in normalized or "symbolic link" in normalized
+
+
 def _render_plan_error(exc: PlanError) -> str:
     detail = str(exc)
-    if "symlink" in detail.lower():
+    if _mentions_symlink(detail):
         return "invalid plan path"
     return detail
 
 
 def _render_runtime_error_detail(exc: BaseException) -> str:
     detail = str(exc)
-    if "symlink" in detail.lower():
+    if _mentions_symlink(detail):
         return "invalid run path"
     return detail
 
