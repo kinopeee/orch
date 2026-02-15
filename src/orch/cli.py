@@ -37,6 +37,7 @@ app = typer.Typer(help="CLI agent task orchestrator")
 console = Console()
 _RUN_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _RUN_ID_MAX_LEN = 128
+_SYMLINK_HINT_PATTERN = re.compile(r"\bsymlink\b|\bsymbolic(?:[\s_-]+)?link\b", re.IGNORECASE)
 
 
 def _exit_code_for_state(state: RunState) -> int:
@@ -52,8 +53,7 @@ def _state_to_jsonable(state: RunState) -> dict[str, Any]:
 
 
 def _mentions_symlink(detail: str) -> bool:
-    normalized = detail.lower()
-    return "symlink" in normalized or "symbolic link" in normalized
+    return _SYMLINK_HINT_PATTERN.search(detail) is not None
 
 
 def _render_plan_error(exc: PlanError) -> str:
