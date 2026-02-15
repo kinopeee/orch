@@ -11311,6 +11311,59 @@ def test_cli_integration_run_invalid_home_families_suppress_symlink_detail() -> 
     assert matched == expected_names
 
 
+def test_cli_integration_other_invalid_home_families_suppress_symlink_detail() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    expected_names = {
+        "test_cli_run_rejects_home_with_symlink_ancestor_without_side_effect",
+        "test_cli_run_rejects_home_symlink_to_file_without_side_effect",
+        "test_cli_run_rejects_home_with_symlink_ancestor_component_without_side_effect",
+        "test_cli_resume_invalid_home_precedes_invalid_workdir",
+        "test_cli_resume_home_file_ancestor_precedes_invalid_workdir",
+        "test_cli_resume_home_symlink_to_file_precedes_invalid_workdir",
+        "test_cli_resume_home_symlink_directory_precedes_invalid_workdir",
+        "test_cli_resume_home_symlink_ancestor_precedes_invalid_workdir",
+        "test_cli_resume_home_dangling_symlink_precedes_invalid_workdir",
+        "test_cli_cancel_rejects_home_with_symlink_ancestor_without_side_effect",
+        "test_cli_cancel_rejects_home_with_file_ancestor_without_side_effect",
+        "test_cli_cancel_rejects_home_symlink_to_file_without_side_effect",
+        "test_cli_run_rejects_dangling_symlink_home_without_side_effect",
+        "test_cli_status_logs_resume_reject_home_symlink_to_file_path",
+        "test_cli_status_logs_resume_reject_home_with_symlink_ancestor_without_lock_side_effect",
+        "test_cli_status_rejects_file_home_path",
+        "test_cli_status_rejects_home_with_file_ancestor",
+        "test_cli_logs_resume_reject_home_file_path",
+        "test_cli_logs_resume_reject_home_with_file_ancestor",
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expected_names:
+            continue
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        assert 'assert "Invalid home" in output' in source_segment
+        assert 'assert "contains symlink component" not in output' in source_segment
+
+        if "invalid_workdir" in node.name:
+            assert 'assert "Invalid workdir" not in output' in source_segment
+
+        if "symlink_to_file" in node.name:
+            assert "home_target_file" in source_segment
+
+        if "file_ancestor" in node.name:
+            assert "home_parent_file" in source_segment
+
+        matched.add(node.name)
+
+    assert matched == expected_names
+
+
 def test_cli_integration_resume_invalid_run_id_workdir_preserve_supergroup_boundaries() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")

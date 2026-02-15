@@ -9184,6 +9184,7 @@ def test_cli_run_rejects_home_with_symlink_ancestor_without_side_effect(tmp_path
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert not (real_home / "runs").exists()
 
 
@@ -9221,6 +9222,7 @@ def test_cli_run_rejects_home_symlink_to_file_without_side_effect(tmp_path: Path
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert home_target_file.read_text(encoding="utf-8") == "not a home dir\n"
 
 
@@ -9262,6 +9264,7 @@ def test_cli_run_rejects_home_with_symlink_ancestor_component_without_side_effec
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert not (real_parent / nested_home_name / "runs").exists()
 
 
@@ -9602,6 +9605,7 @@ def test_cli_resume_invalid_home_precedes_invalid_workdir(tmp_path: Path) -> Non
     output = resume_proc.stdout + resume_proc.stderr
     assert resume_proc.returncode == 2
     assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert "Invalid workdir" not in output
     assert home.read_text(encoding="utf-8") == "not a dir\n"
 
@@ -9631,6 +9635,7 @@ def test_cli_resume_home_file_ancestor_precedes_invalid_workdir(tmp_path: Path) 
     output = resume_proc.stdout + resume_proc.stderr
     assert resume_proc.returncode == 2
     assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert "Invalid workdir" not in output
     assert home_parent_file.read_text(encoding="utf-8") == "not a dir\n"
 
@@ -9661,6 +9666,7 @@ def test_cli_resume_home_symlink_to_file_precedes_invalid_workdir(tmp_path: Path
     output = resume_proc.stdout + resume_proc.stderr
     assert resume_proc.returncode == 2
     assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert "Invalid workdir" not in output
     assert home_target_file.read_text(encoding="utf-8") == "not a home dir\n"
 
@@ -9691,6 +9697,7 @@ def test_cli_resume_home_symlink_directory_precedes_invalid_workdir(tmp_path: Pa
     output = resume_proc.stdout + resume_proc.stderr
     assert resume_proc.returncode == 2
     assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert "Invalid workdir" not in output
     assert not (real_home / "runs").exists()
 
@@ -9722,6 +9729,7 @@ def test_cli_resume_home_symlink_ancestor_precedes_invalid_workdir(tmp_path: Pat
     output = resume_proc.stdout + resume_proc.stderr
     assert resume_proc.returncode == 2
     assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert "Invalid workdir" not in output
     assert not (real_parent / "orch_home" / "runs").exists()
 
@@ -9751,6 +9759,7 @@ def test_cli_resume_home_dangling_symlink_precedes_invalid_workdir(tmp_path: Pat
     output = resume_proc.stdout + resume_proc.stderr
     assert resume_proc.returncode == 2
     assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert "Invalid workdir" not in output
     assert not missing_home_target.exists()
 
@@ -11149,6 +11158,7 @@ def test_cli_cancel_rejects_home_with_symlink_ancestor_without_side_effect(
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert not (real_run_dir / "cancel.request").exists()
 
 
@@ -11199,6 +11209,7 @@ def test_cli_cancel_rejects_home_with_file_ancestor_without_side_effect(
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert home_parent_file.read_text(encoding="utf-8") == "not a dir\n"
 
 
@@ -11227,6 +11238,7 @@ def test_cli_cancel_rejects_home_symlink_to_file_without_side_effect(
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert home_target_file.read_text(encoding="utf-8") == "not a home dir\n"
 
 
@@ -14111,6 +14123,7 @@ def test_cli_run_rejects_dangling_symlink_home_without_side_effect(tmp_path: Pat
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Invalid home" in output
+    assert "contains symlink component" not in output
     assert not missing_home_target.exists()
 
 
@@ -14227,6 +14240,7 @@ def test_cli_status_logs_resume_reject_home_symlink_to_file_path(tmp_path: Path)
         output = proc.stdout + proc.stderr
         assert proc.returncode == 2, command
         assert "Invalid home" in output, command
+        assert "contains symlink component" not in output, command
 
     assert home_target_file.read_text(encoding="utf-8") == "not a home dir\n"
 
@@ -14280,6 +14294,7 @@ def test_cli_status_logs_resume_reject_home_with_symlink_ancestor_without_lock_s
         output = proc.stdout + proc.stderr
         assert proc.returncode == 2, command
         assert "Invalid home" in output, command
+        assert "contains symlink component" not in output, command
 
     assert not (real_run_dir / ".lock").exists()
 
@@ -15639,6 +15654,7 @@ def test_cli_status_rejects_file_home_path(tmp_path: Path) -> None:
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Invalid home" in output
+    assert "contains symlink component" not in output
 
 
 def test_cli_status_rejects_home_with_file_ancestor(tmp_path: Path) -> None:
@@ -15654,6 +15670,7 @@ def test_cli_status_rejects_home_with_file_ancestor(tmp_path: Path) -> None:
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Invalid home" in output
+    assert "contains symlink component" not in output
 
 
 def test_cli_logs_resume_reject_home_file_path(tmp_path: Path) -> None:
@@ -15669,6 +15686,7 @@ def test_cli_logs_resume_reject_home_file_path(tmp_path: Path) -> None:
         output = proc.stdout + proc.stderr
         assert proc.returncode == 2, command
         assert "Invalid home" in output, command
+        assert "contains symlink component" not in output, command
     assert home_file.read_text(encoding="utf-8") == "not a dir\n"
 
 
@@ -15686,6 +15704,7 @@ def test_cli_logs_resume_reject_home_with_file_ancestor(tmp_path: Path) -> None:
         output = proc.stdout + proc.stderr
         assert proc.returncode == 2, command
         assert "Invalid home" in output, command
+        assert "contains symlink component" not in output, command
     assert home_parent_file.read_text(encoding="utf-8") == "not a dir\n"
 
 
