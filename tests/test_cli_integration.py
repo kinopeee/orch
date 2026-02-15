@@ -257,6 +257,7 @@ def test_cli_run_dry_run_fail_fast_still_rejects_invalid_plan(tmp_path: Path) ->
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
     assert "symbolic links" not in output.lower()
+    assert "symbolic link" not in output.lower()
     assert "Dry Run" not in output
     assert "run_id:" not in output
     assert "state:" not in output
@@ -371,6 +372,7 @@ def test_cli_run_dry_run_no_fail_fast_still_rejects_invalid_plan(tmp_path: Path)
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
     assert "symbolic links" not in output.lower()
+    assert "symbolic link" not in output.lower()
     assert "Dry Run" not in output
     assert "run_id:" not in output
     assert "state:" not in output
@@ -523,6 +525,7 @@ def test_cli_run_dry_run_both_fail_fast_toggles_still_rejects_invalid_plan(tmp_p
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
     assert "symbolic links" not in output.lower()
+    assert "symbolic link" not in output.lower()
     assert "Dry Run" not in output
     assert "run_id:" not in output
     assert "state:" not in output
@@ -601,6 +604,7 @@ def test_cli_run_dry_run_both_fail_fast_toggles_reverse_order_rejects_invalid_pl
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
     assert "symbolic links" not in output.lower()
+    assert "symbolic link" not in output.lower()
     assert "Dry Run" not in output
     assert "run_id:" not in output
     assert "state:" not in output
@@ -788,6 +792,7 @@ def test_cli_run_dry_run_both_toggles_rejects_symlink_plan_path(
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
     assert "symbolic links" not in output.lower()
+    assert "symbolic link" not in output.lower()
     assert "Dry Run" not in output
     assert "run_id:" not in output
     assert "state:" not in output
@@ -836,6 +841,7 @@ def test_cli_run_dry_run_both_toggles_reverse_rejects_symlink_plan_path(
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
     assert "symbolic links" not in output.lower()
+    assert "symbolic link" not in output.lower()
     assert "Dry Run" not in output
     assert "run_id:" not in output
     assert "state:" not in output
@@ -886,6 +892,7 @@ def test_cli_run_dry_run_both_toggles_rejects_plan_path_with_symlink_ancestor(
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
     assert "symbolic links" not in output.lower()
+    assert "symbolic link" not in output.lower()
     assert "Dry Run" not in output
     assert "run_id:" not in output
     assert "state:" not in output
@@ -936,6 +943,7 @@ def test_cli_run_dry_run_both_toggles_reverse_rejects_plan_path_with_symlink_anc
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
     assert "symbolic links" not in output.lower()
+    assert "symbolic link" not in output.lower()
     assert "Dry Run" not in output
     assert "run_id:" not in output
     assert "state:" not in output
@@ -1016,6 +1024,7 @@ def test_cli_run_dry_run_both_toggles_symlinked_plan_precedes_invalid_workdir(
             assert "must not include symlink" not in output, context
             assert "must not be symlink" not in output, context
             assert "symbolic links" not in output.lower(), context
+            assert "symbolic link" not in output.lower(), context
             assert "Invalid workdir" not in output, context
             assert "Dry Run" not in output, context
             assert "run_id:" not in output, context

@@ -11993,6 +11993,48 @@ def test_cli_integration_plan_validation_errors_suppress_symlink_detail() -> Non
     assert matched == expected_names
 
 
+def test_cli_integration_early_plan_cases_suppress_singular_symbolic_link_detail() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+
+    expected_names = {
+        "test_cli_run_dry_run_fail_fast_still_rejects_invalid_plan",
+        "test_cli_run_dry_run_no_fail_fast_still_rejects_invalid_plan",
+        "test_cli_run_dry_run_both_fail_fast_toggles_still_rejects_invalid_plan",
+        "test_cli_run_dry_run_both_fail_fast_toggles_reverse_order_rejects_invalid_plan",
+        "test_cli_run_dry_run_both_toggles_rejects_symlink_plan_path",
+        "test_cli_run_dry_run_both_toggles_reverse_rejects_symlink_plan_path",
+        "test_cli_run_dry_run_both_toggles_rejects_plan_path_with_symlink_ancestor",
+        "test_cli_run_dry_run_both_toggles_reverse_rejects_plan_path_with_symlink_ancestor",
+        "test_cli_run_dry_run_both_toggles_symlinked_plan_precedes_invalid_workdir",
+    }
+    context_names = {
+        "test_cli_run_dry_run_both_toggles_symlinked_plan_precedes_invalid_workdir",
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(integration_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expected_names:
+            continue
+
+        source_segment = ast.get_source_segment(integration_source, node)
+        assert source_segment is not None
+        assert (
+            'assert "symbolic links" not in output.lower()' in source_segment
+            or 'assert "symbolic links" not in output.lower(), context' in source_segment
+        )
+        if node.name in context_names:
+            assert 'assert "symbolic link" not in output.lower(), context' in source_segment
+        else:
+            assert 'assert "symbolic link" not in output.lower()' in source_segment
+        matched.add(node.name)
+
+    assert matched == expected_names
+
+
 def test_cli_integration_invalid_plan_path_assertions_require_symbolic_suppression() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
