@@ -2927,6 +2927,33 @@ def test_cli_cancel_normalizes_runtime_run_exists_error_without_write(
     assert "Failed to inspect run" in captured.out
 
 
+def test_cli_cancel_sanitizes_symlink_runtime_run_exists_error_without_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    write_called = False
+
+    def boom_run_exists(_run_dir: Path) -> bool:
+        raise RuntimeError("run directory path must not include symlink: /tmp/run")
+
+    def fake_write_cancel(_run_dir: Path) -> None:
+        nonlocal write_called
+        write_called = True
+
+    monkeypatch.setattr(cli_module, "_run_exists", boom_run_exists)
+    monkeypatch.setattr(cli_module, "write_cancel_request", fake_write_cancel)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.cancel("run1", home=home)
+    assert exc_info.value.exit_code == 2
+    assert write_called is False
+    captured = capsys.readouterr()
+    assert "Failed to inspect run" in captured.out
+    assert "invalid run path" in captured.out
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
+
+
 def test_cli_cancel_normalizes_oserror_run_exists_error_without_write(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -2949,6 +2976,29 @@ def test_cli_cancel_normalizes_oserror_run_exists_error_without_write(
     assert write_called is False
     captured = capsys.readouterr()
     assert "Failed to inspect run" in captured.out
+
+
+def test_cli_cancel_sanitizes_symlink_write_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    run_dir = home / "runs" / "run1"
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").write_text("{}", encoding="utf-8")
+
+    def boom_write_cancel(_run_dir: Path) -> None:
+        raise OSError("cancel request path must not be symlink")
+
+    monkeypatch.setattr(cli_module, "write_cancel_request", boom_write_cancel)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.cancel("run1", home=home)
+    assert exc_info.value.exit_code == 2
+    captured = capsys.readouterr()
+    assert "Failed to request cancel" in captured.out
+    assert "invalid run path" in captured.out
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
 
 
 def test_cli_cancel_rejects_invalid_run_id_before_run_exists_or_write(
