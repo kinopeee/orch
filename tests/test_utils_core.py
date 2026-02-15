@@ -135,6 +135,21 @@ def test_tools_dod_check_write_summary_json_validates_payload_first() -> None:
     ) < function_source.index("try:")
 
 
+def test_tools_dod_check_summary_payload_rejects_non_mapping_before_key_checks() -> None:
+    source = (Path(__file__).resolve().parents[1] / "tools" / "dod_check.py").read_text(
+        encoding="utf-8"
+    )
+    marker = "def _assert_summary_payload_consistent(payload: dict[str, str]) -> None:"
+    start = source.index(marker)
+    end = source.index("\n\ndef _write_summary_json(", start)
+    function_source = source[start:end]
+    assert "if not isinstance(payload, dict):" in function_source
+    assert "invalid summary payload type:" in function_source
+    assert function_source.index("if not isinstance(payload, dict):") < function_source.index(
+        "required_keys = {"
+    )
+
+
 def test_tools_dod_check_enforces_command_timeouts() -> None:
     source = (Path(__file__).resolve().parents[1] / "tools" / "dod_check.py").read_text(
         encoding="utf-8"
