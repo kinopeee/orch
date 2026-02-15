@@ -8799,6 +8799,63 @@ def test_cli_integration_run_invalid_workdir_preserve_dry_run_non_dry_parity() -
     assert matched == set(expectations)
 
 
+def test_cli_integration_run_symlink_ancestor_invalid_workdir_detail_matrix_contract() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
+    integration_module = ast.parse(integration_source)
+    matrix_name = "test_cli_run_symlink_ancestor_invalid_workdir_suppresses_component_detail_matrix"
+
+    matrix_function = next(
+        (
+            node
+            for node in ast.walk(integration_module)
+            if isinstance(node, ast.FunctionDef) and node.name == matrix_name
+        ),
+        None,
+    )
+    assert matrix_function is not None
+    source_segment = ast.get_source_segment(integration_source, matrix_function)
+    assert source_segment is not None
+
+    assert 'modes = ("plain", "with_runs", "artifacts")' in source_segment
+    assert "for dry_run in (False, True):" in source_segment
+    assert "for use_default_home in (False, True):" in source_segment
+    assert "for mode in modes:" in source_segment
+    assert 'home = case_root / (".orch" if use_default_home else ".orch_cli")' in source_segment
+    assert '"workdir_parent_link"' in source_segment
+    assert '"child_workdir"' in source_segment
+    assert 'assert "contains symlink component" not in output, context' in source_segment
+    assert 'assert "run_id:" not in output, context' in source_segment
+    assert 'assert "state:" not in output, context' in source_segment
+    assert 'assert "report:" not in output, context' in source_segment
+    assert 'assert not (real_workdir_parent / "child_workdir").exists(), context' in (
+        source_segment
+    )
+    assert "if dry_run:" in source_segment
+    assert "assert proc.returncode == 0, context" in source_segment
+    assert "assert proc.returncode == 2, context" in source_segment
+    assert 'assert "Dry Run" in output, context' in source_segment
+    assert 'assert "Dry Run" not in output, context' in source_segment
+    assert 'assert "Invalid workdir" in output, context' in source_segment
+    assert 'assert "Invalid workdir" not in output, context' in source_segment
+    assert 'if mode == "plain":' in source_segment
+    assert 'elif mode == "with_runs":' in source_segment
+    assert "else:" in source_segment
+    assert 'assert mode == "artifacts"' in source_segment
+    assert "assert not lock_file.exists(), context" in source_segment
+    assert "assert not cancel_request.exists(), context" in source_segment
+    assert 'assert lock_file.read_text(encoding="utf-8") == "lock\\n", context' in (source_segment)
+    assert 'assert cancel_request.read_text(encoding="utf-8") == "cancel\\n", context' in (
+        source_segment
+    )
+    assert 'assert run_log.read_text(encoding="utf-8") == "log\\n", context' in source_segment
+    assert "cwd=case_root if use_default_home else None" in source_segment
+    assert "if not use_default_home:" in source_segment
+    assert '"--home"' in source_segment
+    assert '"--workdir"' in source_segment
+    assert 'cmd.append("--dry-run")' in source_segment
+
+
 def test_cli_integration_resume_invalid_workdir_modes_matrix_keeps_axes_and_toggles() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     integration_module = ast.parse(

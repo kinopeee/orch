@@ -8018,6 +8018,125 @@ def test_cli_run_default_home_invalid_workdir_run_artifacts_preserved_matrix(
                 assert not (real_workdir_parent / "child_workdir").exists(), context
 
 
+def test_cli_run_symlink_ancestor_invalid_workdir_suppresses_component_detail_matrix(
+    tmp_path: Path,
+) -> None:
+    modes = ("plain", "with_runs", "artifacts")
+    for dry_run in (False, True):
+        for use_default_home in (False, True):
+            for mode in modes:
+                case_root = (
+                    tmp_path / f"run_symlink_ancestor_detail_{dry_run}_{use_default_home}_{mode}"
+                )
+                case_root.mkdir()
+                plan_path = case_root / "plan.yaml"
+                _write_plan(
+                    plan_path,
+                    """
+                    tasks:
+                      - id: t1
+                        cmd: ["python3", "-c", "print('ok')"]
+                    """,
+                )
+                home = case_root / (".orch" if use_default_home else ".orch_cli")
+                home.mkdir()
+                sentinel_file = home / "keep.txt"
+                sentinel_file.write_text("keep\n", encoding="utf-8")
+                sentinel_dir = home / "keep_dir"
+                sentinel_dir.mkdir()
+                nested_file = sentinel_dir / "nested.txt"
+                nested_file.write_text("nested\n", encoding="utf-8")
+
+                existing_run = home / "runs" / "keep_run"
+                plan_file = existing_run / "plan.yaml"
+                lock_file = existing_run / ".lock"
+                cancel_request = existing_run / "cancel.request"
+                run_log = existing_run / "task.log"
+                if mode in {"with_runs", "artifacts"}:
+                    existing_run.mkdir(parents=True)
+                    plan_file.write_text("tasks: []\n", encoding="utf-8")
+                if mode == "artifacts":
+                    lock_file.write_text("lock\n", encoding="utf-8")
+                    cancel_request.write_text("cancel\n", encoding="utf-8")
+                    run_log.write_text("log\n", encoding="utf-8")
+
+                real_workdir_parent = case_root / "real_workdir_parent"
+                real_workdir_parent.mkdir()
+                workdir_parent_link = case_root / "workdir_parent_link"
+                workdir_parent_link.symlink_to(real_workdir_parent, target_is_directory=True)
+                invalid_workdir = workdir_parent_link / "child_workdir"
+
+                cmd = [
+                    sys.executable,
+                    "-m",
+                    "orch.cli",
+                    "run",
+                    str(plan_path),
+                    "--workdir",
+                    str(invalid_workdir),
+                ]
+                if dry_run:
+                    cmd.append("--dry-run")
+                if not use_default_home:
+                    cmd += ["--home", str(home)]
+
+                proc = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    cwd=case_root if use_default_home else None,
+                )
+                output = proc.stdout + proc.stderr
+                context = f"{dry_run}-{use_default_home}-{mode}"
+                assert "contains symlink component" not in output, context
+                assert "run_id:" not in output, context
+                assert "state:" not in output, context
+                assert "report:" not in output, context
+                assert home.exists(), context
+                assert sentinel_file.read_text(encoding="utf-8") == "keep\n", context
+                assert sentinel_dir.is_dir(), context
+                assert nested_file.read_text(encoding="utf-8") == "nested\n", context
+                assert not (real_workdir_parent / "child_workdir").exists(), context
+
+                if dry_run:
+                    assert proc.returncode == 0, context
+                    assert "Dry Run" in output, context
+                    assert "Invalid workdir" not in output, context
+                else:
+                    assert proc.returncode == 2, context
+                    assert "Dry Run" not in output, context
+                    assert "Invalid workdir" in output, context
+
+                if mode == "plain":
+                    assert not (home / "runs").exists(), context
+                elif mode == "with_runs":
+                    assert sorted(path.name for path in (home / "runs").iterdir()) == [
+                        "keep_run"
+                    ], context
+                    assert sorted(path.name for path in existing_run.iterdir()) == ["plan.yaml"], (
+                        context
+                    )
+                    assert not lock_file.exists(), context
+                    assert not cancel_request.exists(), context
+                    assert plan_file.read_text(encoding="utf-8") == "tasks: []\n", context
+                else:
+                    assert mode == "artifacts"
+                    assert sorted(path.name for path in (home / "runs").iterdir()) == [
+                        "keep_run"
+                    ], context
+                    assert sorted(path.name for path in existing_run.iterdir()) == [
+                        ".lock",
+                        "cancel.request",
+                        "plan.yaml",
+                        "task.log",
+                    ], context
+                    assert plan_file.read_text(encoding="utf-8") == "tasks: []\n", context
+                    assert lock_file.read_text(encoding="utf-8") == "lock\n", context
+                    assert cancel_request.read_text(encoding="utf-8") == "cancel\n", context
+                    assert run_log.read_text(encoding="utf-8") == "log\n", context
+
+
 def test_cli_run_invalid_home_precedes_invalid_workdir(tmp_path: Path) -> None:
     plan_path = tmp_path / "plan.yaml"
     home = tmp_path / "home_file"
