@@ -2451,6 +2451,49 @@ def test_cli_run_sanitizes_symbolically_linking_double_underscore_plan_error(
     assert "must not be symlink" not in captured.out
 
 
+def test_cli_run_sanitizes_symbolically_dbl_hyphen_linked_plan_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    plan_path.write_text("tasks: []\n", encoding="utf-8")
+    home = tmp_path / ".orch"
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+    resolve_workdir_called = False
+
+    def fake_load_plan(_path: Path) -> PlanSpec:
+        raise PlanError("plan path is symbolically--linked to another location")
+
+    def fake_resolve_workdir(_workdir: Path) -> Path:
+        nonlocal resolve_workdir_called
+        resolve_workdir_called = True
+        return _workdir
+
+    monkeypatch.setattr(cli_module, "load_plan", fake_load_plan)
+    monkeypatch.setattr(cli_module, "_resolve_workdir_or_exit", fake_resolve_workdir)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.run(
+            plan_path,
+            max_parallel=1,
+            home=home,
+            workdir=workdir,
+            fail_fast=False,
+            dry_run=False,
+        )
+    assert exc_info.value.exit_code == 2
+    assert resolve_workdir_called is False
+    captured = capsys.readouterr()
+    assert "Plan validation error" in captured.out
+    assert "invalid plan path" in captured.out
+    assert "symbolically--linked" not in captured.out
+    assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
+    assert "contains symlink component" not in captured.out
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
+
+
 def test_cli_run_keeps_symbolic_linker_plan_error_detail(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -3466,6 +3509,35 @@ def test_cli_status_sanitizes_symbolically_linking_dbl_hyphen_runtime_load_error
     assert "must not be symlink" not in captured.out
 
 
+def test_cli_status_sanitizes_symbolically_linked_runtime_load_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        yield
+
+    def boom_load_state(_run_dir: Path) -> object:
+        raise OSError("run path is symbolically-linked to another location")
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_state", boom_load_state)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.status("run1", home=home, as_json=False)
+    assert exc_info.value.exit_code == 2
+    captured = capsys.readouterr()
+    assert "Failed to load state" in captured.out
+    assert "invalid run path" in captured.out
+    assert "symbolically-linked" not in captured.out
+    assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
+
+
 def test_cli_status_sanitizes_symbolically_linking_double_underscore_runtime_load_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -3749,6 +3821,35 @@ def test_cli_logs_sanitizes_symbolically_linking_dbl_hyphen_runtime_load_error(
     assert "Failed to load state" in captured.out
     assert "invalid run path" in captured.out
     assert "symbolically--linking" not in captured.out
+    assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
+
+
+def test_cli_logs_sanitizes_symbolically_linked_runtime_load_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        yield
+
+    def boom_load_state(_run_dir: Path) -> object:
+        raise OSError("run path is symbolically-linked to another location")
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_state", boom_load_state)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.logs("run1", home=home, task=None, tail=10)
+    assert exc_info.value.exit_code == 2
+    captured = capsys.readouterr()
+    assert "Failed to load state" in captured.out
+    assert "invalid run path" in captured.out
+    assert "symbolically-linked" not in captured.out
     assert "symbolic links" not in captured.out.lower()
     assert "symbolic link" not in captured.out.lower()
     assert "must not include symlink" not in captured.out
@@ -4716,6 +4817,32 @@ def test_cli_cancel_sanitizes_symbolically_linking_dbl_hyphen_write_error(
     assert "Failed to request cancel" in captured.out
     assert "invalid run path" in captured.out
     assert "symbolically--linking" not in captured.out
+    assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
+
+
+def test_cli_cancel_sanitizes_symbolically_linked_write_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    run_dir = home / "runs" / "run1"
+    run_dir.mkdir(parents=True)
+    (run_dir / "state.json").write_text("{}", encoding="utf-8")
+
+    def boom_write_cancel(_run_dir: Path) -> None:
+        raise OSError("cancel request path is symbolically-linked to another location")
+
+    monkeypatch.setattr(cli_module, "write_cancel_request", boom_write_cancel)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.cancel("run1", home=home)
+    assert exc_info.value.exit_code == 2
+    captured = capsys.readouterr()
+    assert "Failed to request cancel" in captured.out
+    assert "invalid run path" in captured.out
+    assert "symbolically-linked" not in captured.out
     assert "symbolic links" not in captured.out.lower()
     assert "symbolic link" not in captured.out.lower()
     assert "must not include symlink" not in captured.out
@@ -6145,6 +6272,53 @@ def test_cli_resume_sanitizes_symbolically_linking_double_underscore_plan_error(
     assert "Plan validation error" in captured.out
     assert "invalid plan path" in captured.out
     assert "symbolically__linking" not in captured.out
+    assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
+    assert "contains symlink component" not in captured.out
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
+
+
+def test_cli_resume_sanitizes_symbolically_dbl_hyphen_linked_plan_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+    workdir = tmp_path / "workdir"
+    workdir.mkdir()
+    run_plan_called = False
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        yield
+
+    def fake_load_plan(_path: Path) -> PlanSpec:
+        raise PlanError("plan path is symbolically--linked to another location")
+
+    async def fake_run_plan(*args: object, **kwargs: object) -> object:
+        nonlocal run_plan_called
+        run_plan_called = True
+        return object()
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_plan", fake_load_plan)
+    monkeypatch.setattr(cli_module, "run_plan", fake_run_plan)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.resume(
+            "run1",
+            home=home,
+            max_parallel=1,
+            workdir=workdir,
+            fail_fast=False,
+            failed_only=False,
+        )
+    assert exc_info.value.exit_code == 2
+    assert run_plan_called is False
+    captured = capsys.readouterr()
+    assert "Plan validation error" in captured.out
+    assert "invalid plan path" in captured.out
+    assert "symbolically--linked" not in captured.out
     assert "symbolic links" not in captured.out.lower()
     assert "symbolic link" not in captured.out.lower()
     assert "contains symlink component" not in captured.out
