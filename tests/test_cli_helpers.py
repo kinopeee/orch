@@ -823,6 +823,44 @@ tasks:
     assert exc_info.value.exit_code == 2
 
 
+def test_cli_run_sanitizes_symlink_initialize_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    plan_path.write_text(
+        """
+tasks:
+  - id: t1
+    cmd: ["python3", "-c", "print('ok')"]
+""".strip(),
+        encoding="utf-8",
+    )
+    home = tmp_path / ".orch"
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+
+    def boom_initialize(_run_dir: Path) -> None:
+        raise OSError("path must not include symlink: /tmp/run")
+
+    monkeypatch.setattr(cli_module, "ensure_run_layout", boom_initialize)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.run(
+            plan_path,
+            max_parallel=1,
+            home=home,
+            workdir=workdir,
+            fail_fast=False,
+            dry_run=False,
+        )
+    assert exc_info.value.exit_code == 2
+    captured = capsys.readouterr()
+    assert "Failed to initialize run" in captured.out
+    assert "invalid run path" in captured.out
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
+
+
 def test_cli_run_normalizes_runtime_execution_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -4501,6 +4539,60 @@ tasks:
             dry_run=False,
         )
     assert exc_info.value.exit_code == 0
+
+
+def test_cli_run_sanitizes_symlink_report_write_warning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    plan_path.write_text(
+        """
+tasks:
+  - id: t1
+    cmd: ["python3", "-c", "print('ok')"]
+""".strip(),
+        encoding="utf-8",
+    )
+    home = tmp_path / ".orch"
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+
+    async def fake_run_plan(*args: object, **kwargs: object) -> RunState:
+        return RunState(
+            run_id="run1",
+            created_at="2026-01-01T00:00:00+00:00",
+            updated_at="2026-01-01T00:00:01+00:00",
+            status="SUCCESS",
+            goal=None,
+            plan_relpath="plan.yaml",
+            home=str(home),
+            workdir=str(workdir),
+            max_parallel=1,
+            fail_fast=False,
+            tasks={},
+        )
+
+    def boom_write_report(_state: RunState, _run_dir: Path) -> Path:
+        raise OSError("report path must not be symlink: /tmp/report/final_report.md")
+
+    monkeypatch.setattr(cli_module, "run_plan", fake_run_plan)
+    monkeypatch.setattr(cli_module, "_write_report", boom_write_report)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.run(
+            plan_path,
+            max_parallel=1,
+            home=home,
+            workdir=workdir,
+            fail_fast=False,
+            dry_run=False,
+        )
+    assert exc_info.value.exit_code == 0
+    captured = capsys.readouterr()
+    assert "failed to write report" in captured.out
+    assert "invalid run path" in captured.out
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
 
 
 def test_cli_resume_ignores_runtime_report_write_error(

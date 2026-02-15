@@ -274,7 +274,7 @@ def run(
         ensure_run_layout(current_run_dir)
         _write_plan_snapshot(plan, current_run_dir / "plan.yaml")
     except (OSError, RuntimeError) as exc:
-        console.print(f"[red]Failed to initialize run:[/red] {exc}")
+        console.print(f"[red]Failed to initialize run:[/red] {_render_runtime_error_detail(exc)}")
         raise typer.Exit(2) from exc
 
     try:
@@ -290,12 +290,14 @@ def run(
             )
         )
     except (OSError, RuntimeError) as exc:
-        console.print(f"[red]Run execution failed:[/red] {exc}")
+        console.print(f"[red]Run execution failed:[/red] {_render_runtime_error_detail(exc)}")
         raise typer.Exit(2) from exc
     try:
         report_path = _write_report(state, current_run_dir)
     except (OSError, RuntimeError) as exc:
-        console.print(f"[yellow]Warning:[/yellow] failed to write report: {exc}")
+        console.print(
+            f"[yellow]Warning:[/yellow] failed to write report: {_render_runtime_error_detail(exc)}"
+        )
         report_path = current_run_dir / "report" / "final_report.md"
     console.print(f"run_id: [bold]{run_id}[/bold]")
     console.print(f"state: [bold]{state.status}[/bold]")
@@ -345,7 +347,9 @@ def resume(
     try:
         report_path = _write_report(state, current_run_dir)
     except (OSError, RuntimeError) as exc:
-        console.print(f"[yellow]Warning:[/yellow] failed to write report: {exc}")
+        console.print(
+            f"[yellow]Warning:[/yellow] failed to write report: {_render_runtime_error_detail(exc)}"
+        )
         report_path = current_run_dir / "report" / "final_report.md"
     console.print(f"run_id: [bold]{run_id}[/bold]")
     console.print(f"state: [bold]{state.status}[/bold]")

@@ -9521,6 +9521,48 @@ def test_cli_run_handles_non_directory_runs_path(tmp_path: Path) -> None:
     assert "Failed to initialize run" in output
 
 
+def test_cli_run_sanitizes_runs_symlink_path_initialize_error(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan_runs_symlink_error.yaml"
+    home = tmp_path / ".orch_cli"
+    home.mkdir(parents=True)
+    real_runs = tmp_path / "real_runs"
+    real_runs.mkdir()
+    (home / "runs").symlink_to(real_runs, target_is_directory=True)
+    _write_plan(
+        plan_path,
+        """
+        tasks:
+          - id: t1
+            cmd: ["python3", "-c", "print('ok')"]
+        """,
+    )
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "orch.cli",
+            "run",
+            str(plan_path),
+            "--home",
+            str(home),
+            "--workdir",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 2
+    assert "Failed to initialize run" in output
+    assert "invalid run path" in output
+    assert "contains symlink component" not in output
+    assert "must not include symlink" not in output
+    assert "must not be symlink" not in output
+    assert sorted(path.name for path in real_runs.iterdir()) == []
+
+
 def test_cli_resume_rejects_non_positive_max_parallel(tmp_path: Path) -> None:
     proc = subprocess.run(
         [
