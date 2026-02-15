@@ -134,8 +134,16 @@ def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
             'err = PlanError("plan path has symbolic link reference: /tmp/plan.yaml")',
             'assert _render_plan_error(err) == "invalid plan path"',
         ),
+        "test_render_plan_error_sanitizes_symbolic_link_uppercase_detail": (
+            'err = PlanError("PLAN PATH HAS SYMBOLIC LINK REFERENCE: /TMP/PLAN.YAML")',
+            'assert _render_plan_error(err) == "invalid plan path"',
+        ),
         "test_render_plan_error_sanitizes_symbolic_link_hyphenated_detail": (
             'err = PlanError("plan path has symbolic-link reference: /tmp/plan.yaml")',
+            'assert _render_plan_error(err) == "invalid plan path"',
+        ),
+        "test_render_plan_error_sanitizes_symbolic_link_hyphenated_uppercase_detail": (
+            'err = PlanError("PLAN PATH HAS SYMBOLIC-LINK REFERENCE: /TMP/PLAN.YAML")',
             'assert _render_plan_error(err) == "invalid plan path"',
         ),
         "test_render_plan_error_sanitizes_symbolic_link_underscored_detail": (
@@ -186,8 +194,16 @@ def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
             'err = OSError("run path has symbolic link reference")',
             'assert _render_runtime_error_detail(err) == "invalid run path"',
         ),
+        "test_render_runtime_error_detail_sanitizes_symbolic_link_uppercase_detail": (
+            'err = OSError("RUN PATH HAS SYMBOLIC LINK REFERENCE")',
+            'assert _render_runtime_error_detail(err) == "invalid run path"',
+        ),
         "test_render_runtime_error_detail_sanitizes_symbolic_link_hyphenated_detail": (
             'err = OSError("run path has symbolic-link reference")',
+            'assert _render_runtime_error_detail(err) == "invalid run path"',
+        ),
+        "test_render_runtime_error_detail_sanitizes_symbolic_link_underscored_uppercase_detail": (
+            'err = OSError("RUN PATH HAS SYMBOLIC_LINK REFERENCE")',
             'assert _render_runtime_error_detail(err) == "invalid run path"',
         ),
         "test_render_runtime_error_detail_sanitizes_symbolic_link_underscored_detail": (
