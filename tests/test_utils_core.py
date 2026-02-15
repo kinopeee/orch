@@ -134,6 +134,8 @@ def test_cli_helpers_mentions_symlink_detection_matrix_exists() -> None:
             '"path contains symlink component",',
             '"path has symbolic-link reference",',
             '"path has symbolic_link reference",',
+            '"path has symbolic\\rlink reference",',
+            '"path has symbolic\\r\\nlinks reference",',
             '"path is symbolically-linked",',
             '"RUN PATH HAS SYMBOLIC_LINK REFERENCE",',
             "assert _mentions_symlink(detail) is True",
@@ -195,6 +197,14 @@ def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
         ),
         "test_render_plan_error_sanitizes_symbolic_link_newline_separated_detail": (
             'err = PlanError("plan path has symbolic\\nlink reference: /tmp/plan.yaml")',
+            'assert _render_plan_error(err) == "invalid plan path"',
+        ),
+        "test_render_plan_error_sanitizes_symbolic_link_carriage_return_separated_detail": (
+            'err = PlanError("plan path has symbolic\\rlink reference: /tmp/plan.yaml")',
+            'assert _render_plan_error(err) == "invalid plan path"',
+        ),
+        "test_render_plan_error_sanitizes_symbolic_links_crlf_separated_detail": (
+            'err = PlanError("plan path has symbolic\\r\\nlinks reference: /tmp/plan.yaml")',
             'assert _render_plan_error(err) == "invalid plan path"',
         ),
         "test_render_plan_error_sanitizes_symbolic_links_tab_separated_detail": (
@@ -275,6 +285,17 @@ def test_cli_helpers_cover_symbolic_link_variant_sanitization_cases() -> None:
         ),
         "test_render_runtime_error_detail_sanitizes_symbolic_link_newline_separated_detail": (
             'err = OSError("run path has symbolic\\nlink reference")',
+            'assert _render_runtime_error_detail(err) == "invalid run path"',
+        ),
+        (
+            "test_render_runtime_error_detail_sanitizes_symbolic_link_"
+            "carriage_return_separated_detail"
+        ): (
+            'err = OSError("run path has symbolic\\rlink reference")',
+            'assert _render_runtime_error_detail(err) == "invalid run path"',
+        ),
+        "test_render_runtime_error_detail_sanitizes_symbolic_links_crlf_separated_detail": (
+            'err = OSError("run path has symbolic\\r\\nlinks reference")',
             'assert _render_runtime_error_detail(err) == "invalid run path"',
         ),
         "test_render_runtime_error_detail_sanitizes_symbolic_links_tab_separated_detail": (
