@@ -8122,6 +8122,8 @@ def test_cli_integration_run_invalid_workdir_with_runs_matrices_keep_axes_and_bo
     integration_source = (tests_root / "test_cli_integration.py").read_text(encoding="utf-8")
     integration_module = ast.parse(integration_source)
 
+    explicit_preserve_matrix = "test_cli_run_invalid_workdir_existing_home_preserves_entries_matrix"
+    default_preserve_matrix = "test_cli_run_default_home_invalid_workdir_preserves_entries_matrix"
     explicit_matrix = (
         "test_cli_run_invalid_workdir_existing_home_with_runs_preserves_entries_matrix"
     )
@@ -8133,28 +8135,46 @@ def test_cli_integration_run_invalid_workdir_with_runs_matrices_keep_axes_and_bo
         "test_cli_run_default_home_invalid_workdir_run_artifacts_preserved_matrix"
     )
     expectations = {
+        explicit_preserve_matrix: {
+            "home_var": "home",
+            "has_cwd": False,
+            "uses_home_flag": True,
+            "has_existing_runs": False,
+            "has_artifacts": False,
+        },
+        default_preserve_matrix: {
+            "home_var": "default_home",
+            "has_cwd": True,
+            "uses_home_flag": False,
+            "has_existing_runs": False,
+            "has_artifacts": False,
+        },
         explicit_matrix: {
             "home_var": "home",
             "has_cwd": False,
             "uses_home_flag": True,
+            "has_existing_runs": True,
             "has_artifacts": False,
         },
         default_matrix: {
             "home_var": "default_home",
             "has_cwd": True,
             "uses_home_flag": False,
+            "has_existing_runs": True,
             "has_artifacts": False,
         },
         explicit_artifacts_matrix: {
             "home_var": "home",
             "has_cwd": False,
             "uses_home_flag": True,
+            "has_existing_runs": True,
             "has_artifacts": True,
         },
         default_artifacts_matrix: {
             "home_var": "default_home",
             "has_cwd": True,
             "uses_home_flag": False,
+            "has_existing_runs": True,
             "has_artifacts": True,
         },
     }
@@ -8233,33 +8253,36 @@ def test_cli_integration_run_invalid_workdir_with_runs_matrices_keep_axes_and_bo
         assert f"{home_var}.iterdir()" in source_segment
         assert '"keep.txt"' in source_segment
         assert '"keep_dir"' in source_segment
-        assert '"runs"' in source_segment
-        assert "existing_run" in source_segment
-        assert f'({home_var} / "runs").iterdir()' in source_segment
-        assert '"keep_run"' in source_segment
-        assert "sorted(path.name for path in existing_run.iterdir())" in source_segment
-        assert '"plan.yaml"' in source_segment
-        assert 'assert plan_file.read_text(encoding="utf-8") == "tasks: []\\n", context' in (
-            source_segment
-        )
-        if expected["has_artifacts"]:
-            assert '"cancel.request"' in source_segment
-            assert '"task.log"' in source_segment
-            assert 'assert lock_file.read_text(encoding="utf-8") == "lock\\n", context' in (
+        if expected["has_existing_runs"]:
+            assert '"runs"' in source_segment
+            assert "existing_run" in source_segment
+            assert f'({home_var} / "runs").iterdir()' in source_segment
+            assert '"keep_run"' in source_segment
+            assert "sorted(path.name for path in existing_run.iterdir())" in source_segment
+            assert '"plan.yaml"' in source_segment
+            assert 'assert plan_file.read_text(encoding="utf-8") == "tasks: []\\n", context' in (
                 source_segment
             )
-            assert (
-                'assert cancel_request.read_text(encoding="utf-8") == "cancel\\n", context'
-                in source_segment
-            )
-            assert 'assert run_log.read_text(encoding="utf-8") == "log\\n", context' in (
-                source_segment
-            )
+            if expected["has_artifacts"]:
+                assert '"cancel.request"' in source_segment
+                assert '"task.log"' in source_segment
+                assert 'assert lock_file.read_text(encoding="utf-8") == "lock\\n", context' in (
+                    source_segment
+                )
+                assert (
+                    'assert cancel_request.read_text(encoding="utf-8") == "cancel\\n", context'
+                    in source_segment
+                )
+                assert 'assert run_log.read_text(encoding="utf-8") == "log\\n", context' in (
+                    source_segment
+                )
+            else:
+                assert 'assert not (existing_run / ".lock").exists(), context' in source_segment
+                assert 'assert not (existing_run / "cancel.request").exists(), context' in (
+                    source_segment
+                )
         else:
-            assert 'assert not (existing_run / ".lock").exists(), context' in source_segment
-            assert 'assert not (existing_run / "cancel.request").exists(), context' in (
-                source_segment
-            )
+            assert f'assert not ({home_var} / "runs").exists(), context' in source_segment
         assert 'assert "Invalid workdir" in output, context' in source_segment
         assert 'assert "Invalid home" not in output, context' in source_segment
         assert 'assert "Plan validation error" not in output, context' in source_segment
@@ -8298,6 +8321,8 @@ def test_cli_integration_run_invalid_workdir_preserve_supergroup_boundaries() ->
     default_non_preserve = (
         "test_cli_run_default_home_rejects_invalid_workdir_modes_without_creating_run_dir_matrix"
     )
+    explicit_preserve = "test_cli_run_invalid_workdir_existing_home_preserves_entries_matrix"
+    default_preserve = "test_cli_run_default_home_invalid_workdir_preserves_entries_matrix"
     explicit_with_runs = (
         "test_cli_run_invalid_workdir_existing_home_with_runs_preserves_entries_matrix"
     )
@@ -8321,6 +8346,22 @@ def test_cli_integration_run_invalid_workdir_preserve_supergroup_boundaries() ->
             "has_cwd": True,
             "uses_home_flag": False,
             "preserves_entries": False,
+            "has_existing_runs": False,
+            "has_artifacts": False,
+        },
+        explicit_preserve: {
+            "home_var": "home",
+            "has_cwd": False,
+            "uses_home_flag": True,
+            "preserves_entries": True,
+            "has_existing_runs": False,
+            "has_artifacts": False,
+        },
+        default_preserve: {
+            "home_var": "default_home",
+            "has_cwd": True,
+            "uses_home_flag": False,
+            "preserves_entries": True,
             "has_existing_runs": False,
             "has_artifacts": False,
         },
@@ -8417,6 +8458,8 @@ def test_cli_integration_run_invalid_workdir_preserve_supergroup_boundaries() ->
                     assert 'assert not (existing_run / "cancel.request").exists(), context' in (
                         source_segment
                     )
+            else:
+                assert f'assert not ({home_var} / "runs").exists(), context' in source_segment
         else:
             assert f"assert not {home_var}.exists(), context" in source_segment
             assert f'assert not ({home_var} / "runs").exists(), context' in source_segment
