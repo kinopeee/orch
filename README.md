@@ -109,6 +109,12 @@ CI で実行する runtime smoke（実行系のみ検証）は次です。
 python tools/dod_check.py --skip-quality-gates
 ```
 
+実行結果を他の `.orch` 実行履歴と分離したい場合は `--home` を使います。
+
+```bash
+python tools/dod_check.py --home .orch_dod
+```
+
 - `plan_fail_retry.yaml` は失敗系確認用です（終了コード `3` が期待値）。
 - `resume` は SUCCESS 済みタスクを再実行しません。
 - `cancel` は実行中 run に対して実施してください（run 側終了コード `4`）。

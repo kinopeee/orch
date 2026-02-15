@@ -42,12 +42,20 @@ def test_dod_check_parse_args_skip_quality_gates_flag() -> None:
     module = _load_dod_check_module()
     parsed = module._parse_args(["--skip-quality-gates"])  # type: ignore[attr-defined]
     assert parsed.skip_quality_gates is True
+    assert parsed.home == (module.ROOT / ".orch").resolve()  # type: ignore[attr-defined]
 
 
 def test_dod_check_parse_args_defaults() -> None:
     module = _load_dod_check_module()
     parsed = module._parse_args([])  # type: ignore[attr-defined]
     assert parsed.skip_quality_gates is False
+    assert parsed.home == (module.ROOT / ".orch").resolve()  # type: ignore[attr-defined]
+
+
+def test_dod_check_parse_args_resolves_relative_home() -> None:
+    module = _load_dod_check_module()
+    parsed = module._parse_args(["--home", "tmp/dod-home"])  # type: ignore[attr-defined]
+    assert parsed.home == (module.ROOT / "tmp/dod-home").resolve()  # type: ignore[attr-defined]
 
 
 def test_dod_check_has_parallel_overlap_true_for_successful_root_tasks() -> None:

@@ -56,12 +56,19 @@ def test_tools_dod_check_covers_release_0_1_required_commands() -> None:
 
     expected_fragments = {
         '"run", "examples/plan_basic.yaml"',
-        '"run", "examples/plan_parallel.yaml", "--max-parallel", "2"',
+        '"examples/plan_parallel.yaml"',
+        '"--max-parallel",',
+        '"2",',
         '"run", "examples/plan_fail_retry.yaml"',
         '"resume", basic_run_id',
         '"status", basic_run_id',
-        '"logs", basic_run_id, "--task", "inspect", "--tail", "5"',
+        '"logs",',
+        '"--task",',
+        '"inspect",',
+        '"--tail",',
+        '"5",',
         '"cancel", detected_run_id',
+        '"--home", home_str',
         '"-m", "ruff", "format", "--check", "."',
         '"-m", "ruff", "check", "--no-fix", "."',
         '"-m", "pytest"',
@@ -86,6 +93,7 @@ def test_tools_dod_check_supports_skip_quality_gates_option() -> None:
     assert "--skip-quality-gates" in source
     assert "skip_quality_gates" in source
     assert "skipped (requested by --skip-quality-gates)" in source
+    assert "--home" in source
 
 
 def test_ci_workflow_runs_dod_runtime_smoke() -> None:
@@ -168,6 +176,7 @@ def test_readme_mentions_release_0_1_dod_self_check_script() -> None:
     assert "## Release 0.1 DoD セルフチェック" in readme
     assert "python tools/dod_check.py" in readme
     assert "python tools/dod_check.py --skip-quality-gates" in readme
+    assert "python tools/dod_check.py --home .orch_dod" in readme
 
 
 def test_cli_error_output_paths_use_sanitizer_helpers() -> None:

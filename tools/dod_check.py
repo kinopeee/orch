@@ -13,7 +13,6 @@ from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNS_DIR = ROOT / ".orch" / "runs"
 
 
 @dataclass
@@ -27,6 +26,7 @@ class CommandResult:
 @dataclass(frozen=True)
 class Options:
     skip_quality_gates: bool
+    home: Path
 
 
 def _print_header(title: str) -> None:
@@ -84,8 +84,15 @@ def _parse_args(argv: Sequence[str]) -> Options:
         action="store_true",
         help="Skip ruff/pytest checks (useful when these are run separately in CI)",
     )
+    parser.add_argument(
+        "--home",
+        default=".orch",
+        help="Home directory used for DoD runs (default: .orch)",
+    )
     parsed = parser.parse_args(list(argv))
-    return Options(skip_quality_gates=parsed.skip_quality_gates)
+    home = Path(parsed.home)
+    resolved_home = home.resolve() if home.is_absolute() else (ROOT / home).resolve()
+    return Options(skip_quality_gates=parsed.skip_quality_gates, home=resolved_home)
 
 
 def _parse_run_id(output: str) -> str:
@@ -95,8 +102,12 @@ def _parse_run_id(output: str) -> str:
     return match.group(1)
 
 
-def _load_state(run_id: str) -> dict[str, object]:
-    state_path = RUNS_DIR / run_id / "state.json"
+def _runs_dir(home: Path) -> Path:
+    return home / "runs"
+
+
+def _load_state(run_id: str, runs_dir: Path) -> dict[str, object]:
+    state_path = runs_dir / run_id / "state.json"
     if not state_path.exists():
         raise RuntimeError(f"state file not found: {state_path}")
     return json.loads(state_path.read_text(encoding="utf-8"))
@@ -156,11 +167,11 @@ def _has_parallel_overlap(state: dict[str, object]) -> bool:
     return False
 
 
-def _run_cancel_scenario(orch_prefix: list[str]) -> str:
-    RUNS_DIR.mkdir(parents=True, exist_ok=True)
-    existing = {p.name for p in RUNS_DIR.iterdir() if p.is_dir()}
+def _run_cancel_scenario(orch_prefix: list[str], home_str: str, runs_dir: Path) -> str:
+    runs_dir.mkdir(parents=True, exist_ok=True)
+    existing = {p.name for p in runs_dir.iterdir() if p.is_dir()}
     proc = subprocess.Popen(
-        [*orch_prefix, "run", "examples/plan_cancel.yaml"],
+        [*orch_prefix, "run", "examples/plan_cancel.yaml", "--home", home_str],
         cwd=ROOT,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -170,7 +181,7 @@ def _run_cancel_scenario(orch_prefix: list[str]) -> str:
     detected_run_id: str | None = None
     deadline = time.time() + 20
     while time.time() < deadline and detected_run_id is None:
-        for path in RUNS_DIR.iterdir():
+        for path in runs_dir.iterdir():
             if not path.is_dir() or path.name in existing:
                 continue
             state_path = path / "state.json"
@@ -191,7 +202,7 @@ def _run_cancel_scenario(orch_prefix: list[str]) -> str:
         raise RuntimeError("could not detect running cancel scenario run_id")
 
     cancel = _run(
-        [*orch_prefix, "cancel", detected_run_id],
+        [*orch_prefix, "cancel", detected_run_id, "--home", home_str],
         expected=0,
         title="cancel running run",
     )
@@ -205,7 +216,7 @@ def _run_cancel_scenario(orch_prefix: list[str]) -> str:
         print(run_stderr.rstrip())
 
     _assert(proc.returncode == 4, "cancel scenario run must exit with code 4")
-    state = _load_state(detected_run_id)
+    state = _load_state(detected_run_id, runs_dir)
     _assert(state.get("status") == "CANCELED", "cancel scenario state must be CANCELED")
     _assert(
         "cancel requested" in cancel.stdout.lower(),
@@ -216,31 +227,42 @@ def _run_cancel_scenario(orch_prefix: list[str]) -> str:
 
 def main(options: Options) -> int:
     orch_prefix = _detect_orch_prefix()
+    runs_dir = _runs_dir(options.home)
+    home_str = str(options.home)
     print("orch command:", " ".join(orch_prefix))
+    print("home:", home_str)
 
     basic = _run(
-        [*orch_prefix, "run", "examples/plan_basic.yaml"],
+        [*orch_prefix, "run", "examples/plan_basic.yaml", "--home", home_str],
         expected=0,
         title="run basic plan",
     )
     basic_run_id = _parse_run_id(basic.stdout)
 
     parallel = _run(
-        [*orch_prefix, "run", "examples/plan_parallel.yaml", "--max-parallel", "2"],
+        [
+            *orch_prefix,
+            "run",
+            "examples/plan_parallel.yaml",
+            "--max-parallel",
+            "2",
+            "--home",
+            home_str,
+        ],
         expected=0,
         title="run parallel plan",
     )
     parallel_run_id = _parse_run_id(parallel.stdout)
-    parallel_state = _load_state(parallel_run_id)
+    parallel_state = _load_state(parallel_run_id, runs_dir)
     _assert(_has_parallel_overlap(parallel_state), "parallel evidence check failed")
 
     fail = _run(
-        [*orch_prefix, "run", "examples/plan_fail_retry.yaml"],
+        [*orch_prefix, "run", "examples/plan_fail_retry.yaml", "--home", home_str],
         expected=3,
         title="run failure plan for skip propagation",
     )
     fail_run_id = _parse_run_id(fail.stdout)
-    fail_state = _load_state(fail_run_id)
+    fail_state = _load_state(fail_run_id, runs_dir)
     fail_tasks = fail_state["tasks"]  # type: ignore[index]
     downstream = fail_tasks["downstream"]  # type: ignore[index]
     _assert(downstream["status"] == "SKIPPED", "downstream must be SKIPPED")
@@ -250,31 +272,41 @@ def main(options: Options) -> int:
     )
 
     resume = _run(
-        [*orch_prefix, "resume", basic_run_id],
+        [*orch_prefix, "resume", basic_run_id, "--home", home_str],
         expected=0,
         title="resume completed run",
     )
     _ = resume
-    resumed_state = _load_state(basic_run_id)
+    resumed_state = _load_state(basic_run_id, runs_dir)
     for task_id, task_state in resumed_state["tasks"].items():  # type: ignore[index]
         attempts = task_state["attempts"]  # type: ignore[index]
         _assert(attempts == 1, f"resume reran successful task: {task_id}")
 
     _run(
-        [*orch_prefix, "status", basic_run_id],
+        [*orch_prefix, "status", basic_run_id, "--home", home_str],
         expected=0,
         title="status command",
     )
     _run(
-        [*orch_prefix, "logs", basic_run_id, "--task", "inspect", "--tail", "5"],
+        [
+            *orch_prefix,
+            "logs",
+            basic_run_id,
+            "--home",
+            home_str,
+            "--task",
+            "inspect",
+            "--tail",
+            "5",
+        ],
         expected=0,
         title="logs command",
     )
 
-    report_path = RUNS_DIR / basic_run_id / "report" / "final_report.md"
+    report_path = runs_dir / basic_run_id / "report" / "final_report.md"
     _assert(report_path.exists(), "final report file was not generated")
 
-    cancel_run_id = _run_cancel_scenario(orch_prefix)
+    cancel_run_id = _run_cancel_scenario(orch_prefix, home_str, runs_dir)
 
     if not options.skip_quality_gates:
         _run(
