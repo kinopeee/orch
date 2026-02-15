@@ -790,8 +790,10 @@ def test_cli_helpers_run_resume_plan_error_symbolic_variants_are_sanitized() -> 
     expected_names = {
         "test_cli_run_sanitizes_symbolically_linked_plan_error",
         "test_cli_run_sanitizes_symbolically_linking_plan_error",
+        "test_cli_run_sanitizes_symbolically_linking_double_underscore_plan_error",
         "test_cli_resume_sanitizes_symbolically_linked_plan_error",
         "test_cli_resume_sanitizes_symbolically_linking_plan_error",
+        "test_cli_resume_sanitizes_symbolically_linking_double_underscore_plan_error",
     }
 
     matched: set[str] = set()
@@ -825,8 +827,14 @@ def test_cli_helpers_run_resume_non_symlink_symbolic_details_are_preserved() -> 
         "test_cli_run_keeps_symbolic_linker_plan_error_detail": "symbolic-linker issue",
         "test_cli_run_keeps_symbolic_linkless_plan_error_detail": "symbolic_linkless issue",
         "test_cli_run_keeps_symbolic_linkedlist_plan_error_detail": "symbolic-linkedlist issue",
+        "test_cli_run_keeps_symbolically_linkingly_double_underscore_plan_error_detail": (
+            "symbolically__linkingly issue"
+        ),
         "test_cli_resume_keeps_symbolic_linker_plan_error_detail": "symbolic-linker issue",
         "test_cli_resume_keeps_symbolic_linkless_plan_error_detail": "symbolic_linkless issue",
+        "test_cli_resume_keeps_symbolically_linkingly_double_underscore_plan_error_detail": (
+            "symbolically__linkingly issue"
+        ),
         "test_cli_resume_keeps_symbolic_linker_conflict_error_detail": "symbolic-linker issue",
         "test_cli_resume_keeps_symbolic_linkless_conflict_error_detail": "symbolic_linkless issue",
         "test_cli_resume_keeps_symbolically_linkedness_conflict_error_detail": (

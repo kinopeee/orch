@@ -2408,6 +2408,49 @@ def test_cli_run_sanitizes_symbolically_linking_plan_error(
     assert "must not be symlink" not in captured.out
 
 
+def test_cli_run_sanitizes_symbolically_linking_double_underscore_plan_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    plan_path.write_text("tasks: []\n", encoding="utf-8")
+    home = tmp_path / ".orch"
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+    resolve_workdir_called = False
+
+    def fake_load_plan(_path: Path) -> PlanSpec:
+        raise PlanError("plan path has symbolically__linking issue")
+
+    def fake_resolve_workdir(_workdir: Path) -> Path:
+        nonlocal resolve_workdir_called
+        resolve_workdir_called = True
+        return _workdir
+
+    monkeypatch.setattr(cli_module, "load_plan", fake_load_plan)
+    monkeypatch.setattr(cli_module, "_resolve_workdir_or_exit", fake_resolve_workdir)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.run(
+            plan_path,
+            max_parallel=1,
+            home=home,
+            workdir=workdir,
+            fail_fast=False,
+            dry_run=False,
+        )
+    assert exc_info.value.exit_code == 2
+    assert resolve_workdir_called is False
+    captured = capsys.readouterr()
+    assert "Plan validation error" in captured.out
+    assert "invalid plan path" in captured.out
+    assert "symbolically__linking" not in captured.out
+    assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
+    assert "contains symlink component" not in captured.out
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
+
+
 def test_cli_run_keeps_symbolic_linker_plan_error_detail(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -2519,6 +2562,44 @@ def test_cli_run_keeps_symbolic_linkedlist_plan_error_detail(
     captured = capsys.readouterr()
     assert "Plan validation error" in captured.out
     assert "symbolic-linkedlist issue" in captured.out
+    assert "invalid plan path" not in captured.out
+
+
+def test_cli_run_keeps_symbolically_linkingly_double_underscore_plan_error_detail(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    plan_path.write_text("tasks: []\n", encoding="utf-8")
+    home = tmp_path / ".orch"
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+    resolve_workdir_called = False
+
+    def fake_load_plan(_path: Path) -> PlanSpec:
+        raise PlanError("plan path has symbolically__linkingly issue")
+
+    def fake_resolve_workdir(_workdir: Path) -> Path:
+        nonlocal resolve_workdir_called
+        resolve_workdir_called = True
+        return _workdir
+
+    monkeypatch.setattr(cli_module, "load_plan", fake_load_plan)
+    monkeypatch.setattr(cli_module, "_resolve_workdir_or_exit", fake_resolve_workdir)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.run(
+            plan_path,
+            max_parallel=1,
+            home=home,
+            workdir=workdir,
+            fail_fast=False,
+            dry_run=False,
+        )
+    assert exc_info.value.exit_code == 2
+    assert resolve_workdir_called is False
+    captured = capsys.readouterr()
+    assert "Plan validation error" in captured.out
+    assert "symbolically__linkingly issue" in captured.out
     assert "invalid plan path" not in captured.out
 
 
@@ -5868,6 +5949,53 @@ def test_cli_resume_sanitizes_symbolically_linking_plan_error(
     assert "must not be symlink" not in captured.out
 
 
+def test_cli_resume_sanitizes_symbolically_linking_double_underscore_plan_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+    workdir = tmp_path / "workdir"
+    workdir.mkdir()
+    run_plan_called = False
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        yield
+
+    def fake_load_plan(_path: Path) -> PlanSpec:
+        raise PlanError("plan path has symbolically__linking issue")
+
+    async def fake_run_plan(*args: object, **kwargs: object) -> object:
+        nonlocal run_plan_called
+        run_plan_called = True
+        return object()
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_plan", fake_load_plan)
+    monkeypatch.setattr(cli_module, "run_plan", fake_run_plan)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.resume(
+            "run1",
+            home=home,
+            max_parallel=1,
+            workdir=workdir,
+            fail_fast=False,
+            failed_only=False,
+        )
+    assert exc_info.value.exit_code == 2
+    assert run_plan_called is False
+    captured = capsys.readouterr()
+    assert "Plan validation error" in captured.out
+    assert "invalid plan path" in captured.out
+    assert "symbolically__linking" not in captured.out
+    assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
+    assert "contains symlink component" not in captured.out
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
+
+
 def test_cli_resume_keeps_symbolic_linkless_plan_error_detail(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -5949,6 +6077,48 @@ def test_cli_resume_keeps_symbolic_linker_plan_error_detail(
     captured = capsys.readouterr()
     assert "Plan validation error" in captured.out
     assert "symbolic-linker issue" in captured.out
+    assert "invalid plan path" not in captured.out
+
+
+def test_cli_resume_keeps_symbolically_linkingly_double_underscore_plan_error_detail(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+    workdir = tmp_path / "workdir"
+    workdir.mkdir()
+    run_plan_called = False
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        yield
+
+    def fake_load_plan(_path: Path) -> PlanSpec:
+        raise PlanError("plan path has symbolically__linkingly issue")
+
+    async def fake_run_plan(*args: object, **kwargs: object) -> object:
+        nonlocal run_plan_called
+        run_plan_called = True
+        return object()
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_plan", fake_load_plan)
+    monkeypatch.setattr(cli_module, "run_plan", fake_run_plan)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.resume(
+            "run1",
+            home=home,
+            max_parallel=1,
+            workdir=workdir,
+            fail_fast=False,
+            failed_only=False,
+        )
+    assert exc_info.value.exit_code == 2
+    assert run_plan_called is False
+    captured = capsys.readouterr()
+    assert "Plan validation error" in captured.out
+    assert "symbolically__linkingly issue" in captured.out
     assert "invalid plan path" not in captured.out
 
 
