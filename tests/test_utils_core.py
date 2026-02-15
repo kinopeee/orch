@@ -167,6 +167,7 @@ def test_readme_mentions_release_0_1_dod_self_check_script() -> None:
     readme = (Path(__file__).resolve().parents[1] / "README.md").read_text(encoding="utf-8")
     assert "## Release 0.1 DoD セルフチェック" in readme
     assert "python tools/dod_check.py" in readme
+    assert "python tools/dod_check.py --skip-quality-gates" in readme
 
 
 def test_cli_error_output_paths_use_sanitizer_helpers() -> None:

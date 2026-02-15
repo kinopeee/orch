@@ -103,6 +103,12 @@ pytest
 python tools/dod_check.py
 ```
 
+CI で実行する runtime smoke（実行系のみ検証）は次です。
+
+```bash
+python tools/dod_check.py --skip-quality-gates
+```
+
 - `plan_fail_retry.yaml` は失敗系確認用です（終了コード `3` が期待値）。
 - `resume` は SUCCESS 済みタスクを再実行しません。
 - `cancel` は実行中 run に対して実施してください（run 側終了コード `4`）。
