@@ -853,6 +853,9 @@ def test_cli_helpers_run_resume_non_symlink_symbolic_details_are_preserved() -> 
             "test_cli_status_keeps_symbolically_linkingly_double_underscore_"
             "runtime_load_error_detail"
         ): ("symbolically__linkingly issue"),
+        "test_cli_status_keeps_symbolically_linkingly_dbl_hyphen_runtime_load_error": (
+            "symbolically--linkingly issue"
+        ),
         "test_cli_logs_keeps_symbolic_linker_runtime_load_error_detail": ("symbolic-linker issue"),
         "test_cli_logs_keeps_symbolic_linkless_runtime_load_error_detail": (
             "symbolic_linkless issue"
@@ -863,11 +866,17 @@ def test_cli_helpers_run_resume_non_symlink_symbolic_details_are_preserved() -> 
         "test_cli_logs_keeps_symbolically_linkingly_double_underscore_runtime_load_error_detail": (
             "symbolically__linkingly issue"
         ),
+        "test_cli_logs_keeps_symbolically_linkingly_dbl_hyphen_runtime_load_error": (
+            "symbolically--linkingly issue"
+        ),
         "test_cli_cancel_keeps_symbolic_linkless_write_error_detail": ("symbolic_linkless issue"),
         "test_cli_cancel_keeps_symbolic_linker_write_error_detail": ("symbolic-linker issue"),
         "test_cli_cancel_keeps_symbolic_linkers_write_error_detail": ("symbolic-linkers issue"),
         "test_cli_cancel_keeps_symbolically_linkingly_double_underscore_write_error_detail": (
             "symbolically__linkingly issue"
+        ),
+        "test_cli_cancel_keeps_symbolically_linkingly_dbl_hyphen_write_error": (
+            "symbolically--linkingly issue"
         ),
         "test_cli_run_keeps_symbolically_linkedness_report_write_warning_detail": (
             "symbolically_linkedness issue"
@@ -942,14 +951,23 @@ def test_cli_helpers_runtime_symbolic_links_variants_are_sanitized() -> None:
         "test_cli_status_sanitizes_symbolically_linking_double_underscore_runtime_load_error": (
             "Failed to load state"
         ),
+        "test_cli_status_sanitizes_symbolically_linking_dbl_hyphen_runtime_load_error": (
+            "Failed to load state"
+        ),
         "test_cli_logs_sanitizes_symbolic_links_runtime_load_error": "Failed to load state",
         "test_cli_logs_sanitizes_symbolically_linking_runtime_load_error": ("Failed to load state"),
         "test_cli_logs_sanitizes_symbolically_linking_double_underscore_runtime_load_error": (
             "Failed to load state"
         ),
+        "test_cli_logs_sanitizes_symbolically_linking_dbl_hyphen_runtime_load_error": (
+            "Failed to load state"
+        ),
         "test_cli_cancel_sanitizes_symbolic_links_write_error": "Failed to request cancel",
         "test_cli_cancel_sanitizes_symbolically_linking_write_error": ("Failed to request cancel"),
         "test_cli_cancel_sanitizes_symbolically_linking_double_underscore_write_error": (
+            "Failed to request cancel"
+        ),
+        "test_cli_cancel_sanitizes_symbolically_linking_dbl_hyphen_write_error": (
             "Failed to request cancel"
         ),
         "test_cli_run_sanitizes_symbolic_links_report_write_warning": "failed to write report",
