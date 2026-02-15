@@ -107,3 +107,45 @@ def test_dod_check_intervals_overlap_rejects_naive_timestamps() -> None:
             "2026-02-15T15:00:01+00:00",
             "2026-02-15T15:00:03+00:00",
         )
+
+
+def test_dod_check_detect_orch_prefix_prefers_orch_command(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_dod_check_module()
+
+    class Completed:
+        returncode = 0
+
+    def fake_run(*args: object, **kwargs: object) -> Completed:
+        return Completed()
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)  # type: ignore[attr-defined]
+    assert module._detect_orch_prefix() == ["orch"]  # type: ignore[attr-defined]
+
+
+def test_dod_check_detect_orch_prefix_falls_back_when_probe_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_dod_check_module()
+
+    class Completed:
+        returncode = 1
+
+    def fake_run(*args: object, **kwargs: object) -> Completed:
+        return Completed()
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)  # type: ignore[attr-defined]
+    assert module._detect_orch_prefix() == [sys.executable, "-m", "orch.cli"]  # type: ignore[attr-defined]
+
+
+def test_dod_check_detect_orch_prefix_falls_back_when_orch_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_dod_check_module()
+
+    def fake_run(*args: object, **kwargs: object) -> object:
+        raise FileNotFoundError
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)  # type: ignore[attr-defined]
+    assert module._detect_orch_prefix() == [sys.executable, "-m", "orch.cli"]  # type: ignore[attr-defined]
