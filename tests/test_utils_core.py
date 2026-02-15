@@ -864,8 +864,14 @@ def test_cli_helpers_run_resume_non_symlink_symbolic_details_are_preserved() -> 
         "test_cli_run_keeps_symbolically_linkedness_report_write_warning_detail": (
             "symbolically_linkedness issue"
         ),
+        "test_cli_run_keeps_symbolically_linkingly_double_underscore_report_warning": (
+            "symbolically__linkingly issue"
+        ),
         "test_cli_resume_keeps_symbolic_linkers_report_write_warning_detail": (
             "symbolic-linkers issue"
+        ),
+        "test_cli_resume_keeps_symbolically_linkingly_double_underscore_report_warning": (
+            "symbolically__linkingly issue"
         ),
     }
 
@@ -892,7 +898,7 @@ def test_cli_helpers_run_resume_non_symlink_symbolic_details_are_preserved() -> 
         elif "write_error" in node.name:
             assert 'assert "Failed to request cancel" in captured.out' in source_segment
             assert 'assert "invalid run path" not in captured.out' in source_segment
-        elif "report_write_warning" in node.name:
+        elif "report_write_warning" in node.name or "report_warning" in node.name:
             assert 'assert "failed to write report" in captured.out' in source_segment
             assert 'assert "invalid run path" not in captured.out' in source_segment
         elif "conflict_error" in node.name:
@@ -933,7 +939,13 @@ def test_cli_helpers_runtime_symbolic_links_variants_are_sanitized() -> None:
             "Failed to request cancel"
         ),
         "test_cli_run_sanitizes_symbolic_links_report_write_warning": "failed to write report",
+        "test_cli_run_sanitizes_symbolically_linking_double_underscore_report_warning": (
+            "failed to write report"
+        ),
         "test_cli_resume_sanitizes_symbolic_links_report_write_warning": "failed to write report",
+        "test_cli_resume_sanitizes_symbolically_linking_double_underscore_report_warning": (
+            "failed to write report"
+        ),
     }
 
     matched: set[str] = set()
