@@ -52,9 +52,15 @@ def test_source_does_not_emit_symlink_component_detail_literal() -> None:
 def test_source_does_not_emit_symbolic_links_detail_literal() -> None:
     src_root = Path(__file__).resolve().parents[1] / "src" / "orch"
     offending_files: list[str] = []
+    forbidden_literals = (
+        "symbolic link",
+        "symbolic links",
+        "symbolic-link",
+        "symbolic_link",
+    )
     for file_path in src_root.rglob("*.py"):
         source = file_path.read_text(encoding="utf-8").lower()
-        if "symbolic links" in source:
+        if any(literal in source for literal in forbidden_literals):
             offending_files.append(str(file_path.relative_to(src_root)))
     assert offending_files == []
 
