@@ -1481,6 +1481,47 @@ tasks:
     assert "symbolic link" not in captured.out.lower()
 
 
+def test_cli_run_sanitizes_symbolically_linked_initialize_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    plan_path.write_text(
+        """
+tasks:
+  - id: t1
+    cmd: ["python3", "-c", "print('ok')"]
+""".strip(),
+        encoding="utf-8",
+    )
+    home = tmp_path / ".orch"
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+
+    def boom_initialize(_run_dir: Path) -> None:
+        raise OSError("layout path is symbolically-linked to another location")
+
+    monkeypatch.setattr(cli_module, "ensure_run_layout", boom_initialize)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.run(
+            plan_path,
+            max_parallel=1,
+            home=home,
+            workdir=workdir,
+            fail_fast=False,
+            dry_run=False,
+        )
+    assert exc_info.value.exit_code == 2
+    captured = capsys.readouterr()
+    assert "Failed to initialize run" in captured.out
+    assert "invalid run path" in captured.out
+    assert "symbolically-linked" not in captured.out
+    assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
+
+
 def test_cli_run_keeps_symbolic_linkers_initialize_error_detail(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -1625,6 +1666,47 @@ tasks:
     captured = capsys.readouterr()
     assert "Run execution failed" in captured.out
     assert "invalid run path" in captured.out
+    assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
+
+
+def test_cli_run_sanitizes_symbolically_dbl_hyphen_linked_execution_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    plan_path.write_text(
+        """
+tasks:
+  - id: t1
+    cmd: ["python3", "-c", "print('ok')"]
+""".strip(),
+        encoding="utf-8",
+    )
+    home = tmp_path / ".orch"
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+
+    async def boom_run_plan(*args: object, **kwargs: object) -> object:
+        raise OSError("run path is symbolically--linked to another location")
+
+    monkeypatch.setattr(cli_module, "run_plan", boom_run_plan)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.run(
+            plan_path,
+            max_parallel=1,
+            home=home,
+            workdir=workdir,
+            fail_fast=False,
+            dry_run=False,
+        )
+    assert exc_info.value.exit_code == 2
+    captured = capsys.readouterr()
+    assert "Run execution failed" in captured.out
+    assert "invalid run path" in captured.out
+    assert "symbolically--linked" not in captured.out
     assert "symbolic links" not in captured.out.lower()
     assert "symbolic link" not in captured.out.lower()
     assert "must not include symlink" not in captured.out
@@ -3251,6 +3333,41 @@ def test_cli_resume_sanitizes_symbolic_links_runtime_lock_error(
     assert "must not be symlink" not in captured.out
 
 
+def test_cli_resume_sanitizes_symbolically_linked_runtime_lock_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+
+    @contextmanager
+    def boom_lock(*args: object, **kwargs: object) -> object:
+        raise OSError("run lock path is symbolically-linked to another location")
+        yield
+
+    monkeypatch.setattr(cli_module, "run_lock", boom_lock)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.resume(
+            "run1",
+            home=home,
+            max_parallel=1,
+            workdir=workdir,
+            fail_fast=False,
+            failed_only=False,
+        )
+    assert exc_info.value.exit_code == 2
+    captured = capsys.readouterr()
+    assert "Run not found or broken" in captured.out
+    assert "invalid run path" in captured.out
+    assert "symbolically-linked" not in captured.out
+    assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
+
+
 def test_cli_resume_sanitizes_symbolic_links_conflict_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -3278,6 +3395,40 @@ def test_cli_resume_sanitizes_symbolic_links_conflict_error(
     assert exc_info.value.exit_code == 3
     captured = capsys.readouterr()
     assert "invalid run path" in captured.out
+    assert "symbolic links" not in captured.out.lower()
+    assert "symbolic link" not in captured.out.lower()
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
+
+
+def test_cli_resume_sanitizes_symbolically_dbl_hyphen_linked_conflict_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+
+    @contextmanager
+    def boom_conflict(*args: object, **kwargs: object) -> object:
+        raise RunConflictError("run lock path is symbolically--linked to another location")
+        yield
+
+    monkeypatch.setattr(cli_module, "run_lock", boom_conflict)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.resume(
+            "run1",
+            home=home,
+            max_parallel=1,
+            workdir=workdir,
+            fail_fast=False,
+            failed_only=False,
+        )
+    assert exc_info.value.exit_code == 3
+    captured = capsys.readouterr()
+    assert "invalid run path" in captured.out
+    assert "symbolically--linked" not in captured.out
     assert "symbolic links" not in captured.out.lower()
     assert "symbolic link" not in captured.out.lower()
     assert "must not include symlink" not in captured.out
