@@ -144,7 +144,19 @@ def _load_state(run_id: str, runs_dir: Path) -> dict[str, object]:
     state_path = runs_dir / run_id / "state.json"
     if not state_path.exists():
         raise RuntimeError(f"state file not found: {state_path}")
-    return json.loads(state_path.read_text(encoding="utf-8"))
+    try:
+        state_payload = state_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise RuntimeError(f"failed to read state file: {state_path}") from exc
+
+    try:
+        state_data = json.loads(state_payload)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"state file is not valid json: {state_path}") from exc
+
+    if not isinstance(state_data, dict):
+        raise RuntimeError(f"state root must be object: {state_path}")
+    return state_data
 
 
 def _state_tasks(state: dict[str, object]) -> dict[str, dict[str, object]]:

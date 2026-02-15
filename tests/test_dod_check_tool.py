@@ -301,6 +301,36 @@ def test_dod_check_state_tasks_returns_task_mapping() -> None:
     assert tasks["inspect"]["status"] == "SUCCESS"
 
 
+def test_dod_check_load_state_returns_object(tmp_path: Path) -> None:
+    module = _load_dod_check_module()
+    run_id = "20260215_000000_load_ok"
+    state_path = tmp_path / run_id / "state.json"
+    state_path.parent.mkdir(parents=True)
+    state_path.write_text('{"status":"SUCCESS","tasks":{}}', encoding="utf-8")
+    state = module._load_state(run_id, tmp_path)  # type: ignore[attr-defined]
+    assert state["status"] == "SUCCESS"
+
+
+def test_dod_check_load_state_raises_on_invalid_json(tmp_path: Path) -> None:
+    module = _load_dod_check_module()
+    run_id = "20260215_000000_load_invalid_json"
+    state_path = tmp_path / run_id / "state.json"
+    state_path.parent.mkdir(parents=True)
+    state_path.write_text("{", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="state file is not valid json"):
+        module._load_state(run_id, tmp_path)  # type: ignore[attr-defined]
+
+
+def test_dod_check_load_state_raises_on_non_object_root(tmp_path: Path) -> None:
+    module = _load_dod_check_module()
+    run_id = "20260215_000000_load_non_object"
+    state_path = tmp_path / run_id / "state.json"
+    state_path.parent.mkdir(parents=True)
+    state_path.write_text('["not-an-object"]', encoding="utf-8")
+    with pytest.raises(RuntimeError, match="state root must be object"):
+        module._load_state(run_id, tmp_path)  # type: ignore[attr-defined]
+
+
 def test_dod_check_state_tasks_rejects_non_object_task_state() -> None:
     module = _load_dod_check_module()
     with pytest.raises(RuntimeError, match="task state must be an object: inspect"):

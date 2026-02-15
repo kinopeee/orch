@@ -173,6 +173,22 @@ def test_tools_dod_check_uses_shared_run_id_pattern_for_parse_and_summary() -> N
     assert "run_id format mismatch in command output" in source
 
 
+def test_tools_dod_check_load_state_rejects_invalid_json_and_non_object_root() -> None:
+    source = (Path(__file__).resolve().parents[1] / "tools" / "dod_check.py").read_text(
+        encoding="utf-8"
+    )
+    marker = "def _load_state(run_id: str, runs_dir: Path) -> dict[str, object]:"
+    start = source.index(marker)
+    end = source.index("\n\ndef _state_tasks(", start)
+    function_source = source[start:end]
+    assert "state file is not valid json:" in function_source
+    assert "state root must be object:" in function_source
+    assert "except json.JSONDecodeError as exc:" in function_source
+    assert function_source.index("except json.JSONDecodeError as exc:") < function_source.index(
+        "if not isinstance(state_data, dict):"
+    )
+
+
 def test_tools_dod_check_enforces_command_timeouts() -> None:
     source = (Path(__file__).resolve().parents[1] / "tools" / "dod_check.py").read_text(
         encoding="utf-8"
