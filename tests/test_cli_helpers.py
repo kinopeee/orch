@@ -57,6 +57,8 @@ from orch.util.errors import PlanError
         "path has symbolically_links issue",
         "path has symbolicallylinks issue",
         "PATH HAS SYMBOLICALLYLINKS ISSUE",
+        "PATH HAS SYMBOLICALLY-LINKS ISSUE",
+        "PATH HAS SYMBOLICALLY_LINKS ISSUE",
         "TOO MANY LEVELS OF SYMBOLIC LINKS",
         "RUN PATH HAS SYMBOLIC_LINK REFERENCE",
     ],
@@ -272,8 +274,18 @@ def test_render_plan_error_sanitizes_symbolically_links_hyphenated_plural_detail
     assert _render_plan_error(err) == "invalid plan path"
 
 
+def test_render_plan_error_sanitizes_symbolically_links_hyphenated_uppercase_detail() -> None:
+    err = PlanError("PLAN PATH HAS SYMBOLICALLY-LINKS ISSUE")
+    assert _render_plan_error(err) == "invalid plan path"
+
+
 def test_render_plan_error_sanitizes_symbolically_links_underscored_plural_detail() -> None:
     err = PlanError("plan path has symbolically_links issue")
+    assert _render_plan_error(err) == "invalid plan path"
+
+
+def test_render_plan_error_sanitizes_symbolically_links_underscored_uppercase_detail() -> None:
+    err = PlanError("PLAN PATH HAS SYMBOLICALLY_LINKS ISSUE")
     assert _render_plan_error(err) == "invalid plan path"
 
 
@@ -479,10 +491,22 @@ def test_render_runtime_error_detail_sanitizes_symbolically_links_hyphenated_plu
     assert _render_runtime_error_detail(err) == "invalid run path"
 
 
+def test_render_runtime_error_detail_sanitizes_symbolically_links_hyphenated_uppercase_detail() -> (
+    None
+):
+    err = OSError("RUN PATH HAS SYMBOLICALLY-LINKS ISSUE")
+    assert _render_runtime_error_detail(err) == "invalid run path"
+
+
 def test_render_runtime_error_detail_sanitizes_symbolically_links_underscored_plural_detail() -> (
     None
 ):
     err = OSError("run path has symbolically_links issue")
+    assert _render_runtime_error_detail(err) == "invalid run path"
+
+
+def test_render_runtime_error_detail_sanitizes_symbolically_links_uppercase_underscored() -> None:
+    err = OSError("RUN PATH HAS SYMBOLICALLY_LINKS ISSUE")
     assert _render_runtime_error_detail(err) == "invalid run path"
 
 
