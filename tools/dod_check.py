@@ -33,16 +33,26 @@ def _print_header(title: str) -> None:
     print(f"\n=== {title} ===")
 
 
-def _run(args: Sequence[str], *, expected: int | None = None, title: str) -> CommandResult:
+def _run(
+    args: Sequence[str],
+    *,
+    expected: int | None = None,
+    title: str,
+    timeout_sec: float = 180.0,
+) -> CommandResult:
     _print_header(title)
     print("+", " ".join(args))
-    completed = subprocess.run(
-        list(args),
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        completed = subprocess.run(
+            list(args),
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=timeout_sec,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"command timed out after {timeout_sec}s: {' '.join(args)}") from exc
     print(f"exit: {completed.returncode}")
     if completed.stdout.strip():
         print("stdout:")
@@ -228,8 +238,14 @@ def _run_cancel_scenario(orch_prefix: list[str], home_str: str, runs_dir: Path) 
         [*orch_prefix, "cancel", detected_run_id, "--home", home_str],
         expected=0,
         title="cancel running run",
+        timeout_sec=30.0,
     )
-    run_stdout, run_stderr = proc.communicate(timeout=30)
+    try:
+        run_stdout, run_stderr = proc.communicate(timeout=30)
+    except subprocess.TimeoutExpired as exc:
+        proc.terminate()
+        proc.communicate(timeout=10)
+        raise RuntimeError("cancel scenario run did not stop within timeout") from exc
     print("run(exit):", proc.returncode)
     if run_stdout.strip():
         print("run(stdout):")
@@ -259,6 +275,7 @@ def main(options: Options) -> int:
         [*orch_prefix, "run", "examples/plan_basic.yaml", "--home", home_str],
         expected=0,
         title="run basic plan",
+        timeout_sec=180.0,
     )
     basic_run_id = _parse_run_id(basic.stdout)
     _assert_run_status(basic_run_id, runs_dir, "SUCCESS")
@@ -276,6 +293,7 @@ def main(options: Options) -> int:
         ],
         expected=0,
         title="run parallel plan",
+        timeout_sec=180.0,
     )
     parallel_run_id = _parse_run_id(parallel.stdout)
     _assert_run_status(parallel_run_id, runs_dir, "SUCCESS")
@@ -287,6 +305,7 @@ def main(options: Options) -> int:
         [*orch_prefix, "run", "examples/plan_fail_retry.yaml", "--home", home_str],
         expected=3,
         title="run failure plan for skip propagation",
+        timeout_sec=180.0,
     )
     fail_run_id = _parse_run_id(fail.stdout)
     _assert_run_status(fail_run_id, runs_dir, "FAILED")
@@ -306,6 +325,7 @@ def main(options: Options) -> int:
         [*orch_prefix, "resume", basic_run_id, "--home", home_str],
         expected=0,
         title="resume completed run",
+        timeout_sec=180.0,
     )
     _ = resume
     _assert_run_status(basic_run_id, runs_dir, "SUCCESS")
@@ -320,6 +340,7 @@ def main(options: Options) -> int:
         [*orch_prefix, "status", basic_run_id, "--home", home_str],
         expected=0,
         title="status command",
+        timeout_sec=60.0,
     )
     _run(
         [
@@ -335,6 +356,7 @@ def main(options: Options) -> int:
         ],
         expected=0,
         title="logs command",
+        timeout_sec=60.0,
     )
 
     cancel_run_id = _run_cancel_scenario(orch_prefix, home_str, runs_dir)
@@ -344,16 +366,19 @@ def main(options: Options) -> int:
             [sys.executable, "-m", "ruff", "format", "--check", "."],
             expected=0,
             title="ruff format check",
+            timeout_sec=120.0,
         )
         _run(
             [sys.executable, "-m", "ruff", "check", "--no-fix", "."],
             expected=0,
             title="ruff lint check",
+            timeout_sec=120.0,
         )
         _run(
             [sys.executable, "-m", "pytest"],
             expected=0,
             title="pytest",
+            timeout_sec=900.0,
         )
     else:
         _print_header("quality gates")

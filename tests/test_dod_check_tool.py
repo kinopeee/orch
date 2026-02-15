@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import sys
 from pathlib import Path
 
@@ -163,6 +164,19 @@ def test_dod_check_detect_orch_prefix_falls_back_when_orch_missing(
 
     monkeypatch.setattr(module.subprocess, "run", fake_run)  # type: ignore[attr-defined]
     assert module._detect_orch_prefix() == [sys.executable, "-m", "orch.cli"]  # type: ignore[attr-defined]
+
+
+def test_dod_check_run_raises_runtime_error_on_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_dod_check_module()
+
+    def fake_run(*args: object, **kwargs: object) -> object:
+        raise subprocess.TimeoutExpired(cmd=["orch", "run"], timeout=1)
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)  # type: ignore[attr-defined]
+    with pytest.raises(RuntimeError, match="command timed out"):
+        module._run(["orch", "run"], title="timeout test", timeout_sec=1)  # type: ignore[attr-defined]
 
 
 def test_dod_check_parse_run_id_extracts_value() -> None:
