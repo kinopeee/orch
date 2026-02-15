@@ -4989,6 +4989,61 @@ tasks:
     assert "must not be symlink" not in captured.out
 
 
+def test_cli_run_sanitizes_symbolic_links_report_write_warning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    plan_path = tmp_path / "plan.yaml"
+    plan_path.write_text(
+        """
+tasks:
+  - id: t1
+    cmd: ["python3", "-c", "print('ok')"]
+""".strip(),
+        encoding="utf-8",
+    )
+    home = tmp_path / ".orch"
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+
+    async def fake_run_plan(*args: object, **kwargs: object) -> RunState:
+        return RunState(
+            run_id="run1",
+            created_at="2026-01-01T00:00:00+00:00",
+            updated_at="2026-01-01T00:00:01+00:00",
+            status="SUCCESS",
+            goal=None,
+            plan_relpath="plan.yaml",
+            home=str(home),
+            workdir=str(workdir),
+            max_parallel=1,
+            fail_fast=False,
+            tasks={},
+        )
+
+    def boom_write_report(_state: RunState, _run_dir: Path) -> Path:
+        raise OSError("Too many levels of symbolic links while writing final report")
+
+    monkeypatch.setattr(cli_module, "run_plan", fake_run_plan)
+    monkeypatch.setattr(cli_module, "_write_report", boom_write_report)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.run(
+            plan_path,
+            max_parallel=1,
+            home=home,
+            workdir=workdir,
+            fail_fast=False,
+            dry_run=False,
+        )
+    assert exc_info.value.exit_code == 0
+    captured = capsys.readouterr()
+    assert "failed to write report" in captured.out
+    assert "invalid run path" in captured.out
+    assert "symbolic links" not in captured.out.lower()
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
+
+
 def test_cli_resume_ignores_runtime_report_write_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -5042,3 +5097,64 @@ def test_cli_resume_ignores_runtime_report_write_error(
             failed_only=False,
         )
     assert exc_info.value.exit_code == 0
+
+
+def test_cli_resume_sanitizes_symbolic_links_report_write_warning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    home = tmp_path / ".orch"
+    home.mkdir()
+    workdir = tmp_path / "wd"
+    workdir.mkdir()
+    plan = PlanSpec(
+        goal=None,
+        artifacts_dir=None,
+        tasks=[TaskSpec(id="t1", cmd=["python3", "-c", "print('ok')"])],
+    )
+
+    @contextmanager
+    def fake_lock(*args: object, **kwargs: object) -> object:
+        yield
+
+    def fake_load_plan(_path: Path) -> PlanSpec:
+        return plan
+
+    async def fake_run_plan(*args: object, **kwargs: object) -> RunState:
+        return RunState(
+            run_id="run1",
+            created_at="2026-01-01T00:00:00+00:00",
+            updated_at="2026-01-01T00:00:01+00:00",
+            status="SUCCESS",
+            goal=None,
+            plan_relpath="plan.yaml",
+            home=str(home),
+            workdir=str(workdir),
+            max_parallel=1,
+            fail_fast=False,
+            tasks={},
+        )
+
+    def boom_write_report(_state: RunState, _run_dir: Path) -> Path:
+        raise OSError("Too many levels of symbolic links while writing final report")
+
+    monkeypatch.setattr(cli_module, "run_lock", fake_lock)
+    monkeypatch.setattr(cli_module, "load_plan", fake_load_plan)
+    monkeypatch.setattr(cli_module, "run_plan", fake_run_plan)
+    monkeypatch.setattr(cli_module, "_write_report", boom_write_report)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        cli_module.resume(
+            "run1",
+            home=home,
+            max_parallel=1,
+            workdir=workdir,
+            fail_fast=False,
+            failed_only=False,
+        )
+    assert exc_info.value.exit_code == 0
+    captured = capsys.readouterr()
+    assert "failed to write report" in captured.out
+    assert "invalid run path" in captured.out
+    assert "symbolic links" not in captured.out.lower()
+    assert "must not include symlink" not in captured.out
+    assert "must not be symlink" not in captured.out
