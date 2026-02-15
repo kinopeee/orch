@@ -174,6 +174,36 @@ def test_cli_helpers_run_resume_plan_error_symbolic_variants_are_sanitized() -> 
     assert matched == expected_names
 
 
+def test_cli_helpers_runtime_symbolic_links_variants_are_sanitized() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    helpers_source = (tests_root / "test_cli_helpers.py").read_text(encoding="utf-8")
+    helpers_module = ast.parse(helpers_source)
+
+    expected_checks = {
+        "test_cli_run_sanitizes_symbolic_links_execution_error": "Run execution failed",
+        "test_cli_status_sanitizes_symbolic_links_runtime_load_error": "Failed to load state",
+        "test_cli_cancel_sanitizes_symbolic_links_write_error": "Failed to request cancel",
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(helpers_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expected_checks:
+            continue
+
+        source_segment = ast.get_source_segment(helpers_source, node)
+        assert source_segment is not None
+        assert f'assert "{expected_checks[node.name]}" in captured.out' in source_segment
+        assert 'assert "invalid run path" in captured.out' in source_segment
+        assert 'assert "symbolic links" not in captured.out.lower()' in source_segment
+        assert 'assert "must not include symlink" not in captured.out' in source_segment
+        assert 'assert "must not be symlink" not in captured.out' in source_segment
+        matched.add(node.name)
+
+    assert matched == set(expected_checks)
+
+
 def test_new_run_id_format_includes_timestamp_and_suffix() -> None:
     now = datetime(2026, 2, 13, 12, 34, 56, tzinfo=UTC)
     run_id = new_run_id(now)
