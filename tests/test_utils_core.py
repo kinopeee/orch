@@ -188,6 +188,20 @@ def test_ci_workflow_runtime_smoke_uses_json_out_without_pipe_tee() -> None:
     assert "set -o pipefail" not in ci_workflow
 
 
+def test_ci_workflow_uses_env_variables_for_dod_paths() -> None:
+    ci_workflow = (
+        Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml"
+    ).read_text(encoding="utf-8")
+    assert "DOD_HOME: /tmp/orch_ci_dod" in ci_workflow
+    assert "DOD_SUMMARY_PATH: /tmp/orch_ci_dod_summary.json" in ci_workflow
+    assert (
+        'run: python tools/dod_check.py --skip-quality-gates --home "$DOD_HOME" --json-out '
+        '"$DOD_SUMMARY_PATH"' in ci_workflow
+    )
+    assert "path: ${{ env.DOD_SUMMARY_PATH }}" in ci_workflow
+    assert "--home /tmp/orch_ci_dod --json-out /tmp/orch_ci_dod_summary.json" not in ci_workflow
+
+
 def test_ci_workflow_uploads_dod_runtime_summary_artifact() -> None:
     ci_workflow = (
         Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml"
