@@ -49,6 +49,9 @@ from orch.util.errors import PlanError
         "path is symbolically_linked",
         "path is symbolically--linked",
         "path is symbolically__linked",
+        "PATH IS SYMBOLICALLY-LINKED",
+        "PATH IS SYMBOLICALLY_LINKED",
+        "PATH IS SYMBOLICALLYLINKED",
         "TOO MANY LEVELS OF SYMBOLIC LINKS",
         "RUN PATH HAS SYMBOLIC_LINK REFERENCE",
     ],
@@ -234,6 +237,11 @@ def test_render_plan_error_sanitizes_symbolically_linked_hyphenated_detail() -> 
     assert _render_plan_error(err) == "invalid plan path"
 
 
+def test_render_plan_error_sanitizes_symbolically_linked_hyphenated_uppercase_detail() -> None:
+    err = PlanError("PLAN PATH IS SYMBOLICALLY-LINKED TO ANOTHER LOCATION")
+    assert _render_plan_error(err) == "invalid plan path"
+
+
 def test_render_plan_error_sanitizes_symbolically_linked_underscored_detail() -> None:
     err = PlanError("plan path is symbolically_linked to another location")
     assert _render_plan_error(err) == "invalid plan path"
@@ -246,6 +254,11 @@ def test_render_plan_error_sanitizes_symbolically_linked_double_hyphen_detail() 
 
 def test_render_plan_error_sanitizes_symbolicallylinked_compact_detail() -> None:
     err = PlanError("plan path is symbolicallylinked to another location")
+    assert _render_plan_error(err) == "invalid plan path"
+
+
+def test_render_plan_error_sanitizes_symbolicallylinked_compact_uppercase_detail() -> None:
+    err = PlanError("PLAN PATH IS SYMBOLICALLYLINKED TO ANOTHER LOCATION")
     assert _render_plan_error(err) == "invalid plan path"
 
 
@@ -407,6 +420,11 @@ def test_render_runtime_error_detail_sanitizes_symbolically_linked_hyphenated_de
     assert _render_runtime_error_detail(err) == "invalid run path"
 
 
+def test_render_runtime_error_detail_sanitizes_symbolically_linked_uppercase_underscored() -> None:
+    err = OSError("RUN PATH IS SYMBOLICALLY_LINKED TO ANOTHER LOCATION")
+    assert _render_runtime_error_detail(err) == "invalid run path"
+
+
 def test_render_runtime_error_detail_sanitizes_symbolically_linked_underscored_detail() -> None:
     err = OSError("run path is symbolically_linked to another location")
     assert _render_runtime_error_detail(err) == "invalid run path"
@@ -421,6 +439,11 @@ def test_render_runtime_error_detail_sanitizes_symbolically_linked_double_unders
 
 def test_render_runtime_error_detail_sanitizes_symbolicallylinked_compact_detail() -> None:
     err = OSError("run path is symbolicallylinked to another location")
+    assert _render_runtime_error_detail(err) == "invalid run path"
+
+
+def test_render_runtime_error_detail_sanitizes_symbolicallylinked_uppercase_compact() -> None:
+    err = OSError("RUN PATH IS SYMBOLICALLYLINKED TO ANOTHER LOCATION")
     assert _render_runtime_error_detail(err) == "invalid run path"
 
 
