@@ -65,8 +65,18 @@ def test_render_plan_error_keeps_non_symlink_detail() -> None:
     assert _render_plan_error(err) == "plan contains unknown fields: ['extra']"
 
 
+def test_render_plan_error_sanitizes_symlink_detail_case_insensitive() -> None:
+    err = PlanError("Plan path has SyMlInK issue: /tmp/plan.yaml")
+    assert _render_plan_error(err) == "invalid plan path"
+
+
 def test_render_runtime_error_detail_sanitizes_symlink_detail() -> None:
     err = OSError("run directory path must not include symlink: /tmp/run")
+    assert _render_runtime_error_detail(err) == "invalid run path"
+
+
+def test_render_runtime_error_detail_sanitizes_symlink_case_insensitive() -> None:
+    err = OSError("RUN path contains SyMlInK reference")
     assert _render_runtime_error_detail(err) == "invalid run path"
 
 
