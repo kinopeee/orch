@@ -779,6 +779,7 @@ def test_cli_run_dry_run_both_toggles_rejects_symlink_plan_path(
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Plan validation error" in output
+    assert "invalid plan path" in output
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
@@ -825,6 +826,7 @@ def test_cli_run_dry_run_both_toggles_reverse_rejects_symlink_plan_path(
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Plan validation error" in output
+    assert "invalid plan path" in output
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
@@ -873,6 +875,7 @@ def test_cli_run_dry_run_both_toggles_rejects_plan_path_with_symlink_ancestor(
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Plan validation error" in output
+    assert "invalid plan path" in output
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
@@ -921,6 +924,7 @@ def test_cli_run_dry_run_both_toggles_reverse_rejects_plan_path_with_symlink_anc
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Plan validation error" in output
+    assert "invalid plan path" in output
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
@@ -999,6 +1003,7 @@ def test_cli_run_dry_run_both_toggles_symlinked_plan_precedes_invalid_workdir(
             context = f"{plan_mode}-{order_label}"
             assert proc.returncode == 2, context
             assert "Plan validation error" in output, context
+            assert "invalid plan path" in output, context
             assert "contains symlink component" not in output, context
             assert "must not include symlink" not in output, context
             assert "must not be symlink" not in output, context
@@ -18765,6 +18770,7 @@ def test_cli_dry_run_rejects_symlink_plan_path(tmp_path: Path) -> None:
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Plan validation error" in output
+    assert "invalid plan path" in output
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
@@ -18794,6 +18800,7 @@ def test_cli_dry_run_rejects_plan_path_with_symlink_ancestor(tmp_path: Path) -> 
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Plan validation error" in output
+    assert "invalid plan path" in output
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
@@ -19115,6 +19122,7 @@ def test_cli_resume_rejects_symlink_plan_file(tmp_path: Path) -> None:
     output = proc.stdout + proc.stderr
     assert proc.returncode == 2
     assert "Plan validation error" in output
+    assert "invalid plan path" in output
     assert "contains symlink component" not in output
     assert "must not include symlink" not in output
     assert "must not be symlink" not in output
