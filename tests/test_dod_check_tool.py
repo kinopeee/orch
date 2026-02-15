@@ -699,14 +699,18 @@ def test_dod_check_write_summary_json_rejects_invalid_payload(tmp_path: Path) ->
         "fail_run_id": "20260215_000002_0a1b2c",
         "cancel_run_id": "20260215_000003_3d4e5f",
     }
-    out_path = tmp_path / "dod-summary.json"
+    out_path = tmp_path / "nested" / "dod-summary.json"
     with pytest.raises(RuntimeError, match="invalid summary keys"):
         module._write_summary_json(out_path, payload)  # type: ignore[attr-defined]
+    assert not out_path.exists()
+    assert not out_path.parent.exists()
 
 
 def test_dod_check_write_summary_json_rejects_non_mapping_payload(tmp_path: Path) -> None:
     module = _load_dod_check_module()
-    out_path = tmp_path / "dod-summary.json"
+    out_path = tmp_path / "nested" / "dod-summary.json"
     payload = ["result", "PASS"]
     with pytest.raises(RuntimeError, match="invalid summary payload type: list"):
         module._write_summary_json(out_path, payload)  # type: ignore[arg-type, attr-defined]
+    assert not out_path.exists()
+    assert not out_path.parent.exists()
