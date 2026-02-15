@@ -127,6 +127,12 @@ JSON をファイルとして保存したい場合は `--json-out` を使いま�
 python tools/dod_check.py --json-out /tmp/orch_dod_summary.json
 ```
 
+CI と同等の runtime smoke をローカルで実行する場合は、次のコマンドを使います。
+
+```bash
+python tools/dod_check.py --skip-quality-gates --home /tmp/orch_ci_dod --json-out /tmp/orch_ci_dod_summary.json
+```
+
 - `plan_fail_retry.yaml` は失敗系確認用です（終了コード `3` が期待値）。
 - `resume` は SUCCESS 済みタスクを再実行しません。
 - `cancel` は実行中 run に対して実施してください（run 側終了コード `4`）。

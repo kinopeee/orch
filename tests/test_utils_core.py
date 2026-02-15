@@ -297,6 +297,10 @@ def test_readme_mentions_release_0_1_dod_self_check_script() -> None:
     assert "python tools/dod_check.py --home .orch_dod" in readme
     assert "python tools/dod_check.py --json" in readme
     assert "python tools/dod_check.py --json-out /tmp/orch_dod_summary.json" in readme
+    assert (
+        "python tools/dod_check.py --skip-quality-gates --home /tmp/orch_ci_dod "
+        "--json-out /tmp/orch_ci_dod_summary.json"
+    ) in readme
 
 
 def test_cli_error_output_paths_use_sanitizer_helpers() -> None:
