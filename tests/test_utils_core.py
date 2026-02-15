@@ -9384,6 +9384,7 @@ def test_cli_integration_resume_invalid_run_id_workdir_mode_matrices_output_cont
         assert 'assert "Invalid home" not in output, context' in source_segment
         assert 'assert "Run not found or broken" not in output, context' in source_segment
         assert 'assert "Plan validation error" not in output, context' in source_segment
+        assert 'assert "contains symlink component" not in output, context' in source_segment
         assert 'assert "run_id: [bold]" not in output, context' in source_segment
         assert 'assert "state:" not in output, context' in source_segment
         assert 'assert "report:" not in output, context' in source_segment
@@ -9696,6 +9697,7 @@ def test_cli_integration_resume_invalid_run_id_preserve_entries_matrices_output_
         assert 'assert "Invalid home" not in output, context' in source_segment
         assert 'assert "Run not found or broken" not in output, context' in source_segment
         assert 'assert "Plan validation error" not in output, context' in source_segment
+        assert 'assert "contains symlink component" not in output, context' in source_segment
         assert 'assert "run_id: [bold]" not in output, context' in source_segment
         if "run_artifacts" in node.name:
             assert 'assert "state: [bold]" not in output, context' in source_segment
@@ -11354,6 +11356,7 @@ def test_cli_integration_resume_invalid_run_id_workdir_preserve_supergroup_bound
         assert 'assert "Invalid home" not in output, context' in source_segment
         assert 'assert "Run not found or broken" not in output, context' in source_segment
         assert 'assert "Plan validation error" not in output, context' in source_segment
+        assert 'assert "contains symlink component" not in output, context' in source_segment
         assert 'assert "run_id: [bold]" not in output, context' in source_segment
         assert "side_effect_files" in source_segment
         assert "for file_path in side_effect_files:" in source_segment
@@ -11541,6 +11544,7 @@ def test_cli_integration_resume_invalid_run_id_workdir_matrix_groups_keep_bounda
         assert 'assert "Invalid home" not in output, context' in source_segment
         assert 'assert "Run not found or broken" not in output, context' in source_segment
         assert 'assert "Plan validation error" not in output, context' in source_segment
+        assert 'assert "contains symlink component" not in output, context' in source_segment
         assert 'assert "run_id: [bold]" not in output, context' in source_segment
         if expected["has_artifacts"]:
             assert 'assert "state: [bold]" not in output, context' in source_segment

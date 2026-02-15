@@ -16619,6 +16619,7 @@ def test_cli_resume_invalid_run_id_precedes_invalid_workdir_modes_matrix(
                 assert "Invalid home" not in output, context
                 assert "Run not found or broken" not in output, context
                 assert "Plan validation error" not in output, context
+                assert "contains symlink component" not in output, context
                 assert "run_id: [bold]" not in output, context
                 assert "state:" not in output, context
                 assert "report:" not in output, context
@@ -16716,6 +16717,7 @@ def test_cli_resume_default_home_invalid_run_id_precedes_invalid_workdir_modes_m
                 assert "Invalid home" not in output, context
                 assert "Run not found or broken" not in output, context
                 assert "Plan validation error" not in output, context
+                assert "contains symlink component" not in output, context
                 assert "run_id: [bold]" not in output, context
                 assert "state:" not in output, context
                 assert "report:" not in output, context
@@ -16821,6 +16823,7 @@ def test_cli_resume_invalid_run_id_precedes_invalid_workdir_existing_home_preser
                 assert "Invalid home" not in output, context
                 assert "Run not found or broken" not in output, context
                 assert "Plan validation error" not in output, context
+                assert "contains symlink component" not in output, context
                 assert "run_id: [bold]" not in output, context
                 assert "state:" not in output, context
                 assert "report:" not in output, context
@@ -16931,6 +16934,7 @@ def test_cli_resume_default_home_invalid_run_id_precedes_invalid_workdir_preserv
                 assert "Invalid home" not in output, context
                 assert "Run not found or broken" not in output, context
                 assert "Plan validation error" not in output, context
+                assert "contains symlink component" not in output, context
                 assert "run_id: [bold]" not in output, context
                 assert "state:" not in output, context
                 assert "report:" not in output, context
@@ -17047,6 +17051,7 @@ def test_cli_resume_invalid_run_id_precedes_invalid_workdir_existing_home_with_r
                 assert "Invalid home" not in output, context
                 assert "Run not found or broken" not in output, context
                 assert "Plan validation error" not in output, context
+                assert "contains symlink component" not in output, context
                 assert "run_id: [bold]" not in output, context
                 assert "state:" not in output, context
                 assert "report:" not in output, context
@@ -17171,6 +17176,7 @@ def test_cli_resume_default_home_invalid_run_id_precedes_invalid_workdir_with_ru
                 assert "Invalid home" not in output, context
                 assert "Run not found or broken" not in output, context
                 assert "Plan validation error" not in output, context
+                assert "contains symlink component" not in output, context
                 assert "run_id: [bold]" not in output, context
                 assert "state:" not in output, context
                 assert "report:" not in output, context
@@ -17302,6 +17308,7 @@ def test_cli_resume_invalid_run_id_invalid_workdir_existing_home_run_artifacts_m
                 assert "Invalid home" not in output, context
                 assert "Run not found or broken" not in output, context
                 assert "Plan validation error" not in output, context
+                assert "contains symlink component" not in output, context
                 assert "run_id: [bold]" not in output, context
                 assert "state: [bold]" not in output, context
                 assert "report: [bold]" not in output, context
@@ -17436,6 +17443,7 @@ def test_cli_resume_default_home_invalid_run_id_invalid_workdir_run_artifacts_ma
                 assert "Invalid home" not in output, context
                 assert "Run not found or broken" not in output, context
                 assert "Plan validation error" not in output, context
+                assert "contains symlink component" not in output, context
                 assert "run_id: [bold]" not in output, context
                 assert "state: [bold]" not in output, context
                 assert "report: [bold]" not in output, context
