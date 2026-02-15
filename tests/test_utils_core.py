@@ -240,6 +240,40 @@ def test_cli_helpers_runtime_symbolic_links_variants_are_sanitized() -> None:
     assert matched == set(expected_checks)
 
 
+def test_cli_helpers_runtime_symlink_named_tests_suppress_symbolic_links_detail() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    helpers_source = (tests_root / "test_cli_helpers.py").read_text(encoding="utf-8")
+    helpers_module = ast.parse(helpers_source)
+
+    expected_names = {
+        "test_cli_run_sanitizes_symlink_initialize_error",
+        "test_cli_run_sanitizes_symlink_execution_error",
+        "test_cli_resume_sanitizes_symlink_runtime_lock_error",
+        "test_cli_status_sanitizes_symlink_runtime_load_error",
+        "test_cli_logs_sanitizes_symlink_runtime_load_error",
+        "test_cli_cancel_sanitizes_symlink_runtime_run_exists_error_without_write",
+        "test_cli_cancel_sanitizes_symlink_write_error",
+        "test_cli_run_sanitizes_symlink_report_write_warning",
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(helpers_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expected_names:
+            continue
+
+        source_segment = ast.get_source_segment(helpers_source, node)
+        assert source_segment is not None
+        assert 'assert "invalid run path" in captured.out' in source_segment
+        assert 'assert "symbolic links" not in captured.out.lower()' in source_segment
+        assert 'assert "must not include symlink" not in captured.out' in source_segment
+        assert 'assert "must not be symlink" not in captured.out' in source_segment
+        matched.add(node.name)
+
+    assert matched == expected_names
+
+
 def test_new_run_id_format_includes_timestamp_and_suffix() -> None:
     now = datetime(2026, 2, 13, 12, 34, 56, tzinfo=UTC)
     run_id = new_run_id(now)

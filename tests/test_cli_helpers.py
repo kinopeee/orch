@@ -949,6 +949,7 @@ tasks:
     assert "invalid run path" in captured.out
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
+    assert "symbolic links" not in captured.out.lower()
 
 
 def test_cli_run_normalizes_runtime_execution_error(
@@ -1020,6 +1021,7 @@ tasks:
     assert "invalid run path" in captured.out
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
+    assert "symbolic links" not in captured.out.lower()
 
 
 def test_cli_run_sanitizes_symbolic_links_execution_error(
@@ -2323,6 +2325,7 @@ def test_cli_resume_sanitizes_symlink_runtime_lock_error(
     assert "invalid run path" in captured.out
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
+    assert "symbolic links" not in captured.out.lower()
 
 
 def test_cli_resume_sanitizes_symbolic_links_runtime_lock_error(
@@ -2403,6 +2406,7 @@ def test_cli_status_sanitizes_symlink_runtime_load_error(
     assert "invalid run path" in captured.out
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
+    assert "symbolic links" not in captured.out.lower()
 
 
 def test_cli_status_sanitizes_symbolic_links_runtime_load_error(
@@ -2477,6 +2481,7 @@ def test_cli_logs_sanitizes_symlink_runtime_load_error(
     assert "invalid run path" in captured.out
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
+    assert "symbolic links" not in captured.out.lower()
 
 
 def test_cli_logs_sanitizes_symbolic_links_runtime_load_error(
@@ -3189,6 +3194,7 @@ def test_cli_cancel_sanitizes_symlink_runtime_run_exists_error_without_write(
     assert "invalid run path" in captured.out
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
+    assert "symbolic links" not in captured.out.lower()
 
 
 def test_cli_cancel_normalizes_oserror_run_exists_error_without_write(
@@ -3236,6 +3242,7 @@ def test_cli_cancel_sanitizes_symlink_write_error(
     assert "invalid run path" in captured.out
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
+    assert "symbolic links" not in captured.out.lower()
 
 
 def test_cli_cancel_sanitizes_symbolic_links_write_error(
@@ -5007,6 +5014,7 @@ tasks:
     assert "invalid run path" in captured.out
     assert "must not include symlink" not in captured.out
     assert "must not be symlink" not in captured.out
+    assert "symbolic links" not in captured.out.lower()
 
 
 def test_cli_run_sanitizes_symbolic_links_report_write_warning(
