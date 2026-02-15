@@ -218,7 +218,7 @@ def main() -> int:
         title="ruff format check",
     )
     _run(
-        [sys.executable, "-m", "ruff", "check", "."],
+        [sys.executable, "-m", "ruff", "check", "--no-fix", "."],
         expected=0,
         title="ruff lint check",
     )
