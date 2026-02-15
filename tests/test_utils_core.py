@@ -9861,6 +9861,7 @@ def test_cli_integration_status_logs_resume_invalid_run_id_preserve_boundaries()
         assert 'assert "Invalid home" not in output, context' in source_segment
         assert 'assert "Run not found or broken" not in output, context' in source_segment
         assert 'assert "Plan validation error" not in output, context' in source_segment
+        assert 'assert "contains symlink component" not in output, context' in source_segment
         assert 'assert "run_id: [bold]" not in output, context' in source_segment
         assert 'assert "state: [bold]" not in output, context' in source_segment
         assert 'assert "report: [bold]" not in output, context' in source_segment
@@ -10033,6 +10034,7 @@ def test_cli_integration_status_logs_resume_invalid_run_id_with_runs_boundaries(
         assert 'assert "Invalid home" not in output, context' in source_segment
         assert 'assert "Run not found or broken" not in output, context' in source_segment
         assert 'assert "Plan validation error" not in output, context' in source_segment
+        assert 'assert "contains symlink component" not in output, context' in source_segment
         assert f"assert {home_var}.exists(), context" in source_segment
         assert f"{home_var}.iterdir()" in source_segment
         assert '"keep.txt"' in source_segment
@@ -10171,6 +10173,7 @@ def test_cli_integration_status_logs_resume_invalid_run_id_preserve_groups() -> 
         assert "for command in commands:" in source_segment
         assert 'assert "Invalid run_id" in output, context' in source_segment
         assert 'assert "Invalid home" not in output, context' in source_segment
+        assert 'assert "contains symlink component" not in output, context' in source_segment
         assert f"assert {home_var}.exists(), context" in source_segment
         assert f"{home_var}.iterdir()" in source_segment
         assert '"keep.txt"' in source_segment
@@ -10290,6 +10293,7 @@ def test_cli_integration_cancel_invalid_run_id_preserve_matrices_output_boundari
         assert 'assert "Invalid home" not in output, context' in source_segment
         assert 'assert "Run not found or broken" not in output, context' in source_segment
         assert 'assert "Plan validation error" not in output, context' in source_segment
+        assert 'assert "contains symlink component" not in output, context' in source_segment
         assert 'assert "Cancel request written" not in output, context' in source_segment
         assert f"assert {home_var}.exists(), context" in source_segment
         assert f'assert not ({home_var} / "runs").exists(), context' in source_segment
@@ -10383,6 +10387,7 @@ def test_cli_integration_invalid_run_id_preserve_matrix_groups_keep_boundaries()
         assert 'assert "Invalid home" not in output, context' in source_segment
         assert 'assert "Run not found or broken" not in output, context' in source_segment
         assert 'assert "Plan validation error" not in output, context' in source_segment
+        assert 'assert "contains symlink component" not in output, context' in source_segment
         assert f"assert {home_var}.exists(), context" in source_segment
         assert f'assert not ({home_var} / "runs").exists(), context' in source_segment
         assert f"{home_var}.iterdir()" in source_segment
@@ -10543,6 +10548,7 @@ def test_cli_integration_cancel_invalid_run_id_with_runs_preserve_boundaries() -
         assert 'assert "Invalid home" not in output, context' in source_segment
         assert 'assert "Run not found or broken" not in output, context' in source_segment
         assert 'assert "Plan validation error" not in output, context' in source_segment
+        assert 'assert "contains symlink component" not in output, context' in source_segment
         assert 'assert "Cancel request written" not in output, context' in source_segment
         assert f"assert {home_var}.exists(), context" in source_segment
         assert f"{home_var}.iterdir()" in source_segment
@@ -10681,6 +10687,7 @@ def test_cli_integration_cancel_invalid_run_id_preserve_matrix_groups_keep_bound
         assert 'assert "Invalid home" not in output, context' in source_segment
         assert 'assert "Run not found or broken" not in output, context' in source_segment
         assert 'assert "Plan validation error" not in output, context' in source_segment
+        assert 'assert "contains symlink component" not in output, context' in source_segment
         assert 'assert "Cancel request written" not in output, context' in source_segment
         assert f"assert {home_var}.exists(), context" in source_segment
         assert f"{home_var}.iterdir()" in source_segment
@@ -10891,6 +10898,7 @@ def test_cli_integration_invalid_run_id_preserve_matrix_supergroup_boundaries() 
         assert 'assert "Invalid home" not in output, context' in source_segment
         assert 'assert "Run not found or broken" not in output, context' in source_segment
         assert 'assert "Plan validation error" not in output, context' in source_segment
+        assert 'assert "contains symlink component" not in output, context' in source_segment
         assert f"assert {home_var}.exists(), context" in source_segment
         assert f"{home_var}.iterdir()" in source_segment
         assert '"keep.txt"' in source_segment
