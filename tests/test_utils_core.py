@@ -584,6 +584,43 @@ def test_cli_helpers_run_resume_plan_error_symbolic_variants_are_sanitized() -> 
     assert matched == expected_names
 
 
+def test_cli_helpers_run_resume_non_symlink_symbolic_details_are_preserved() -> None:
+    tests_root = Path(__file__).resolve().parents[1] / "tests"
+    helpers_source = (tests_root / "test_cli_helpers.py").read_text(encoding="utf-8")
+    helpers_module = ast.parse(helpers_source)
+
+    expected_checks = {
+        "test_cli_run_keeps_symbolic_linker_plan_error_detail": "symbolic-linker issue",
+        "test_cli_run_keeps_symbolic_linkless_plan_error_detail": "symbolic_linkless issue",
+        "test_cli_resume_keeps_symbolic_linker_plan_error_detail": "symbolic-linker issue",
+        "test_cli_resume_keeps_symbolic_linkless_plan_error_detail": "symbolic_linkless issue",
+        "test_cli_status_keeps_symbolic_linkless_runtime_load_error_detail": (
+            "symbolic_linkless issue"
+        ),
+    }
+
+    matched: set[str] = set()
+    for node in ast.walk(helpers_module):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if node.name not in expected_checks:
+            continue
+
+        source_segment = ast.get_source_segment(helpers_source, node)
+        assert source_segment is not None
+        expected_fragment = expected_checks[node.name]
+        assert expected_fragment in source_segment
+        if "runtime_load_error" in node.name:
+            assert 'assert "Failed to load state" in captured.out' in source_segment
+            assert 'assert "invalid run path" not in captured.out' in source_segment
+        else:
+            assert 'assert "Plan validation error" in captured.out' in source_segment
+            assert 'assert "invalid plan path" not in captured.out' in source_segment
+        matched.add(node.name)
+
+    assert matched == set(expected_checks)
+
+
 def test_cli_helpers_runtime_symbolic_links_variants_are_sanitized() -> None:
     tests_root = Path(__file__).resolve().parents[1] / "tests"
     helpers_source = (tests_root / "test_cli_helpers.py").read_text(encoding="utf-8")
