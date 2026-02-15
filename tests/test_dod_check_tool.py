@@ -455,6 +455,60 @@ def test_dod_check_build_summary_payload_contains_all_keys() -> None:
     }
 
 
+def test_dod_check_assert_summary_payload_consistent_accepts_valid_payload() -> None:
+    module = _load_dod_check_module()
+    payload = {
+        "result": "PASS",
+        "basic_run_id": "20260215_000000_a1b2c3",
+        "parallel_run_id": "20260215_000001_d4e5f6",
+        "fail_run_id": "20260215_000002_0a1b2c",
+        "cancel_run_id": "20260215_000003_3d4e5f",
+        "home": "/tmp/dod-home",
+    }
+    module._assert_summary_payload_consistent(payload)  # type: ignore[attr-defined]
+
+
+def test_dod_check_assert_summary_payload_consistent_rejects_missing_key() -> None:
+    module = _load_dod_check_module()
+    payload = {
+        "result": "PASS",
+        "basic_run_id": "20260215_000000_a1b2c3",
+        "parallel_run_id": "20260215_000001_d4e5f6",
+        "fail_run_id": "20260215_000002_0a1b2c",
+        "cancel_run_id": "20260215_000003_3d4e5f",
+    }
+    with pytest.raises(RuntimeError, match="invalid summary keys"):
+        module._assert_summary_payload_consistent(payload)  # type: ignore[attr-defined]
+
+
+def test_dod_check_assert_summary_payload_consistent_rejects_invalid_run_id() -> None:
+    module = _load_dod_check_module()
+    payload = {
+        "result": "PASS",
+        "basic_run_id": "invalid",
+        "parallel_run_id": "20260215_000001_d4e5f6",
+        "fail_run_id": "20260215_000002_0a1b2c",
+        "cancel_run_id": "20260215_000003_3d4e5f",
+        "home": "/tmp/dod-home",
+    }
+    with pytest.raises(RuntimeError, match="invalid summary run_id"):
+        module._assert_summary_payload_consistent(payload)  # type: ignore[attr-defined]
+
+
+def test_dod_check_assert_summary_payload_consistent_rejects_duplicate_run_ids() -> None:
+    module = _load_dod_check_module()
+    payload = {
+        "result": "PASS",
+        "basic_run_id": "20260215_000000_a1b2c3",
+        "parallel_run_id": "20260215_000001_d4e5f6",
+        "fail_run_id": "20260215_000001_d4e5f6",
+        "cancel_run_id": "20260215_000003_3d4e5f",
+        "home": "/tmp/dod-home",
+    }
+    with pytest.raises(RuntimeError, match="invalid summary run_id uniqueness"):
+        module._assert_summary_payload_consistent(payload)  # type: ignore[attr-defined]
+
+
 def test_dod_check_write_summary_json_creates_file(tmp_path: Path) -> None:
     module = _load_dod_check_module()
     payload = {

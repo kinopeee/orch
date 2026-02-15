@@ -339,6 +339,38 @@ def _build_summary_payload(
     }
 
 
+def _assert_summary_payload_consistent(payload: dict[str, str]) -> None:
+    required_keys = {
+        "result",
+        "basic_run_id",
+        "parallel_run_id",
+        "fail_run_id",
+        "cancel_run_id",
+        "home",
+    }
+    actual_keys = set(payload)
+    if actual_keys != required_keys:
+        missing = sorted(required_keys - actual_keys)
+        extra = sorted(actual_keys - required_keys)
+        raise RuntimeError(f"invalid summary keys: missing={missing}, extra={extra}")
+
+    if payload["result"] != "PASS":
+        raise RuntimeError(f"invalid summary result: {payload['result']!r}")
+    if payload["home"] == "":
+        raise RuntimeError("invalid summary home: empty")
+
+    run_id_pattern = re.compile(r"^\d{8}_\d{6}_[0-9a-f]{6}$")
+    run_id_keys = ("basic_run_id", "parallel_run_id", "fail_run_id", "cancel_run_id")
+    run_ids: list[str] = []
+    for key in run_id_keys:
+        run_id = payload[key]
+        if run_id_pattern.fullmatch(run_id) is None:
+            raise RuntimeError(f"invalid summary run_id: {key}={run_id!r}")
+        run_ids.append(run_id)
+    if len(set(run_ids)) != len(run_ids):
+        raise RuntimeError(f"invalid summary run_id uniqueness: {run_ids!r}")
+
+
 def _write_summary_json(path: Path, payload: dict[str, str]) -> None:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -479,6 +511,7 @@ def main(options: Options) -> int:
         cancel_run_id=cancel_run_id,
         home=options.home,
     )
+    _assert_summary_payload_consistent(payload)
     if options.emit_json:
         print(json.dumps(payload, sort_keys=True))
     if options.json_out is not None:
