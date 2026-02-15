@@ -49,6 +49,45 @@ def test_source_does_not_emit_symlink_component_detail_literal() -> None:
     assert offending_files == []
 
 
+def test_cli_error_output_paths_use_sanitizer_helpers() -> None:
+    cli_source = (Path(__file__).resolve().parents[1] / "src" / "orch" / "cli.py").read_text(
+        encoding="utf-8"
+    )
+
+    required_runtime_fragments = {
+        "[red]Failed to initialize run:[/red] {_render_runtime_error_detail(exc)}",
+        "[red]Run execution failed:[/red] {_render_runtime_error_detail(exc)}",
+        "[red]Run not found or broken:[/red] {_render_runtime_error_detail(exc)}",
+        "[red]Failed to load state:[/red] {_render_runtime_error_detail(exc)}",
+        "[red]Failed to inspect run:[/red] {_render_runtime_error_detail(exc)}",
+        "[red]Failed to request cancel:[/red] {_render_runtime_error_detail(exc)}",
+    }
+    for fragment in required_runtime_fragments:
+        assert fragment in cli_source
+
+    assert (
+        cli_source.count(
+            "[yellow]Warning:[/yellow] failed to write report: {_render_runtime_error_detail(exc)}"
+        )
+        >= 2
+    )
+
+    forbidden_runtime_fragments = {
+        "[red]Failed to initialize run:[/red] {exc}",
+        "[red]Run execution failed:[/red] {exc}",
+        "[red]Run not found or broken:[/red] {exc}",
+        "[red]Failed to load state:[/red] {exc}",
+        "[red]Failed to inspect run:[/red] {exc}",
+        "[red]Failed to request cancel:[/red] {exc}",
+        "[yellow]Warning:[/yellow] failed to write report: {exc}",
+    }
+    for fragment in forbidden_runtime_fragments:
+        assert fragment not in cli_source
+
+    assert cli_source.count("[red]Plan validation error:[/red] {_render_plan_error(exc)}") >= 2
+    assert "[red]Plan validation error:[/red] {exc}" not in cli_source
+
+
 def test_new_run_id_format_includes_timestamp_and_suffix() -> None:
     now = datetime(2026, 2, 13, 12, 34, 56, tzinfo=UTC)
     run_id = new_run_id(now)
