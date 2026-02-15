@@ -214,6 +214,7 @@ def test_ci_workflow_validates_dod_runtime_summary_json() -> None:
         'run_id_keys = ("basic_run_id", "parallel_run_id", "fail_run_id", "cancel_run_id")'
         in ci_workflow
     )
+    assert "unexpected = set(data).difference(required_keys)" in ci_workflow
     assert "if len(set(run_ids)) != len(run_ids):" in ci_workflow
 
 

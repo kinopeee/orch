@@ -39,6 +39,9 @@ jobs:
           missing = required_keys.difference(data)
           if missing:
               raise SystemExit(f"missing keys in summary: {sorted(missing)}")
+          unexpected = set(data).difference(required_keys)
+          if unexpected:
+              raise SystemExit(f"unexpected keys in summary: {sorted(unexpected)}")
           if data["result"] != "PASS":
               raise SystemExit(f"unexpected DoD result: {data['result']!r}")
           if data["home"] != "/tmp/orch_ci_dod":
