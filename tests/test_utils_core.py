@@ -96,6 +96,24 @@ def test_tools_dod_check_supports_skip_quality_gates_option() -> None:
     assert "--home" in source
 
 
+def test_tools_dod_check_passes_home_to_all_orch_commands() -> None:
+    source = (Path(__file__).resolve().parents[1] / "tools" / "dod_check.py").read_text(
+        encoding="utf-8"
+    )
+    required_patterns = (
+        r'"run",\s*"examples/plan_basic\.yaml",\s*"--home",\s*home_str',
+        r'"run",\s*"examples/plan_parallel\.yaml".*?"--home",\s*home_str',
+        r'"run",\s*"examples/plan_fail_retry\.yaml",\s*"--home",\s*home_str',
+        r'"resume",\s*basic_run_id,\s*"--home",\s*home_str',
+        r'"status",\s*basic_run_id,\s*"--home",\s*home_str',
+        r'"logs",\s*basic_run_id,\s*"--home",\s*home_str',
+        r'"cancel",\s*detected_run_id,\s*"--home",\s*home_str',
+        r'"run",\s*"examples/plan_cancel\.yaml",\s*"--home",\s*home_str',
+    )
+    for pattern in required_patterns:
+        assert re.search(pattern, source, flags=re.MULTILINE | re.DOTALL) is not None
+
+
 def test_ci_workflow_runs_dod_runtime_smoke() -> None:
     ci_workflow = (
         Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml"
