@@ -11149,6 +11149,7 @@ def test_cli_integration_run_id_precedence_over_invalid_home_shape_families() ->
         assert "assert proc.returncode == 2" in source_segment
         assert 'assert "Invalid run_id" in output' in source_segment
         assert 'assert "Invalid home" not in output' in source_segment
+        assert 'assert "contains symlink component" not in output' in source_segment
 
         if expected["command_family"] == "status_logs_resume":
             assert 'for command in ("status", "logs", "resume"):' in source_segment
