@@ -110,7 +110,10 @@ def _assert(condition: bool, message: str) -> None:
 def _parse_iso_timestamp(value: object) -> datetime:
     if not isinstance(value, str):
         raise RuntimeError(f"timestamp must be string, got {type(value).__name__}")
-    return datetime.fromisoformat(value)
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise RuntimeError("timestamp must include timezone offset")
+    return parsed
 
 
 def _intervals_overlap(

@@ -4,6 +4,8 @@ import importlib.util
 import sys
 from pathlib import Path
 
+import pytest
+
 
 def _load_dod_check_module() -> object:
     module_path = Path(__file__).resolve().parents[1] / "tools" / "dod_check.py"
@@ -94,3 +96,14 @@ def test_dod_check_has_parallel_overlap_false_without_root_overlap() -> None:
         }
     }
     assert not module._has_parallel_overlap(state)  # type: ignore[attr-defined]
+
+
+def test_dod_check_intervals_overlap_rejects_naive_timestamps() -> None:
+    module = _load_dod_check_module()
+    with pytest.raises(RuntimeError, match="timezone offset"):
+        module._intervals_overlap(  # type: ignore[attr-defined]
+            "2026-02-15T15:00:00",
+            "2026-02-15T15:00:02",
+            "2026-02-15T15:00:01+00:00",
+            "2026-02-15T15:00:03+00:00",
+        )
