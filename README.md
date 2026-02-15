@@ -79,3 +79,24 @@ ruff check .
 mypy src
 pytest
 ```
+
+## Release 0.1 DoD セルフチェック
+
+以下を順に実行すると、Release 0.1 の主要DoDを手元で確認できます。
+
+```bash
+orch run examples/plan_basic.yaml
+orch run examples/plan_parallel.yaml --max-parallel 2
+orch run examples/plan_fail_retry.yaml
+orch resume <run_id>
+orch status <run_id>
+orch logs <run_id> --task <task_id> --tail 50
+orch cancel <running_run_id>
+ruff format --check .
+ruff check .
+pytest
+```
+
+- `plan_fail_retry.yaml` は失敗系確認用です（終了コード `3` が期待値）。
+- `resume` は SUCCESS 済みタスクを再実行しません。
+- `cancel` は実行中 run に対して実施してください（run 側終了コード `4`）。
