@@ -1,0 +1,8 @@
+goal: "cancel scenario"
+tasks:
+  - id: long
+    cmd: ["python3", "tools/fake_agent.py", "inspect", "--sleep", "5"]
+
+  - id: downstream
+    cmd: ["python3", "tools/fake_agent.py", "build"]
+    depends_on: ["long"]

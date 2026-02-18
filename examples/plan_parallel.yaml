@@ -1,0 +1,14 @@
+goal: "parallel execution flow"
+tasks:
+  - id: inspect_a
+    cmd: ["python3", "tools/fake_agent.py", "inspect", "--sleep", "1", "--produce", "tmp/a.json"]
+    outputs: ["tmp/a.json"]
+
+  - id: inspect_b
+    cmd: ["python3", "tools/fake_agent.py", "inspect", "--sleep", "1", "--produce", "tmp/b.json"]
+    outputs: ["tmp/b.json"]
+
+  - id: build
+    cmd: ["python3", "tools/fake_agent.py", "build", "--produce", "tmp/build_parallel.json"]
+    depends_on: ["inspect_a", "inspect_b"]
+    outputs: ["tmp/build_parallel.json"]

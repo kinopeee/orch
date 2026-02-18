@@ -1,0 +1,116 @@
+from __future__ import annotations
+
+import errno
+import os
+import stat
+from contextlib import suppress
+from pathlib import Path
+
+from orch.util.path_guard import has_symlink_ancestor, is_symlink_path
+
+
+def cancel_requested(run_dir: Path) -> bool:
+    path = run_dir / "cancel.request"
+    if has_symlink_ancestor(path):
+        return False
+    try:
+        run_meta = run_dir.lstat()
+    except FileNotFoundError:
+        return False
+    except (OSError, RuntimeError):
+        return False
+    if stat.S_ISLNK(run_meta.st_mode) or not stat.S_ISDIR(run_meta.st_mode):
+        return False
+    try:
+        meta = path.lstat()
+    except FileNotFoundError:
+        return False
+    except (OSError, RuntimeError):
+        return False
+    if stat.S_ISLNK(meta.st_mode):
+        return False
+    return stat.S_ISREG(meta.st_mode)
+
+
+def write_cancel_request(run_dir: Path) -> None:
+    path = run_dir / "cancel.request"
+    if has_symlink_ancestor(path):
+        raise OSError("cancel request path must not include symlink")
+    try:
+        run_meta = run_dir.lstat()
+    except FileNotFoundError as exc:
+        raise OSError("cancel request run directory not found") from exc
+    except (OSError, RuntimeError) as exc:
+        raise OSError("failed to access cancel request run directory") from exc
+    if not stat.S_ISDIR(run_meta.st_mode):
+        raise OSError("cancel request run directory must be directory")
+    if is_symlink_path(path):
+        raise OSError("cancel request path must not be symlink")
+    try:
+        path_meta = path.lstat()
+    except FileNotFoundError:
+        path_meta = None
+    except (OSError, RuntimeError) as exc:
+        raise OSError("cancel request path must be regular file") from exc
+    if path_meta is not None:
+        if stat.S_ISLNK(path_meta.st_mode):
+            raise OSError("cancel request path must not be symlink")
+        if not stat.S_ISREG(path_meta.st_mode):
+            raise OSError("cancel request path must be regular file")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    if hasattr(os, "O_NONBLOCK"):
+        flags |= os.O_NONBLOCK
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    fd: int | None = None
+    try:
+        fd = os.open(path, flags, 0o600)
+        opened_meta = os.fstat(fd)
+        if not stat.S_ISREG(opened_meta.st_mode):
+            raise OSError("cancel request path must be regular file")
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            fd = None
+            f.write("cancel requested\n")
+    except OSError as exc:
+        is_symlink = is_symlink_path(path)
+        if is_symlink or exc.errno == errno.ELOOP:
+            raise OSError("cancel request path must not be symlink") from exc
+        if isinstance(exc, FileNotFoundError) or exc.errno == errno.ENOENT:
+            raise OSError("cancel request run directory not found") from exc
+        if isinstance(exc, NotADirectoryError) or exc.errno == errno.ENOTDIR:
+            raise OSError("cancel request run directory must be directory") from exc
+        if exc.errno == errno.ENXIO:
+            raise OSError("cancel request path must be regular file") from exc
+        raise
+    except RuntimeError as exc:
+        if is_symlink_path(path):
+            raise OSError("cancel request path must not be symlink") from exc
+        raise OSError("failed to write cancel request") from exc
+    finally:
+        if fd is not None:
+            with suppress(OSError, RuntimeError):
+                os.close(fd)
+
+
+def clear_cancel_request(run_dir: Path) -> None:
+    path = run_dir / "cancel.request"
+    if has_symlink_ancestor(path):
+        return
+    try:
+        run_meta = run_dir.lstat()
+    except FileNotFoundError:
+        return
+    except (OSError, RuntimeError):
+        return
+    if stat.S_ISLNK(run_meta.st_mode) or not stat.S_ISDIR(run_meta.st_mode):
+        return
+    try:
+        meta = path.lstat()
+    except FileNotFoundError:
+        return
+    except (OSError, RuntimeError):
+        return
+    if stat.S_ISDIR(meta.st_mode):
+        return
+    with suppress(OSError, RuntimeError):
+        path.unlink(missing_ok=True)
