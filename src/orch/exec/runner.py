@@ -392,6 +392,7 @@ def _rerun_set(
 
 def _reset_for_rerun(task_state: TaskState) -> None:
     task_state.status = "PENDING"
+    task_state.attempts = 0
     task_state.started_at = None
     task_state.ended_at = None
     task_state.duration_sec = None
